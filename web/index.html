@@ -71,6 +71,9 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .btn.primary{background:var(--btn-primary);color:var(--btn-primary-text);border-color:transparent}
 .btn.primary:hover{filter:brightness(1.06);background:var(--btn-primary);color:var(--btn-primary-text)}
 .btn.ghost{border-color:transparent;background:none}
+/* 按钮里的图标一律 14px、不被压缩：各图标画的尺寸不一样（13/14/15），并排时高低、大小会参差 */
+.btn>svg{width:14px;height:14px;flex-shrink:0;display:block}
+.btn{line-height:1}
 .btn.ghost:hover{background:var(--hover)}
 .ib{width:26px;height:26px;display:grid;place-items:center;border-radius:var(--r);color:var(--text-3);flex-shrink:0;
   transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease),transform var(--t-press) var(--ease-out)}
@@ -164,6 +167,18 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f.native{width:max-content}
 .f-in{flex:none;display:flex;flex-direction:column;width:340px;position:relative}
 .f.pill .f-in{width:300px}
+/* 收起 / 展开时旧内容的影子：叠在原位淡出，不接收鼠标 */
+.f-ghost{position:absolute;top:0;left:0;z-index:5;pointer-events:none}
+.f.side-right>.f-ghost{left:auto;right:0}
+.f.v-bottom>.f-ghost{top:auto;bottom:0}
+/* 有没看的通知：悬浮窗内沿一圈很淡的光，慢慢亮起、暗下（呼吸），打开通知或看完就停。
+   只动一个元素的 opacity，并且按 steps 每秒约 10 次更新，免得毛玻璃下每帧整窗重绘吃 CPU */
+.f>.breath{position:absolute;inset:0;z-index:31;pointer-events:none;border-radius:8px;opacity:.2;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--bc) 70%,transparent),inset 0 0 18px -2px color-mix(in srgb,var(--bc) 45%,transparent);
+  animation:breath 2.8s steps(14) infinite alternate}
+@keyframes breath{to{opacity:1}}
+.f.pill>.breath,.f.tucked>.breath{border-radius:inherit}
+@media (prefers-reduced-motion:reduce){.f>.breath{animation:none;opacity:.7}}
 .f.fill{height:100vh}
 .f.fill .f-in{width:100%;height:100%}
 /* 原生窗口：高度跟内容走，列表最多到 560px 再滚动 */
@@ -328,7 +343,21 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .it-s.skipped .tx{color:var(--text-4);text-decoration:line-through}
 .it-s .tm{color:var(--text-4);font-size:11.5px;line-height:18px;white-space:nowrap}
 .it-s.doing .tm{color:var(--text-2)}
-.s-more{display:flex;gap:6px;margin-top:6px}
+.s-more{display:flex;align-items:center;gap:2px;margin:6px 0 0 -9px} /* 左移按钮内边距，图标和上面条目的勾对齐 */
+.s-more .btn{color:var(--text-3)}
+.s-more .btn:hover{color:var(--text-1)}
+/* 清单里的模块段标题：小号灰字 + 这一段的进度，勾完变绿；第一段上面不留空 */
+.it-g{display:flex;align-items:center;gap:8px;margin:10px 0 2px;padding:0 2px;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--text-3);list-style:none}
+.it-g:first-child{margin-top:2px}
+.it-g .num{margin-left:auto;font-weight:500;color:var(--text-4)}
+.it-g.ok .num{color:var(--green)}
+.it-g::after{content:"";order:1;flex:1;height:1px;background:var(--line-soft)}
+.it-g.sep{margin:8px 0 4px;height:1px;gap:0}
+.it-g.sep::after{margin:0}
+.it-g .num{order:2;margin-left:0}
+.checklist .it-g{margin:14px 0 4px;padding:0 12px;font-size:11.5px}
+.checklist .it-g:first-child{margin-top:4px}
+.cd-list li.it-g{display:flex;padding:8px 0 2px;font-size:11px;color:var(--text-3)}
 .f-empty{padding:22px 20px 22px;text-align:center;color:var(--text-3);line-height:1.65}
 .f-empty b{display:block;color:var(--text-1);font-weight:510;margin-bottom:2px}
 /* 空状态小插画：线条先画出来，对勾再一笔一笔描上，只在出现时放一次 */
@@ -387,8 +416,8 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 /* 归档后的撤销条 */
 .undo{display:flex;align-items:center;gap:8px;margin:2px 8px 8px;padding:6px 6px 6px 12px;border-radius:var(--r-lg);
   background:var(--layer-2);border:1px solid var(--line);font-size:12px;color:var(--text-2)}
-.undo span{flex:1}
-.undo .g-act{margin-right:0;color:var(--text-1)}
+.undo span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.undo .g-act{margin-right:0;color:var(--text-1);flex-shrink:0;white-space:nowrap}
 /* 小进度环：可以点，点了打开那个会话 */
 .mini{cursor:pointer;transition:transform var(--t-press) var(--ease-out)}
 .mini:active{transform:scale(.96)}
@@ -448,6 +477,12 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f.fill .f-drawer{box-shadow:var(--shadow-pop)}
 .dr-top{display:flex;align-items:center;gap:10px;height:46px;padding:0 10px 0 16px;flex-shrink:0;user-select:none;box-shadow:inset 0 -1px 0 var(--line-soft)}
 .dr-top b{color:var(--text-1);font-weight:600;font-size:13.5px;letter-spacing:-.01em}
+/* 返回箭头：贴左边，悬停时往左挪一点，提示“回上一层” */
+.dr-top{padding-left:6px}
+.dr-back{margin-right:-4px}
+.dr-back svg{transition:transform 180ms var(--ease-out)}
+.dr-back:hover svg{transform:translateX(-2px)}
+.dr-top .g-act{margin-right:0}
 /* 分段切换：两段等宽，一块滑块在两段之间弹过去；未读数是一枚主题绿小胶囊 */
 .seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:3px;border-radius:9px;
   background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
@@ -491,6 +526,14 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .pk-o{flex-shrink:0;display:flex;align-items:center;gap:10px;height:28px;padding:0 8px 0 10px;border-radius:var(--r);color:var(--text-2);text-align:left;white-space:nowrap;
   transition:background-color 90ms var(--ease),color 90ms var(--ease)}
 .pk-o:hover,.pk-o:focus-visible{background:var(--hover);color:var(--text-1);outline:none}
+/* 右键菜单：顶部一行灰色标题说明是哪个会话；图标 14px 和文字居中对齐 */
+.ctx{min-width:180px;max-width:260px;transform-origin:top left}
+.ctx-h{padding:4px 10px 5px;font-size:11px;color:var(--text-4);border-bottom:1px solid var(--line-soft);margin-bottom:3px}
+.ctx .pk-o svg{width:14px;height:14px;flex-shrink:0;color:var(--text-3);margin-left:0} /* 下拉里的对勾是 margin-left:auto 推到右边的，这里是行首图标 */
+.ctx .pk-o:hover svg{color:var(--text-1)}
+.ctx .pk-o.warn:hover{color:var(--red)}
+.ctx .pk-o.warn:hover svg{color:var(--red)}
+[data-glass] .pk-pop{background:color-mix(in srgb,var(--bg-3) 94%,transparent)}
 .pk-o.on{color:var(--text-1);font-weight:510}
 .pk-o svg{margin-left:auto;color:var(--brand)}
 .pk-o.on:not(:hover) svg{animation:pkChk 260ms cubic-bezier(.34,1.56,.64,1) backwards 60ms}
@@ -514,18 +557,24 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 /* ============ 毛玻璃（Win11：窗口背后是系统 Acrylic 模糊） ============
    页面底色改成约八成不透明，背后的桌面透出一点模糊的颜色；文字对比度不变 */
 [data-glass],[data-glass] body{background:transparent!important}
-[data-glass] .f{background:color-mix(in srgb,var(--bg-2) 80%,transparent)}
+/* 所有浮窗（悬浮窗、托盘菜单、托盘未读预览、提醒卡）共用一套底色：--glass。
+   盖在悬浮窗内容上的层（通知抽屉、Agent 面板）再加一层页面内的高斯模糊，底下的列表只剩一片色块，不会和上面的字叠在一起 */
+[data-glass]{--glass:color-mix(in srgb,var(--bg-2) 78%,transparent);--glass-over:color-mix(in srgb,var(--bg-2) 86%,transparent)}
+[data-glass] .f,[data-glass] .tst,[data-glass] .mn,[data-glass] .pk-box{background:var(--glass)}
 [data-glass] .f::before{opacity:.6}
 [data-glass] .f-top{background:color-mix(in srgb,var(--bg-2) 35%,transparent);backdrop-filter:none;-webkit-backdrop-filter:none}
-[data-glass] .f-drawer{background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-[data-glass] .tst{background:color-mix(in srgb,var(--bg-2) 82%,transparent)}
+[data-glass] .f-drawer{background:var(--glass-over)}
+/* 抽屉 / Agent 面板盖上来时，底下的内容自己高斯模糊并压暗：透明窗口里 backdrop-filter 不生效（实测），
+   直接给被盖住的那层加 filter，效果一样，而且只在打开时算一次 */
+.f.drawer>.f-in,.f.sheet>.f-in{filter:blur(10px) saturate(1.2);opacity:.45;transition:filter 220ms var(--ease-out),opacity 220ms var(--ease-out)}
+.f>.f-in{transition:filter 180ms var(--ease),opacity 180ms var(--ease)}
+@media (prefers-reduced-motion:reduce){.f.drawer>.f-in,.f.sheet>.f-in{filter:none;opacity:.2}}
 [data-glass] .n-card{background:linear-gradient(color-mix(in srgb,var(--bg-3) 92%,transparent),color-mix(in srgb,var(--bg-3) 92%,transparent)) padding-box,var(--edge) border-box}
 
 /* ============ 托盘菜单（view=menu） ============
    头部：logo + 版本 + 会话统计 + 总进度环；六宫格常用操作；开关列表（拨动开关）；底栏 */
 html:not([data-glass]):has(.mn),html:not([data-glass]):has(.mn) body{background:var(--bg-2)}
 .mn{width:300px;display:flex;flex-direction:column;outline:none;user-select:none}
-[data-glass] .mn{background:color-mix(in srgb,var(--bg-2) 78%,transparent)}
 .mn-h{display:flex;align-items:center;gap:11px;padding:14px 14px 12px}
 .mn-logo{width:34px;height:34px}
 .mn-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -610,6 +659,32 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 @keyframes tcBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 @media (prefers-reduced-motion:reduce){.tc-ic,.tc-tx,.tc-ok circle:first-child,.tc-burst{animation:none}.tc-ok path{animation:none;stroke-dashoffset:0}}
 
+/* ============ 托盘悬停预览（view=peek）：未读列表，像微信托盘那样 ============ */
+html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body{background:var(--bg-2)}
+.pk-box{width:320px;display:flex;flex-direction:column}
+.pv-h{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px 0 14px;box-shadow:inset 0 -1px 0 var(--line-soft)}
+.pv-h .logo{width:16px;height:16px}
+.pv-h b{color:var(--text-1);font-weight:600;font-size:13px}
+.pv-n{min-width:18px;height:16px;padding:0 5px;border-radius:8px;display:grid;place-items:center;font-size:10.5px;font-weight:650;
+  background:color-mix(in srgb,var(--brand) 22%,transparent);color:var(--brand-hi)}
+.pv-h .g-act{margin-right:0}
+.pv-list{display:flex;flex-direction:column;padding:4px}
+.pv-row{display:flex;align-items:flex-start;gap:9px;width:100%;padding:7px 8px;border-radius:var(--r);text-align:left;
+  transition:background-color var(--t-hover) var(--ease)}
+.pv-row:hover{background:var(--hover)}
+.pv-row:active{background:var(--active)}
+.pv-row>.ic{margin-top:2px}
+.pv-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.pv-t{display:flex;align-items:baseline;gap:4px;font-size:12.5px;color:var(--text-2);white-space:nowrap;overflow:hidden}
+.pv-t b{color:var(--text-1);font-weight:510}
+.pv-t em{font-style:normal;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pv-s{font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-row .when{flex-shrink:0;font-size:11px;color:var(--text-4);margin-top:2px}
+.pv-more{padding:0 14px 6px;font-size:11.5px;color:var(--text-4)}
+.pv-f{display:flex;justify-content:flex-end;height:34px;align-items:center;padding:0 10px;box-shadow:inset 0 1px 0 var(--line-soft)}
+.pv-f .g-act{margin-right:0}
+.pv-f .g-act:hover,.dr-clear:hover{color:var(--red)}
+
 /* 组头：一律单行，不许被挤成竖排；操作按钮只放图标，鼠标移到组头上（或键盘聚焦）才出现 */
 .g-h{white-space:nowrap;min-height:34px}
 .g-h>*{flex-shrink:0}
@@ -648,7 +723,6 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 /* Agent 面板：和通知抽屉同一个壳，从 logo 那里展开 */
 .f.sheet .f-in{min-height:360px}
 .f-agents{transform-origin:22px 22px}
-[data-glass] .f-agents{background:var(--bg-2);backdrop-filter:none;-webkit-backdrop-filter:none} /* 毛玻璃透出底下的会话列表，字叠在一起看不清 */
 .f-agents .dr-top .conn{font-size:11.5px}
 .ag-list{display:flex;flex-direction:column;padding:6px}
 .ag-row{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--r-lg);text-align:left;
@@ -892,7 +966,9 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 .toast[data-state=show]{opacity:1;transform:none}
 .toast[data-state=leave]{opacity:0;transform:translateY(8px);transition-duration:200ms}
 .toast b{color:var(--text-1);font-weight:510}
-.toast-act{height:24px;padding:0 8px;border-radius:var(--r);background:var(--layer-3);color:var(--text-1);font-weight:510;font-size:12px}
+.toast-act{height:24px;padding:0 10px;border-radius:var(--r);background:var(--layer-3);color:var(--text-1);font-weight:510;font-size:12px;flex-shrink:0;white-space:nowrap}
+/* 文字太长（比如归档了一个长标题的会话）：一行省略，别把右边的按钮挤成竖排 */
+.toast>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.35);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh}
 [data-theme=light] .overlay{background:rgba(0,0,0,.12)}
 .dialog{width:min(640px,calc(100% - 32px));border-radius:var(--r-xl);background:var(--frost);backdrop-filter:blur(20px) saturate(140%);
@@ -901,6 +977,22 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 .guide{padding:18px 20px 20px;max-height:78vh;overflow:auto}
 .guide h2{display:flex;align-items:center;font-size:15px;font-weight:510;color:var(--text-1)}
 .guide h4{margin:16px 0 6px;font-size:12px;font-weight:510;color:var(--text-3)}
+.guide h3{margin:20px 0 8px;font-size:13px;font-weight:600;color:var(--text-1)}
+.guide p b{color:var(--text-2);font-weight:510}
+.guide code{font:11.5px var(--mono);color:var(--text-2)}
+/* 技能：每个 agent 一行，名字 + 状态 + 路径 + 复制 */
+.sk-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-1);overflow:hidden}
+.sk-row{display:grid;grid-template-columns:120px 92px minmax(0,1fr) 26px;align-items:center;gap:10px;height:36px;padding:0 6px 0 12px;font-size:12.5px}
+.sk-row+.sk-row{border-top:1px solid var(--line-soft)}
+.sk-row b{font-weight:510;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sk-row.dim{opacity:.55}
+.sk-row code{color:var(--text-3)}
+.sk-st{justify-self:start;font-size:11px;padding:0 7px;height:18px;line-height:18px;border-radius:9px;white-space:nowrap}
+.sk-st.ok{color:var(--green);background:color-mix(in srgb,var(--green) 14%,transparent)}
+.sk-st.old{color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,transparent)}
+.sk-st.miss{color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+.sk-st.none{color:var(--text-4);background:var(--layer-2)}
+.sk-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .guide p{color:var(--text-3);margin-top:6px;line-height:1.6}
 .code{position:relative;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-1)}
 .code pre{font:12px/1.7 var(--mono);padding:10px 76px 10px 12px;white-space:pre-wrap;word-break:break-all;color:var(--text-2)}
@@ -1011,6 +1103,7 @@ const NATIVE = typeof window.tickDrag === 'function'; // Go 宿主注入的函�
 const FLOAT = VIEW === 'float' || VIEW === 'mini';
 const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示悬浮窗转过来的卡片，不连数据
 const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
+const PEEK = VIEW === 'peek';   // 鼠标停在托盘图标上弹出的未读列表（像微信）
 const WIN = qs.get('host') === 'panel' && typeof window.tickWin === 'function'; // 原生面板窗口：无边框，标题栏由页面画
 if (WIN) document.documentElement.dataset.win = '';
 const HTTP = location.protocol.startsWith('http');
@@ -1033,8 +1126,8 @@ const esc = v => {
 // 带数字的句子先按整句换（语序不同），其余按词组从长到短替换
 const TR_RE = [
   [/今天勾了 (\d+) 项/g, '$1 checked today'], [/勾了 (\d+) 项 · 干活 /g, '$1 checked · worked '], [/勾了 (\d+) 项/g, 'checked $1'],
-  [/勾了 #(\d+)/g, 'checked #$1'], [/勾选 #(\d+)/g, 'check #$1'], [/还剩 (\d+) 分钟/g, '$1 min left'], [/(\d+) 条未读通知/g, '$1 unread'],
-  [/还有 (\d+) 个没铺开，回列表里看/g, '$1 more in the list'], [/(\d+) 个进行中/g, '$1 running'], [/(\d+) 个在等你/g, '$1 waiting on you'],
+  [/勾了 #(\d+)/g, 'checked #$1'], [/完成了第 (\d+) 项/g, 'finished step $1'], [/完成了 (\d+) 项/g, 'finished $1 steps'], [/勾选 #(\d+)/g, 'check #$1'], [/还剩 (\d+) 分钟/g, '$1 min left'], [/(\d+) 条未读通知/g, '$1 unread'],
+  [/还有 (\d+) 个没铺开，回列表里看/g, '$1 more in the list'], [/还有 (\d+) 条，点开悬浮窗的通知看全部/g, '$1 more in the notifications'], [/(\d+) 个进行中/g, '$1 running'], [/(\d+) 个在等你/g, '$1 waiting on you'],
   [/刚结束 (\d+) 个/g, '$1 recently ended'], [/还有 (\d+) 个/g, '$1 more'], [/(\d+) 个会话在跑/g, '$1 running'],
   [/前面 (\d+) 项（(\d+) 项已完成）/g, '$1 earlier ($2 done)'], [/前面 (\d+) 项已完成/g, '$1 earlier, all done'], [/后面还有 (\d+) 项/g, '$1 more below'],
   [/(\d+) 个没做成/g, '$1 failed'], [/已结束 (\d+) 个掉线的会话/g, 'Ended $1 stalled sessions'], [/已归档 (\d+) 个结束的会话/g, 'Archived $1 ended sessions'], [/已归档 (\d+) 个/g, 'Archived $1'],
@@ -1102,7 +1195,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1155,7 +1248,7 @@ const byOrder = (a, b) => (S.order === 'old' ? a.createdAt - b.createdAt : b.cre
 const trMap = m => (EN ? Object.fromEntries(Object.entries(m).map(([k, v]) => [k, trText(v)])) : m);
 const STATUS = trMap({ planning: '写清单', running: '进行中', waiting: '等你', blocked: '受阻', done: '完成', failed: '没做成', cancelled: '已取消' });
 const ITEM = trMap({ todo: '待办', doing: '进行中', done: '完成', skipped: '跳过', blocked: '卡住' });
-const VIEWS = trMap({ active: '进行中', waiting: '等你', idle: '没动静', history: '历史', all: '全部', archived: '已归档' });
+const VIEWS = trMap({ active: '进行中', waiting: '等你', idle: '可能掉线了', history: '历史', all: '全部', archived: '已归档' });
 const AGENTS = {
   claude: { name: 'Claude', mark: 'Cl', color: '#D97757' }, codex: { name: 'Codex', mark: 'Cx', color: '#4CB782' },
   cursor: { name: 'Cursor', mark: 'Cu', color: '#4EA7FC' }, kiro: { name: 'Kiro', mark: 'Ki', color: '#9B7BF7' },
@@ -1194,9 +1287,14 @@ const progress = s => ({ done: s.items.filter(finished).length, total: s.items.l
 const isEnded = s => s.status === 'done' || s.status === 'failed' || s.status === 'cancelled';
 const isWaiting = s => s.status === 'waiting' || s.status === 'blocked';
 const current = s => s.items.find(it => it.status === 'doing') || null;
-const isStale = s => s.status === 'running' && now() - s.updatedAt > 10 * MIN;
+// 10 分钟没报；子 agent 在动时不算（主会话在等子任务，没有“没动静”）
+const isStale = s => s.status === 'running' && now() - s.updatedAt > 10 * MIN && !childrenOf(s).some(c => !isEnded(c) && now() - c.updatedAt <= 10 * MIN);
 // 不活跃：说是在跑 / 在写清单，但 30 分钟没有任何更新。多半是 agent 被关了或忘了收尾，单独收起来，不和真在跑的混在一起
-const isDormant = s => (s.status === 'running' || s.status === 'planning') && now() - s.updatedAt > 30 * MIN;
+// 主会话自己 30 分钟没报，但手下的子 agent 还在动：它没掉线，不放进“可能掉线了”
+const quiet = s => (s.status === 'running' || s.status === 'planning') && now() - s.updatedAt > 30 * MIN;
+const isDormant = s => quiet(s) && !childrenOf(s).some(c => (c.status === 'running' || c.status === 'planning') && !quiet(c));
+// “进行中”在所有地方都按这一条数：在跑 / 写清单、没掉线，子任务也算一个；等你单独数
+const isRunning = s => (s.status === 'running' || s.status === 'planning') && !isDormant(s);
 const workMs = s => elapsed(s) - waited(s);
 // 搜索：标题、目标、总结、问题、目录、agent、条目和备注都算
 function matches(s, q) {
@@ -1401,6 +1499,7 @@ async function connect() {
   es.addEventListener('hello', () => { if (S.conn === 'lost') reload(); S.conn = 'live'; schedule(); });
   es.addEventListener('session', e => { ingest(JSON.parse(e.data)); scheduleData(); });
   es.addEventListener('notice', e => { ingestNotice(JSON.parse(e.data)); scheduleData(); });
+  es.addEventListener('notices-cleared', () => { S.notices = []; S.fresh = new Set(); schedule(); }); // 托盘预览或别的页面清空了
   es.addEventListener('deleted', e => {
     const gone = new Set(JSON.parse(e.data).ids);
     for (const id of gone) S.sessions.delete(id);
@@ -1555,6 +1654,7 @@ function renderNow() {
   if (NATIVE && S.themeSent !== S.theme && typeof window.tickTheme === 'function') { S.themeSent = S.theme; window.tickTheme(S.theme === 'dark'); }
   if (TOAST) return renderToast();
   if (MENU) return renderMenu();
+  if (PEEK) return renderPeek();
   if (FLOAT) renderFloat(root, NATIVE ? 'native' : 'page');
   else renderPanel();
   if (pip.root) { pip.root.ownerDocument.documentElement.dataset.theme = S.theme; renderFloat(pip.root, 'pip'); }
@@ -1650,7 +1750,7 @@ function renderToast() {
     waiting: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--orange)"/><rect x="11" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/><rect x="16.2" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/></svg>',
     blocked: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--red)"/><rect x="9" y="13.6" width="12" height="2.8" rx="1.2" fill="#fff"/></svg>',
   }[k] || `<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--layer-3)" stroke="var(--line-strong)"/><circle cx="15" cy="15" r="4" fill="${k === 'warning' ? 'var(--orange)' : 'var(--blue)'}"/></svg>`);
-  const head = c => `${esc(c.agent)} ${{ item: c.n > 1 ? `勾了 ${c.n} 项` : `勾了 #${c.index}`, done: '做完了', failed: '没做成', waiting: '在等你', blocked: '卡住了' }[c.kind] || ''}`;
+  const head = c => `${esc(c.agent)} ${{ item: c.n > 1 ? `完成了 ${c.n} 项` : `完成了第 ${c.index} 项`, done: '做完了', failed: '没做成', waiting: '在等你', blocked: '卡住了' }[c.kind] || ''}`;
   const entered = morph(root, S.toasts.length ? `<div class="tst">${S.toasts.map(c => `<div class="tc k-${esc(c.kind)}" data-key="tc-${esc(c.sid || c.id)}" data-id="${esc(c.id)}" data-enter="grow" data-exit role="button" tabindex="0" aria-label="点一下打开">
       <div class="tc-ic" data-key="ic-${esc(c.id)}">${ic(c.kind)}</div>
       <div class="tc-tx" data-key="tx-${esc(c.id)}"><b>${head(c)}</b><span>${esc(firstLine(c.text))}</span>${c.sub ? `<em><i style="background:${esc(c.color)}"></i>${esc(c.sub)}${c.total ? ` · ${c.done}/${c.total}` : ''}</em>` : ''}</div>
@@ -1661,6 +1761,57 @@ function renderToast() {
   // 新来的卡片沿边框绕一圈光，颜色跟类型走
   const FX = { done: 'var(--green)', item: 'var(--brand-hi)', waiting: 'var(--orange)', blocked: 'var(--red)', failed: 'var(--red)' };
   for (const el of entered) if (el.classList?.contains('tc')) setTimeout(() => edgeBeam(el, FX[[...el.classList].find(c => c.startsWith('k-'))?.slice(2)] || 'var(--brand-hi)', 1500), 260);
+}
+
+// ======================================================================
+// 托盘悬停预览（view=peek）：未读通知列表，点一条打开那个会话；全部已读 / 清空
+// 内容由宿主每次弹出时给（tickPeekShow），动作直接调本机接口，做完让宿主收起
+// ======================================================================
+function startPeek() {
+  window.tickPeekGlass?.().then(on => document.documentElement.toggleAttribute('data-glass', !!on));
+  window.tickPeekShow = d => {
+    S.peek = d;
+    render();
+    const box = root.querySelector('.pk-box');
+    if (box && !RM.matches) {
+      box.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: EASE_OUT });
+      box.querySelectorAll('.pv-row').forEach((el, i) => el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 220, delay: 30 + i * 24, easing: EASE_OUT, fill: 'backwards' }));
+    }
+    requestAnimationFrame(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickPeekFit(el.offsetWidth, el.offsetHeight); });
+  };
+  window.tickPeekHidden = () => tipHide();
+  root.addEventListener('click', async e => {
+    const b = e.target.closest('[data-p]');
+    if (!b) return;
+    const d = S.peek;
+    if (b.dataset.p === 'open') {
+      const n = d.items.find(x => x.ID === b.dataset.id);
+      fetch('/api/notices/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [n.ID] }) }).catch(() => {});
+      window.tickPeekOpen(n.SessionID || '');
+      return;
+    }
+    const ok = await fetch(b.dataset.p === 'clear' ? '/api/notices' : '/api/notices/read', // DELETE 不用带 JSON；POST 要
+      b.dataset.p === 'clear' ? { method: 'DELETE' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"all":true}' }).then(r => r.ok, () => false);
+    if (!ok) { b.textContent = tr('没成功，再点一次'); return; }
+    window.tickPeekHide();
+  });
+  new ResizeObserver(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickPeekFit(el.offsetWidth, el.offsetHeight); }).observe(root);
+  window.tickPeekReady();
+}
+function renderPeek() {
+  const d = S.peek;
+  if (!d) return;
+  const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' };
+  morph(root, `<div class="pk-box">
+    <header class="pv-h"><span class="logo">${IC.logo}</span><b>未读</b><span class="pv-n num">${d.total}</span><span class="grow"></span>
+      <button class="g-act" data-p="read">全部已读</button></header>
+    <div class="pv-list">${d.items.map(n => `<button class="pv-row" data-p="open" data-id="${esc(n.ID)}" data-key="pv-${esc(n.ID)}">${sicon(n.Kind)}
+      <span class="pv-tx"><span class="pv-t"><b>${esc(agentOf(n.Agent).name)}</b> ${verb[n.Kind] || ''}${n.Title ? `<em>${esc(n.Title)}</em>` : ''}</span>
+      <span class="pv-s">${esc(firstLine(n.Text))}</span></span><span class="when num">${ago(n.At)}</span></button>`).join('')}</div>
+    ${d.total > d.items.length ? `<p class="pv-more num">还有 ${d.total - d.items.length} 条，点开悬浮窗的通知看全部</p>` : ''}
+    <footer class="pv-f"><button class="g-act" data-p="clear" data-tip="删掉全部通知记录（会话不受影响）">清空通知</button></footer>
+  </div>`);
 }
 
 // ======================================================================
@@ -1780,7 +1931,8 @@ function floatData() {
   const cards = [];
   for (const s of visible().filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince)) {
     const n = S.notices.find(x => x.sessionId === s.id && (x.kind === 'waiting' || x.kind === 'blocked') && x.at >= s.waitSince - 2000);
-    if (n?.read || S.dismissed.has(`${s.id}:${s.waitSince}`)) continue;
+    // 刚打开抽屉时自动标了已读的那几条：这次打开期间卡片照样留着
+    if ((n?.read && !(S.drawer && S.fresh?.has(n.id))) || S.dismissed.has(`${s.id}:${s.waitSince}`)) continue;
     cards.push(n || { id: '', at: s.waitSince || s.updatedAt, sessionId: s.id, agent: s.agent, kind: s.status, title: s.title, text: s.statusNote || STATUS[s.status], read: false });
   }
   // 正在跑的排最上面，其次等你 / 受阻，再是写清单，很久没动静的垫底。
@@ -1796,7 +1948,7 @@ function floatData() {
   const recent = top.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN)
     .sort((a, b) => (S.order === 'old' ? a.endedAt - b.endedAt : b.endedAt - a.endedAt));
   const nW = live.filter(isWaiting).length;
-  const nR = live.filter(s => (s.status === 'running' || s.status === 'planning') && !isDormant(s)).length;
+  const nR = live.filter(isRunning).length;
   return { unread, cards: cards.slice(0, 3), active, stale, recent, nW, nR };
 }
 
@@ -1828,8 +1980,7 @@ function agentsHtml() {
       ${x ? `<span class="when num" data-clock="ago" data-at="${x.e.at}">${ago(x.e.at)}</span>` : ''}</button>`;
   };
   return `<aside class="f-drawer f-agents" data-key="agents" data-exit="fade">
-    <header class="dr-top" data-drag><b>Agent</b>${connChip()}<span class="grow"></span>
-      <button class="ib" data-act="agents" data-tip="关闭（Esc）" aria-label="关闭">${IC.x}</button></header>
+    <header class="dr-top" data-drag><button class="ib dr-back" data-act="agents" data-tip="返回（Esc）" aria-label="返回">${IC.chevL}</button><b>Agent</b><span class="grow"></span>${connChip()}</header>
     <div class="dr-body">${rows.length ? `<div class="ag-list">${rows.map(row).join('')}</div>`
       : `<div class="dr-empty">${IC.plug}<b>还没有 agent 来报到</b><span>把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。</span></div>`}</div>
     <footer class="dr-foot"><button class="btn primary" data-act="copy-mcp">${IC.copy}复制 MCP 地址</button><span class="grow"></span><button class="btn ghost" data-act="guide">接入说明</button></footer>
@@ -2061,7 +2212,7 @@ function renderFloat(el, mode) {
       ${acts}
     </header>
     <div class="f-body">
-      ${d.active.length ? group('g-a', '进行中', d.active.length, `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
+      ${d.active.length ? group('g-a', '进行中', d.active.reduce((n, s) => n + 1 + childrenOf(s).filter(c => isRunning(c) || isWaiting(c)).length, 0), `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
       ${staleG}
       ${hist}
       ${S.undo && now() < S.undo.until ? `<div class="undo" data-key="undo" data-enter="grow" data-exit><span>${esc(tr(S.undo.text))}</span><button class="g-act" data-act="undo">撤销</button></div>` : ''}
@@ -2069,7 +2220,11 @@ function renderFloat(el, mode) {
     </div>
   </div>`;
   // 抽屉盖在当前窗口上（从铃铛那里展开），窗口不变宽；内容太矮时窗口长高一些给抽屉留地方
-  const inner = tucked ? tabHtml(d, live) : fan ? `<div class="f-in" data-key="fan-in">${fanHtml(d, live)}</div>` : drawer ? main + drawerHtml(d) : sheet ? main + agentsHtml() : main;
+  // 有没看的通知、抽屉又没开：外框呼吸。颜色跟最要紧的那条走（受阻 / 没做成红，等你橙，其余主题色）
+  const breathC = !drawer && !fan && !S.dnd && d.unread.length
+    ? (d.unread.some(n => n.kind === 'blocked' || n.kind === 'failed') ? 'var(--red)' : d.unread.some(n => n.kind === 'waiting') ? 'var(--orange)' : 'var(--brand)') : '';
+  const breath = breathC ? `<i class="breath" data-key="breath" data-enter="fade" data-exit="fade" style="--bc:${breathC}" aria-hidden="true"></i>` : '';
+  const inner = (tucked ? tabHtml(d, live) : fan ? `<div class="f-in" data-key="fan-in">${fanHtml(d, live)}</div>` : drawer ? main + drawerHtml(d) : sheet ? main + agentsHtml() : main) + breath;
   const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${sheet ? ' sheet' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
   // 只在形态变化（面板 ↔ 标签 ↔ 气泡 ↔ 胶囊 ↔ 抽屉 ↔ Agent 面板 ↔ 转盘）时做盒子变形；内容变高由条目自己的撑开动画负责
   const shape = `${tucked}|${tucked && !!S.speak}|${S.compact}|${drawer}|${sheet}|${fan}`;
@@ -2094,13 +2249,15 @@ function renderFloat(el, mode) {
 
 // 外层盒子从旧尺寸变到新尺寸：标签 ↔ 面板 ↔ 气泡之间的“长出来 / 缩回去”。
 // 只在尺寸确实变了时做；再次触发会从当前尺寸接着变（先量的是动画中的尺寸）
+// 曲线用标准缓动而不是强 ease-out：后者头 30ms 就走完六成，看起来像从起点直接跳到终点，没有“中间”
+const EASE_BOX = 'cubic-bezier(.4,0,.2,1)';
 function boxMorph(f, from) {
   if (!f || !from || RM.matches) return;
   const to = f.getBoundingClientRect();
   if (Math.abs(from.width - to.width) < 1 && Math.abs(from.height - to.height) < 1) return;
   const grow = to.width * to.height > from.width * from.height;
   f._box = f.animate([{ width: `${from.width}px`, height: `${from.height}px` }, { width: `${to.width}px`, height: `${to.height}px` }],
-    { duration: grow ? 240 : 180, easing: EASE_OUT });
+    { duration: grow ? 300 : 260, easing: EASE_BOX });
 }
 
 // 通知抽屉：铃铛拉开，在朝屏幕中间的那一侧。最上面是“等你 / 受阻”卡片（能回到对话、复制接力提示），
@@ -2108,7 +2265,8 @@ function boxMorph(f, from) {
 function drawerHtml(d) {
   const unread = d.unread.length;
   const inCard = new Set(d.cards.map(n => n.id).filter(Boolean));
-  const list = S.notices.filter(n => !inCard.has(n.id) && (S.drawerTab === 'all' || !n.read)).slice(0, 60);
+  const fresh = S.fresh || new Set();
+  const list = S.notices.filter(n => !inCard.has(n.id) && (S.drawerTab === 'all' || !n.read || fresh.has(n.id))).slice(0, 60);
   const tab = (k, label, n) => `<button class="${S.drawerTab === k ? 'on' : ''}" data-act="dtab" data-tab="${k}" aria-pressed="${S.drawerTab === k}">${label}${n ? `<span class="num">${n}</span>` : ''}</button>`;
   const allRead = S.drawerTab === 'unread' && S.notices.length > 0;
   const empty = !d.cards.length && !list.length
@@ -2120,10 +2278,11 @@ function drawerHtml(d) {
       <span class="grow"></span>
       ${S.sound ? `<button class="ib" data-act="sound-test" data-tip="试听">${IC.play}</button>` : ''}
       <button class="ib" data-act="sound-dir" data-tip="打开声音文件夹：放进自己的 .wav 就能选">${IC.folder}</button></footer>` : '';
+  // 标题栏：左边返回箭头（回到会话列表，不是关窗口），右边是操作和页签
   return `<aside class="f-drawer" data-key="drawer" data-exit="fade">
-    <header class="dr-top" data-drag><b>通知</b><span class="seg">${tab('unread', '未读', unread)}${tab('all', '全部', 0)}</span><span class="grow"></span>
-      ${unread ? '<button class="g-act" data-act="read-all">全部已读</button>' : ''}
-      <button class="ib" data-act="drawer" data-tip="关闭通知（Esc）" aria-label="关闭通知">${IC.x}</button></header>
+    <header class="dr-top" data-drag><button class="ib dr-back" data-act="drawer" data-tip="返回（Esc）" aria-label="返回">${IC.chevL}</button><b>通知</b><span class="grow"></span>
+      ${unread ? '<button class="g-act" data-act="read-all">全部已读</button>' : S.notices.length ? '<button class="g-act dr-clear" data-act="clear-notices" data-tip="清空通知历史（会话不受影响）">清空</button>' : ''}
+      <span class="seg">${tab('unread', '未读', unread || fresh.size)}${tab('all', '全部', 0)}</span></header>
     <div class="dr-body">
       ${d.cards.length ? `<div class="n-area" data-flip>${d.cards.map(cardHtml).join('')}</div>` : ''}
       ${list.length ? `<div class="dr-list" data-flip>${list.map(noticeRow).join('')}</div>` : ''}
@@ -2427,10 +2586,22 @@ function toggleCompact() {
   S.histOpen = false;
   S.fan = false;
   if (NATIVE) window.tickCompact(S.compact); else store.set('compact', S.compact);
-  render();
   const host = pip.root && document.hidden ? pip.root : root;
+  // 交叉淡化分三段：旧内容留一份影子在原位淡出 → 盒子变形 → 新内容在变形后半段淡入。
+  // 不留影子的话旧内容一帧就没了，新内容挤在还没长好的盒子里，像是直接跳到了终点
+  const ghost = !RM.matches && host.firstElementChild?.querySelector(':scope > .f-in')?.cloneNode(true);
+  render();
   const f = host.firstElementChild;
-  if (f && !RM.matches) f.animate([{ opacity: 0.35, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 180, easing: EASE_OUT });
+  if (!f || RM.matches) return;
+  const fin = f.querySelector(':scope > .f-in');
+  if (ghost) {
+    ghost.classList.add('f-ghost');
+    ghost.removeAttribute('data-key');
+    f.appendChild(ghost);
+    ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-out', fill: 'forwards' }).finished.then(() => ghost.remove(), () => ghost.remove());
+  }
+  fin?.animate([{ opacity: 0, transform: `translateY(${S.compact ? 3 : -4}px)` }, { opacity: 1, transform: 'none' }],
+    { duration: 200, delay: S.compact ? 140 : 110, easing: EASE_OUT, fill: 'backwards' });
 }
 
 // 胶囊里放最要紧的一件事：先等你，其次正在做的那一步
@@ -2447,6 +2618,14 @@ function pillHtml(d, live) {
   return `<span class="pill-tx" data-key="pill-q"><span class="tx t3">${d.nR ? `${d.nR} 个会话在跑` : '都安静着'}</span></span>`;
 }
 
+// 清单分模块时的段标题：模块名 + 这个模块勾了几项（悬浮窗、面板详情、卡片背面共用）。没分模块的条目不出标题
+function modHead(s, g, tag = 'div', first = false) {
+  // 模块之后回到不分模块的条目（多半是收尾的验证、提交）：只画一条分隔线，不然看着像还属于上一个模块
+  if (!g) return first ? '' : `<${tag} class="it-g sep" data-key="g-sep" aria-hidden="true"></${tag}>`;
+  const its = s.items.filter(x => (x.group || '') === g);
+  const done = its.filter(finished).length;
+  return `<${tag} class="it-g${done === its.length ? ' ok' : ''}" data-key="g-${esc(g)}"><span class="trunc">${esc(g)}</span><span class="num">${done}/${its.length}</span></${tag}>`;
+}
 // 长清单：悬浮窗里超过 8 条时只显示当前这一步前一条、后四条，前后各折成一行“前面 N 项已完成 / 后面还有 N 项”，
 // 点一下展开全部，展开后底部有“只看当前附近”收回。面板详情里永远显示全部
 const ITEMS_LONG = 8, ITEMS_WIN = 6;
@@ -2468,14 +2647,16 @@ function itemsHtml(s) {
   const pre = from ? fold('fold-pre', doneBefore === from ? `前面 ${from} 项已完成` : `前面 ${from} 项（${doneBefore} 项已完成）`, `<span class="it-fold-ic ok">${sicon('done')}</span>`) : '';
   const post = to < all.length ? fold('fold-post', `后面还有 ${all.length - to} 项`, `<span class="it-fold-ic">${IC.chev}</span>`) : '';
   const back = long && S.open.has(`all:${s.id}`) ? fold('fold-back', '只看当前附近', `<span class="it-fold-ic up">${IC.chev}</span>`) : '';
+  let g = null;
   return pre + all.slice(from, to).map(it => {
+    const gh = (it.group || '') !== g ? (g === null ? (g = it.group || '', modHead(s, g, 'div', true)) : (g = it.group || '', modHead(s, g))) : '';
     const { ms, approx } = itemMs(s, it);
     const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
     // 悬停时右侧的耗时让位给两个小操作：复制这一条、跳过（已完成 / 已跳过的换成“恢复成待办”）
     const acts = `<span class="it-acts"><button class="ib" data-act="item-copy" data-tip="复制这一条">${IC.copy}</button>${it.status === 'skipped' || it.status === 'done'
       ? `<button class="ib" data-act="item-todo" data-tip="恢复成待办">${IC.undoArrow}</button>`
       : `<button class="ib" data-act="item-skip" data-tip="跳过这一条">${IC.skip}</button>`}</span>`;
-    return `<div class="it-s ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-key="${esc(it.id)}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"><button class="it-tick" data-act="item-cycle" data-tip="${it.status === 'done' ? '取消勾选' : '手动勾上（agent 忘了勾时用）'}">${sicon(it.status)}</button><span class="tx">${esc(it.text)}${it.note ? `<span class="nt">${esc(it.note)}</span>` : ''}</span>
+    return `${gh}<div class="it-s ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-key="${esc(it.id)}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"><button class="it-tick" data-act="item-cycle" data-tip="${it.status === 'done' ? '取消勾选' : '手动勾上（agent 忘了勾时用）'}">${sicon(it.status)}</button><span class="tx">${esc(it.text)}${it.note ? `<span class="nt">${esc(it.note)}</span>` : ''}</span>
       <span class="tm num"${it.status === 'doing' && it.startedAt ? ` data-clock="item" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"` : ''}>${tm}</span>${acts}</div>`;
   }).join('') + post + back || `<div class="it-s"><span class="tx t3">${s.status === 'planning' ? '正在写清单…' : '没有清单'}</span></div>`;
 }
@@ -2547,14 +2728,14 @@ function sessionRow(s, live) {
       ${s.link ? `<button class="ib" data-act="open-link" data-sid="${esc(s.id)}" data-tip="回到对话">${IC.link}</button>` : ''}
       <button class="ib" data-act="relay" data-sid="${esc(s.id)}" data-tip="复制接力提示：粘给任何 agent 都能接着做">${IC.copy}</button>
       <button class="ib" data-act="open-panel-session" data-sid="${esc(s.id)}" data-tip="在面板里看完整清单和动态">${IC.panel}</button>
-      ${isEnded(s) ? `<button class="ib" data-act="archive" data-sid="${esc(s.id)}" data-tip="归档">${IC.archive}</button>` : ''}
+      <button class="ib" data-act="archive" data-sid="${esc(s.id)}" data-tip="${isEnded(s) ? '归档' : '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）'}">${IC.archive}</button>
       ${dead ? `<button class="ib" data-act="end-session" data-sid="${esc(s.id)}" data-tip="结束：标成已取消（能撤销）">${IC.x}</button>` : ''}
     </div>
     ${kidsHtml(s, live)}
     <div class="s-items"><div><div class="pad">
       ${itemsHtml(s)}
       <div class="s-more">
-        ${s.link ? `<button class="btn" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
+        ${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
         <button class="btn ghost" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}接力提示</button>
         <button class="btn ghost" data-act="open-panel-session" data-sid="${esc(s.id)}" data-tip="在面板里看完整清单、动态，可以编辑">${IC.panel}详情</button>
         ${dead ? `<button class="btn ghost" data-act="end-session" data-sid="${esc(s.id)}" data-tip="标成已取消；agent 回来接着做会自动恢复">${IC.x}结束</button>` : ''}
@@ -2605,11 +2786,11 @@ function groups() {
   if (S.agent) return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' || s.status === 'planning')], ['已结束', by(isEnded)]];
   switch (S.view) {
     case 'waiting': return [['等你', by(isWaiting)]];
-    case 'idle': return [['30 分钟没有更新', by(isDormant)]];
+    case 'idle': return [['可能掉线了', by(isDormant), '30 分钟没有更新']];
     case 'all': return [['全部', by(() => true)]];
     case 'archived': return [['已归档', by(() => true)]];
     default: return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' && !isDormant(s))], ['写清单', by(s => s.status === 'planning' && !isDormant(s))],
-      ['刚结束', by(s => isEnded(s) && now() - s.endedAt < 3 * 3600e3)], ['没动静', by(isDormant)]];
+      ['刚结束', by(s => isEnded(s) && now() - s.endedAt < 3 * 3600e3)], ['可能掉线了', by(isDormant)]];
   }
 }
 
@@ -2621,7 +2802,7 @@ function renderPanel() {
   }
   const live = visible();
   const archived = S.sessions.size - live.length;
-  const n = { active: live.filter(s => !isEnded(s) && !isDormant(s)).length, waiting: live.filter(isWaiting).length, idle: live.filter(isDormant).length,
+  const n = { active: live.filter(isRunning).length, waiting: live.filter(isWaiting).length, idle: live.filter(isDormant).length,
     history: live.filter(isEnded).length, all: live.length, archived };
   const nav = (v, icon) => `<button class="nav-i${S.view === v && !S.agent ? ' on' : ''}" data-view="${v}">${icon}<span class="grow">${VIEWS[v]}</span><span class="cnt num${v === 'waiting' && n.waiting ? ' hot' : ''}">${n[v] || ''}</span></button>`;
   const agents = [...new Set(live.map(s => s.agent))].sort();
@@ -2652,7 +2833,7 @@ function renderPanel() {
   }
   morph($('top').querySelector('.crumb'), q
     ? `<b>搜索</b><span class="t4 num" data-roll>${rows}</span>`
-    : `<b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num" data-roll>${rows}</span>`);
+    : `<b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num" data-roll>${S.agent || n[S.view] === undefined ? rows : n[S.view]}</span>`); // 和左侧导航同一个数
   morph($('top').querySelector('.top-r'), `${t ? `<span class="today num">今天勾了 ${t} 项</span>` : ''}
     <button class="btn ghost" data-act="deck" data-tip="全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）">${IC.cards}卡片</button>
     <button class="btn ghost" data-act="order" data-tip="${S.order === 'old' ? '现在最早的在前，点一下换成最新在前' : '现在最新的在前，点一下倒过来'}">${S.order === 'old' ? IC.sortUp : IC.sortDown}${S.order === 'old' ? '最早在前' : '最新在前'}</button>
@@ -2705,7 +2886,7 @@ function deckCard(s) {
       </div>
       <div class="cd-face cd-b">
         <div class="cd-bh"><span class="cd-bt trunc">${esc(s.title)}</span><span class="num t4">${p.done}/${p.total}</span></div>
-        <ol class="cd-list">${s.items.map(it => `<li class="${it.status}">${sicon(it.status)}<span>${esc(it.text)}${it.note ? `<small>${esc(it.note)}</small>` : ''}</span></li>`).join('')
+        <ol class="cd-list">${s.items.map((it, i, arr) => `${i === 0 || (arr[i - 1].group || '') !== (it.group || '') ? modHead(s, it.group || '', 'li', i === 0) : ''}<li class="${it.status}">${sicon(it.status)}<span>${esc(it.text)}${it.note ? `<small>${esc(it.note)}</small>` : ''}</span></li>`).join('')
           || `<li class="none">${s.status === 'planning' ? '正在写清单…' : '这个会话没有清单。'}</li>`}</ol>
         ${s.summary ? `<p class="cd-sum">${esc(s.summary)}</p>` : ''}
         <div class="cd-acts"><button class="btn" data-act="card-open" data-sid="${sid}">看详情</button>${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${sid}">${IC.link}回到对话</button>` : ''}</div>
@@ -2823,12 +3004,13 @@ function renderDetail() {
       </dl>
       <section class="d-sec"><h3>清单 <span class="num t4"><span data-roll>${p.done}</span>/${p.total}</span></h3>
         ${p.total ? segs(s, true) : ''}
-        ${p.total ? `<ol class="checklist">${s.items.map((it, i) => {
+        ${p.total ? `<ol class="checklist">${s.items.map((it, i, arr) => {
+          const gh = i === 0 || (arr[i - 1].group || '') !== (it.group || '') ? modHead(s, it.group || '', 'li', i === 0) : '';
           const { ms, approx } = itemMs(s, it);
           const ticking = it.status === 'doing' && it.startedAt;
           const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
           const editing = S.editing === `item:${s.id}:${it.id}`;
-          return `<li data-key="${esc(it.id)}" data-enter="grow" data-exit class="it ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}">
+          return `${gh}<li data-key="${esc(it.id)}" data-enter="grow" data-exit class="it ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}">
             <button class="it-tick" data-act="item-cycle" data-tip="${it.status === 'done' ? '取消勾选' : '手动勾上'}" aria-label="${it.status === 'done' ? '取消勾选' : '勾上'}">${sicon(it.status)}</button><span class="n num">${i + 1}</span>
             <div class="it-body">${editing
               ? `<input class="it-in" data-edit="item" value="${esc(it.text)}" maxlength="300" aria-label="条目内容">`
@@ -2994,16 +3176,48 @@ function guideConfigs() {
     ['只支持 stdio 的客户端', JSON.stringify({ mcpServers: { tick: { command: exe, args: ['mcp'] } } }, null, 2)],
   ];
 }
-function openGuide() {
-  if (FLOAT) { NATIVE ? window.tickPanel('#guide') : window.open(`${BASE}/#guide`, 'tick-main'); return; }
+// 给 agent 的安装提示：让它自己去取技能全文、存到它自己的技能目录
+function skillPrompt() {
+  const k = S.skills;
+  const paths = (k?.skills || []).filter(x => x.status !== 'noagent').map(x => `- ${x.agent}：${x.path}`).join('\n');
+  return `请安装（或更新）Tick 技能：读取 ${k?.url || `${BASE}/skill`} 的全文，原样保存成你自己技能目录下的 tick/SKILL.md，覆盖旧版。\n${paths ? `本机各 agent 的位置：\n${paths}\n` : ''}装好后以后的多步任务都按它执行：开工写完整清单、逐条勾选、需要我回答时用 tick wait、我答完马上把下一条标成 doing、做完 tick finish。`;
+}
+const SKILL_ST = { ok: ['ok', '最新'], old: ['old', '需要更新'], missing: ['miss', '没装'], noagent: ['none', '本机没有这个 agent'] };
+function guideHtml() {
   const cfgs = guideConfigs();
-  $('guide-box').innerHTML = tr(`<div class="guide">
+  const k = S.skills;
+  const need = k?.skills.filter(x => x.status === 'old' || x.status === 'missing').length || 0;
+  const rows = k ? k.skills.map((x, i) => { const [c, t] = SKILL_ST[x.status];
+    return `<div class="sk-row${x.status === 'noagent' ? ' dim' : ''}"><b>${esc(x.agent)}</b><span class="sk-st ${c}">${t}</span>
+      <code class="trunc" data-tip="${esc(x.path)}">${esc(x.path)}</code><button class="ib" data-act="copy-skill-path" data-i="${i}" data-tip="复制路径">${IC.copy}</button></div>`; }).join('')
+    : '<p class="t3">正在读取…</p>';
+  return `<div class="guide">
     <h2><span class="grow">接入 agent</span><button class="ib" data-act="close-guide" aria-label="关闭">${IC.x}</button></h2>
-    <p>Tick 自带 MCP 服务。加进 agent 的配置后，它会自己读到用法：开工写清单、逐条勾选、需要你时发通知、做完写总结。</p>
+    <p>接入分两步：<b>装技能</b>（告诉 agent 必须怎么用 Tick：完整清单、逐条勾选、提问走 Tick、回答后马上更新），<b>配 MCP</b>（让 agent 能调用 Tick）。</p>
+    <h3>1. 技能（SKILL.md）</h3>
+    <div class="sk-list">${rows}</div>
+    <div class="sk-acts">
+      <button class="btn primary" data-act="skill-update" data-tip="把这一版技能写给本机装了的每个 agent，旧版会被覆盖">${IC.update}${need ? `更新 ${need} 个` : '重新写一遍'}</button>
+      <button class="btn" data-act="copy-skill-prompt" data-tip="粘给任何 agent，它会自己去取技能并存到自己的目录">${IC.copy}复制安装提示</button>
+      <button class="btn ghost" data-act="copy-skill-body">${IC.copy}复制技能全文</button>
+    </div>
+    <p class="t4">技能全文也可以直接打开：<a class="t3" href="${BASE}/skill" target="_blank" rel="noopener" style="text-decoration:underline">${BASE}/skill</a>。命令行 <code>tick install</code> 会同时装技能和 MCP。</p>
+    <h3>2. MCP</h3>
+    <p>Tick 自带 MCP 服务。加进 agent 的配置后，它能直接调用 tick_start、tick_item 等工具。</p>
     ${cfgs.map(([name, code], i) => `<h4>${esc(tr(name))}</h4><div class="code"><pre>${esc(code)}</pre><button class="btn" data-act="copy-cfg" data-i="${i}">${IC.copy}复制</button></div>`).join('')}
     <p>不用 MCP 也行：协议和 HTTP 接口见 <a class="t3" href="${BASE}/protocol" target="_blank" rel="noopener" style="text-decoration:underline">${BASE}/protocol</a>。</p>
-  </div>`);
+  </div>`;
+}
+async function openGuide() {
+  if (FLOAT) { NATIVE ? window.tickPanel('#guide') : window.open(`${BASE}/#guide`, 'tick-main'); return; }
+  const paint = () => { // 重画时保留滚动位置（滚动条在 .guide 上）
+    const top = $('guide-box').querySelector('.guide')?.scrollTop || 0;
+    $('guide-box').innerHTML = tr(guideHtml());
+    $('guide-box').querySelector('.guide').scrollTop = top;
+  };
+  paint();
   $('guide').hidden = false;
+  try { S.skills = await (await fetch('/api/skills')).json(); paint(); } catch { /* 读不到就只显示 MCP 部分 */ }
 }
 
 // ============ 交互 ============
@@ -3044,12 +3258,25 @@ async function onClick(e) {
       schedule();
       break;
     // ---------- 悬浮窗：抽屉、排序、刚结束、底栏动态、转盘、提示音 ----------
-    case 'drawer':
+    case 'drawer': {
       S.drawer = !S.drawer;
+      // 打开就算看过了：未读全部标成已读（角标、外框呼吸、托盘闪动一起停）；
+      // 这次打开期间它们仍留在“未读”页签里，关掉抽屉后才归到“全部”
+      const ids = S.drawer ? S.notices.filter(n => !n.read).map(n => n.id) : [];
+      S.fresh = new Set(ids);
       if (S.drawer) S.agentsOpen = false;
-      if (S.drawer && !S.notices.some(n => !n.read)) S.drawerTab = 'all'; // 没有未读就直接看全部
-      schedule();
+      if (S.drawer && !ids.length) S.drawerTab = 'all'; // 没有未读就直接看全部
+      if (ids.length) { S.drawerTab = 'unread'; markRead(ids); } else schedule();
       break;
+    }
+    case 'clear-notices': {
+      const before = S.notices;
+      S.notices = [];
+      S.fresh = new Set();
+      schedule();
+      try { await post('/api/notices', {}, 'DELETE'); } catch (err) { S.notices = before; schedule(); toast(`没清掉：${esc(err.message)}`); }
+      break;
+    }
     case 'dtab': S.drawerTab = el.dataset.tab; schedule(); break;
     case 'order': S.order = S.order === 'old' ? 'new' : 'old'; store.set('order', S.order); schedule(); break;
     case 'hist': S.histOpen = !S.histOpen; schedule(); break;
@@ -3090,8 +3317,27 @@ async function onClick(e) {
     case 'relay': if (s) toast(await copy(relayText(s)) ? '接力提示已复制，粘给任何 agent 都能接着做' : '复制没成功'); break;
     case 'copy-mcp': toast(await copy(S.info.mcp || `${BASE}/mcp`) ? 'MCP 地址已复制' : '复制没成功'); break;
     case 'copy-cfg': toast(await copy(guideConfigs()[Number(el.dataset.i)][1]) ? '已复制' : '复制没成功'); break;
+    case 'copy-skill-path': toast(await copy(S.skills.skills[Number(el.dataset.i)].path) ? '路径已复制' : '复制没成功'); break;
+    case 'copy-skill-prompt': toast(await copy(skillPrompt()) ? '安装提示已复制，粘给 agent 就行' : '复制没成功'); break;
+    case 'copy-skill-body': {
+      const text = await fetch('/skill').then(r => r.text(), () => '');
+      toast(text && await copy(text) ? '技能全文已复制' : '复制没成功');
+      break;
+    }
+    case 'skill-update': {
+      el.disabled = true;
+      try {
+        const r = await fetch('/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); // 接口要求 JSON（防跨站表单）
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        S.skills = { ...S.skills, skills: d.skills };
+        toast(`已写入 ${d.updated} 个 agent 的技能；已经开着的 agent 新开对话后生效`);
+      } catch (err) { toast(`没写进去：${esc(err.message)}`); }
+      openGuide();
+      break;
+    }
     case 'guide': openGuide(); break;
-    case 'close-guide': $('guide').hidden = true; break;
+    case 'close-guide': closeGuide(); break;
     case 'pip': typeof window.tickFloat === 'function' ? window.tickFloat() : openPip(); break;
     case 'float': window.tickFloat(); break;
     case 'win-min': window.tickWin('min'); break;
@@ -3181,7 +3427,7 @@ async function onClick(e) {
       const list = act === 'end-stale' ? floatData().stale : s ? [s] : [];
       if (!list.length) break;
       const before = list.map(x => [x.id, x.status]);
-      const note = tr('你手动结束的：很久没有更新，agent 可能已经关掉了');
+      const note = tr(list.every(isDormant) ? '你手动结束的：很久没有更新，agent 可能已经关掉了' : '你手动结束的');
       const set = async ended => {
         for (const [id, st] of before) { const x = S.sessions.get(id); if (x) { x.status = ended ? 'cancelled' : st; x.endedAt = ended ? now() : 0; } }
         schedule();
@@ -3210,18 +3456,20 @@ async function onClick(e) {
     case 'theme': S.theme = S.theme === 'dark' ? 'light' : 'dark'; store.set('theme', S.theme); schedule(); break;
     case 'archive':
       if (s) {
-        const id = s.id;
+        // 连同子任务一起：主会话归档了，挂在它下面的子 agent 也不该单独冒出来
+        const ids = [s.id, ...childrenOf(s).map(c => c.id)];
         const to = !s.archived;
         const set = async v => {
-          const cur = S.sessions.get(id);
-          const before = cur.archived;
-          cur.archived = v;
-          if (v && S.sel === id) S.sel = null;
+          for (const id of ids) { const cur = S.sessions.get(id); if (cur) cur.archived = v; }
+          if (v && ids.includes(S.sel)) S.sel = null;
           schedule();
-          try { await post(`/api/sessions/${id}`, { archived: v }, 'PATCH'); } catch (err) { S.sessions.get(id).archived = before; schedule(); toast(`归档没成功：${esc(err.message)}`); }
+          try { await Promise.all(ids.map(id => post(`/api/sessions/${id}`, { archived: v }, 'PATCH'))); }
+          catch (err) { toast(`归档没成功：${esc(err.message)}`); reload(); }
         };
         set(to);
-        toast(`${to ? '已归档' : '已放回'}「${esc(s.title)}」`, { action: '撤销', onAction: () => set(!to), ms: 6000 });
+        const text = `${to ? '已归档' : '已放回'}「${esc(s.title)}」`;
+        if (!FLOAT) toast(text, { action: '撤销', onAction: () => set(!to), ms: 6000 });
+        else { S.undo = { text: to ? '已归档这个会话' : '已放回', run: () => set(!to), until: now() + 6000 }; setTimeout(schedule, 6100); }
       }
       break;
   }
@@ -3453,6 +3701,64 @@ function pickOpen(btn) {
   el.querySelector('.pk-o.on')?.scrollIntoView({ block: 'nearest' });
   view.requestAnimationFrame(() => el.classList.add('on'));
 }
+// 会话右键菜单：悬浮窗、面板列表、全屏卡片里都能用。样式和自绘下拉一样；
+// 菜单项就是普通的 data-act 按钮，点了交给 onClick 处理，再把菜单收掉
+const ctx = { el: null };
+function ctxClose() {
+  const el = ctx.el;
+  if (!el) return;
+  ctx.el = null;
+  el.classList.remove('on');
+  setTimeout(() => el.remove(), 140);
+}
+function ctxOpen(e, s) {
+  pickClose();
+  tipHide();
+  ctxClose();
+  const doc = e.target.ownerDocument, view = doc.defaultView;
+  const sid = esc(s.id);
+  const items = [
+    s.link && ['open-link', IC.link, '回到对话'],
+    ['relay', IC.copy, '复制接力提示'],
+    FLOAT ? ['open-panel-session', IC.panel, '在面板里看'] : ['select', IC.panel, '看详情'],
+    !isEnded(s) && ['end-session', IC.x, '结束（标成已取消）'],
+    ['archive', IC.archive, s.archived ? '取消归档' : '归档'],
+  ].filter(Boolean);
+  const el = doc.createElement('div');
+  el.className = 'pk-pop ctx';
+  el.setAttribute('role', 'menu');
+  el.innerHTML = tr(`<div class="ctx-h trunc">${esc(s.title)}</div>${items.map(([a, ic, t]) =>
+    `<button type="button" role="menuitem" class="pk-o${a === 'end-session' ? ' warn' : ''}" data-act="${a}" data-sid="${sid}">${ic}<span>${t}</span></button>`).join('')}`);
+  doc.body.appendChild(el);
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = `${Math.round(Math.max(6, Math.min(view.innerWidth - w - 6, e.clientX)))}px`;
+  el.style.top = `${Math.round(Math.max(6, Math.min(view.innerHeight - h - 6, e.clientY)))}px`;
+  el.addEventListener('click', ev => { if (ev.target.closest('.pk-o')) setTimeout(ctxClose); });
+  ctx.el = el;
+  el.querySelector('.pk-o')?.focus({ preventScroll: true });
+  view.requestAnimationFrame(() => el.classList.add('on'));
+}
+document.addEventListener('contextmenu', e => {
+  if (e.target.closest('input,textarea')) return;
+  const row = e.target.closest('.s[data-sid], .kid[data-sid], .row[data-sid], .card[data-sid]');
+  const s = row && S.sessions.get(row.dataset.sid);
+  if (MENU || TOAST || PEEK) { e.preventDefault(); return; } // 小窗口里不出浏览器自带菜单
+  if (!s) return;
+  e.preventDefault();
+  ctxOpen(e, s);
+});
+document.addEventListener('pointerdown', e => { if (ctx.el && !ctx.el.contains(e.target)) ctxClose(); }, true);
+document.addEventListener('keydown', e => {
+  if (!ctx.el) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); ctxClose(); return; }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const os = [...ctx.el.querySelectorAll('.pk-o')];
+    const i = os.indexOf(document.activeElement);
+    os[(i + (e.key === 'ArrowDown' ? 1 : os.length - 1)) % os.length]?.focus();
+  }
+}, true);
+document.addEventListener('scroll', ctxClose, { capture: true, passive: true });
 function pickWire(doc) {
   doc.addEventListener('click', e => { const b = e.target.closest?.('.pk'); if (b) { e.stopPropagation(); pickOpen(b); } }, true);
   doc.addEventListener('pointerdown', e => { if (pk.el && !pk.el.contains(e.target) && !pk.btn?.contains(e.target)) pickClose(); }, true);
@@ -3550,7 +3856,12 @@ window.tickWinState = st => {
   if (b) b.dataset.tip = tr(st.max ? '还原' : '最大化');
 };
 if (WIN) window.tickWin('state');
-$('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) $('guide').hidden = true; });
+// 关掉接入说明时把地址里的 #guide 去掉，下次从悬浮窗 / 别的标签页再跳过来才会重新打开
+function closeGuide() {
+  $('guide').hidden = true;
+  if (location.hash === '#guide') history.replaceState(null, '', location.pathname + location.search);
+}
+$('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) closeGuide(); });
 document.addEventListener('keydown', e => {
   // 卡片开着：方向键在牌之间走（上下按一行几张跳），回车 / 空格翻面，Esc 退出
   if (S.deck && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -3567,7 +3878,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key === 'Escape') {
-    if (!$('guide').hidden) $('guide').hidden = true;
+    if (!$('guide').hidden) closeGuide();
     else if (S.agentsOpen) { S.agentsOpen = false; schedule(); }
     else if (S.drawer) { S.drawer = false; schedule(); }
     else if (S.sel) { S.sel = null; schedule(); }
@@ -3650,6 +3961,7 @@ window.tickVisible = on => {
   if (!MENU) fetch('/api/health').then(r => r.json()).then(h => setTheme(h.theme)).catch(() => {});
   if (TOAST) { document.title = tr('Tick 提醒'); startToast(); return; }
   if (MENU) { document.title = tr('Tick 菜单'); startMenu(); return; }
+  if (PEEK) { document.title = 'Tick 未读'; startPeek(); return; }
   if (FLOAT) document.title = tr('Tick 小窗');
   if (NATIVE) {
     try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }
@@ -3661,10 +3973,12 @@ window.tickVisible = on => {
     window.tickReady();
     setInterval(() => window.tickBeat?.(), 15000); // 心跳：宿主 90 秒收不到就重新加载页面
   }
-  const hash = location.hash.slice(1);
-  if (hash === 'guide') openGuide();
-  else if (hash && S.sessions.has(hash)) openSession(hash, false);
-  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h === 'guide') openGuide(); else if (S.sessions.has(h)) openSession(h, false); });
+  // 按 #guide / #<会话> 跳转。宿主把已开着的面板叫到前面时直接调 tickGo：
+  // 只改 location.hash 的话，值和上次一样就不触发 hashchange，面板停在列表上
+  const route = h => { if (h === 'guide') openGuide(); else if (h && S.sessions.has(h)) openSession(h, false); };
+  window.tickGo = h => { route(h.replace(/^#/, '')); };
+  route(location.hash.slice(1));
+  window.addEventListener('hashchange', () => route(location.hash.slice(1)));
 })();
 })();
 </script>
