@@ -7,17 +7,27 @@ package main
 
 import (
 	"log"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/systray"
 )
 
 type updater struct {
-	f       *floatWin
-	srv     *Server
-	pending string // 已换好文件、等着重启的版本
-	menu    *systray.MenuItem
+	f        *floatWin
+	srv      *Server
+	pendingV atomic.Pointer[string] // 已换好文件、等着重启的版本（托盘菜单线程和更新线程都会读写）
+	menu     *systray.MenuItem
 }
+
+func (u *updater) pending() string {
+	if p := u.pendingV.Load(); p != nil {
+		return *p
+	}
+	return ""
+}
+
+func (u *updater) setPending(v string) { u.pendingV.Store(&v) }
 
 func (u *updater) busy() bool {
 	for _, s := range u.srv.store.Sessions(false) {
@@ -53,7 +63,7 @@ func (u *updater) check(manual bool) {
 			say("下载新版本 "+tag+" 没成功："+err.Error(), "warning")
 			return
 		}
-		u.pending = tag
+		u.setPending(tag)
 		u.menu.SetTitle("重启到新版本 " + tag)
 		log.Printf("已下载新版本 %s，等空闲时重启", tag)
 		say("新版本 "+tag+" 已下载，没有会话在跑时会自动重启；也可以在托盘里点“重启到新版本”", "info")
@@ -65,11 +75,13 @@ func (u *updater) restartWhenIdle(force bool) {
 	for i := 0; !force && u.busy() && i < 360; i++ {
 		time.Sleep(time.Minute)
 	}
-	if err := relaunch(); err != nil {
+	if isWorker() {
+		exitCode = exitRestart // 有守护进程：退出码告诉它用新文件重启
+	} else if err := relaunch(); err != nil {
 		log.Printf("重启到新版本失败：%v", err)
 		return
 	}
-	log.Printf("重启到 %s", u.pending)
+	log.Printf("重启到 %s", u.pending())
 	u.f.dispatch(func() {
 		u.f.saveSettings()
 		u.f.w.Terminate()
@@ -83,9 +95,9 @@ func (u *updater) loop() {
 		u.f.mu.Lock()
 		off := u.f.set.NoAutoUpdate
 		u.f.mu.Unlock()
-		if !off && u.pending == "" && updateSource() != "" {
+		if !off && u.pending() == "" && updateSource() != "" {
 			u.check(false)
-			if u.pending != "" {
+			if u.pending() != "" {
 				u.restartWhenIdle(false)
 				return
 			}

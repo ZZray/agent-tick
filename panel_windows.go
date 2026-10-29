@@ -104,7 +104,7 @@ var thePanel = &panelWin{}
 
 // hicon 用内存里的 PNG 做窗口图标（Vista 起 CreateIconFromResourceEx 直接认 PNG）
 func hicon(size int) uintptr {
-	b := iconPNG(size, false)
+	b := iconPNG(size, appIcon)
 	h, _, _ := pCreateIconFromResourceEx.Call(uintptr(unsafe.Pointer(&b[0])), uintptr(len(b)), 1, 0x30000, uintptr(size), uintptr(size), 0)
 	return h
 }

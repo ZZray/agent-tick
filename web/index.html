@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tick</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E5E5E6'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11' fill='none' stroke='%2308090A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232A2D33'/%3E%3Cstop offset='1' stop-color='%230E0F11'/%3E%3C/linearGradient%3E%3ClinearGradient id='r' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237CF2B5'/%3E%3Cstop offset='1' stop-color='%2322B573'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23b)'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='rgba(255,255,255,.12)' stroke-width='6'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='url(%23r)' stroke-width='6' stroke-linecap='round' pathLength='100' stroke-dasharray='78 100' transform='rotate(-90 32 32)'/%3E%3Cpath d='M24 32.5l5.6 5.6 11-11.8' fill='none' stroke='%23fff' stroke-width='5.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style id="tick-css">
 /* ============ Tokens：linear-style-design §2 ============ */
 :root{
@@ -19,6 +19,8 @@
   --accent:#5E6AD2; --accent-soft:rgba(94,106,210,.16);
   --btn-primary:#E5E5E6; --btn-primary-text:#08090A;
   --red:#EB5757; --orange:#F2994A; --yellow:#F2C94C; --green:#4CB782; --blue:#4EA7FC;
+  /* Tick 的品牌色：logo、未读角标、完成提醒 */
+  --brand:#4CB782; --brand-hi:#6EE0A6; --brand-lo:#2C9C66;
   --frost:rgba(15,16,17,.78); --glow:rgba(255,255,255,.05);
   --edge:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.04) 42%,rgba(255,255,255,.11));
   --ease:cubic-bezier(.25,.46,.45,.94); --ease-out:cubic-bezier(.23,1,.32,1); --ease-drawer:cubic-bezier(.32,.72,0,1);
@@ -96,6 +98,21 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .segs i.doing::after{transform:scaleX(.34);background:var(--text-3)}
 .segs i.doing.live::after{transform:none;background:linear-gradient(90deg,var(--text-4),var(--text-1),var(--text-4)) 0 0/200% 100%;animation:sweepbg 2s linear infinite}
 .segs i.skipped{background:var(--line)}
+/* 长清单的整条进度 */
+.pbar{position:relative;display:block;height:3px;border-radius:2px;background:var(--line-strong);overflow:hidden}
+.pbar i{position:absolute;top:0;bottom:0;left:0;border-radius:2px}
+.pb-d{background:var(--text-2);transition:width 380ms var(--ease-out)}
+.pb-n{background:var(--text-3);transition:left 380ms var(--ease-out)}
+.pb-n.live{background:linear-gradient(90deg,var(--text-4),var(--text-1),var(--text-4)) 0 0/200% 100%;animation:sweepbg 2s linear infinite}
+.pbar.blocked .pb-n{background:var(--red)}
+/* 长清单折叠行：和条目同一列对齐 */
+.it-fold{display:flex;align-items:center;gap:8px;width:100%;height:24px;margin:1px 0;padding:0;border-radius:var(--r-sm);font-size:12px;color:var(--text-4);text-align:left;
+  transition:color var(--t-hover) var(--ease)}
+.it-fold:hover{color:var(--text-2)}
+.it-fold-ic{display:grid;place-items:center;width:14px;height:14px;flex-shrink:0}
+.it-fold-ic.ok{opacity:.55}
+.it-fold-ic .chev{transform:rotate(90deg)}
+.it-fold-ic.up .chev{transform:rotate(-90deg)}
 .segs i.blocked::after{transform:none;background:var(--red)}
 .ring-v{transition:stroke-dasharray 380ms var(--ease-out)}
 [data-roll]{display:inline-block}
@@ -146,7 +163,20 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f-top{box-shadow:inset 0 -1px 0 var(--line-soft)}
 [data-scrolled="1"] .f-top{box-shadow:inset 0 -1px 0 transparent}
 .native .f-top{cursor:default}
-.logo{width:18px;height:18px;border-radius:5px;background:var(--btn-primary);color:var(--btn-primary-text);display:grid;place-items:center;flex-shrink:0}
+/* Logo：深色圆角方块 + 翠绿进度环 + 白色对勾（和托盘图标同一套）。
+   出现时环从 0 描到 78%；鼠标移上去环补满一圈、对勾弹一下 */
+.logo{position:relative;width:18px;height:18px;border-radius:27%;flex-shrink:0;display:block;
+  background:linear-gradient(135deg,#2A2D33,#0E0F11);box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 1px 2px rgba(0,0,0,.35)}
+[data-theme=light] .logo{box-shadow:inset 0 0 0 1px rgba(255,255,255,.10),0 1px 2px rgba(0,0,0,.18)}
+.logo svg{position:absolute;inset:0;width:100%;height:100%}
+.logo .lg-ring{transition:stroke-dasharray 520ms var(--ease-out);animation:lgRing 700ms 120ms var(--ease-out) backwards}
+@keyframes lgRing{from{stroke-dasharray:0 100}}
+.logo .lg-chk{transform-origin:32px 34px;transition:transform 320ms cubic-bezier(.34,1.56,.64,1)}
+@media (hover:hover) and (pointer:fine){
+  :hover>.logo .lg-ring,.logo:hover .lg-ring{stroke-dasharray:100 100}
+  :hover>.logo .lg-chk,.logo:hover .lg-chk{transform:scale(1.12)}
+}
+@media (prefers-reduced-motion:reduce){.logo .lg-ring{animation:none}}
 .f-brand{color:var(--text-1);font-weight:600;letter-spacing:-.01em}
 .f-cnt{font-size:12px;color:var(--text-3);white-space:nowrap;display:flex;align-items:center;gap:6px}
 .f-cnt b{color:var(--text-1);font-weight:510}
@@ -212,7 +242,38 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .s-l1 .chev{color:var(--text-4);opacity:0;margin-left:-2px;transition:opacity var(--t-hover) var(--ease),transform var(--t-menu) var(--ease-out)}
 .s:hover .chev,.s.open .chev,.s-head:focus-visible .chev{opacity:1}
 .s.open .s-l1 .chev{transform:rotate(90deg)}
-.segs-wrap{display:block;margin:7px 0 0 22px}
+/* 进度条下面垫一圈透明的命中区，鼠标好碰到；悬停时条变粗，按位置显示那一步（见 scrubber） */
+.segs-wrap{display:block;margin:2px 0 -5px 22px;padding:5px 0}
+.segs,.pbar{transition:height 160ms var(--ease-out)}
+.segs-wrap:hover .segs,.segs-wrap:hover .pbar,.d-sec .segs:hover{height:6px}
+.segs i.hov::after{background:var(--text-1)!important;transform:none}
+.segs i.hov{background:var(--text-3)}
+/* 进度擦洗的提示：跟着鼠标在条的上方滑动 */
+.seg-tip{position:fixed;z-index:50;left:0;top:0;max-width:260px;padding:6px 9px 7px;border-radius:var(--r);pointer-events:none;
+  background:var(--bg-3);box-shadow:var(--shadow-pop);font-size:11.5px;line-height:1.45;color:var(--text-2);opacity:0;
+  transition:opacity 120ms var(--ease),transform 90ms var(--ease-out)}
+.seg-tip.on{opacity:1}
+.seg-tip b{display:flex;align-items:center;gap:6px;color:var(--text-1);font-weight:510;font-size:12px}
+.seg-tip b .ic{width:12px;height:12px}
+.seg-tip .st{color:var(--text-4);font-weight:400;margin-left:auto;white-space:nowrap}
+.seg-tip span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg-tip .nt{color:var(--text-4)}
+/* 会话行悬停：右上角浮出几个快捷操作，进度数字让位 */
+.s{position:relative}
+.s-quick{position:absolute;top:5px;right:6px;display:flex;gap:1px;padding:1px;border-radius:var(--r);background:var(--bg-3);box-shadow:0 0 0 1px var(--line),0 4px 12px -4px rgba(0,0,0,.5);
+  opacity:0;transform:translateX(6px) scale(.96);pointer-events:none;transition:opacity 140ms var(--ease),transform 180ms var(--ease-out)}
+.s-quick .ib{width:24px;height:24px}
+.s:hover>.s-quick,.s:focus-within>.s-quick{opacity:1;transform:none;pointer-events:auto;transition-delay:80ms}
+.s:hover>.s-head .s-prog,.s:hover>.s-head .s-l1 .chev{opacity:0}
+.s-prog{transition:opacity 120ms var(--ease)}
+/* 条目悬停：耗时让位给“复制 / 跳过” */
+.it-s{position:relative;border-radius:var(--r-sm)}
+.it-s>.it-acts{position:absolute;right:-4px;top:0;display:flex;opacity:0;transform:translateX(4px);transition:opacity 120ms var(--ease),transform 160ms var(--ease-out)}
+.it-s>.it-acts .ib{width:22px;height:22px}
+.it-s:hover>.it-acts{opacity:1;transform:none}
+.it-s:hover>.tm{opacity:0}
+.it-s>.tm{transition:opacity 120ms var(--ease)}
+@media (hover:none){.s-quick,.it-s>.it-acts{display:none}}
 .tx-wrap{flex:1;min-width:0;display:flex;overflow:hidden}
 .tx-wrap .tx{flex:1;min-width:0}
 .s-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:510}
@@ -328,19 +389,17 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .bell{position:relative}
 .bell-ic{transform-origin:50% 15%}
 .bell.on{background:var(--active);color:var(--text-1)}
-.bell.hot{color:var(--text-1)}
+.bell.unread{color:var(--text-1)}
+/* 未读角标用主题绿（Tick 的颜色）；有人在等你时铃铛本身变橙 */
 .bell .bdg{position:absolute;top:1px;right:0;min-width:14px;height:14px;padding:0 3px;border-radius:7px;display:grid;place-items:center;
-  background:var(--layer-3);box-shadow:0 0 0 1.5px var(--bg-2);color:var(--text-2);font-size:9px;font-weight:650;line-height:1}
-.bell.hot .bdg{background:var(--orange);color:#08090A}
-.f.drawer{align-items:stretch}
-.f-drawer{flex:none;width:300px;display:flex;flex-direction:column;position:relative;z-index:1;background:var(--bg);
-  animation:drIn 300ms var(--ease-drawer) backwards}
-.side-right .f-drawer{box-shadow:inset -1px 0 0 var(--line-soft)}
-.side-left .f-drawer{box-shadow:inset 1px 0 0 var(--line-soft);animation-name:drInL}
-@keyframes drIn{from{opacity:0;transform:translateX(20px)}}
-@keyframes drInL{from{opacity:0;transform:translateX(-20px)}}
-/* 浏览器小窗宽度定死：抽屉盖在列表上 */
-.f.fill .f-drawer{position:absolute;top:0;bottom:0;left:0;width:min(300px,88%);z-index:6;box-shadow:var(--shadow-pop)}
+  background:var(--brand);box-shadow:0 0 0 1.5px var(--bg-2);color:#06130C;font-size:9px;font-weight:700;line-height:1}
+.bell.hot{color:var(--orange)}
+/* 抽屉盖在整个窗口上，从铃铛的位置展开；窗口不变宽，内容太矮时长高给抽屉留地方 */
+.f.drawer .f-in{min-height:420px}
+.f-drawer{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;background:var(--bg-2);
+  transform-origin:calc(100% - 96px) 20px;animation:drIn 260ms var(--ease-drawer) backwards}
+@keyframes drIn{from{opacity:0;transform:translateY(-6px) scale(.97)}}
+.f.fill .f-drawer{box-shadow:var(--shadow-pop)}
 .dr-top{display:flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 14px;flex-shrink:0;user-select:none;box-shadow:inset 0 -1px 0 var(--line-soft)}
 .dr-top b{color:var(--text-1);font-weight:600}
 .seg{display:inline-flex;padding:2px;margin-left:2px;border-radius:7px;background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
@@ -349,7 +408,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .seg button:hover{color:var(--text-1)}
 .seg button.on{background:var(--layer-3);color:var(--text-1);box-shadow:0 0 0 1px var(--line),inset 0 1px 0 var(--hi)}
 .seg button .num{color:var(--text-4);font-size:10.5px}
-.dr-body{flex:1;min-height:0;max-height:560px;overflow-y:auto;overscroll-behavior:contain}
+.dr-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .dr-body .n-area{padding:8px 8px 2px}
 .dr-list{display:flex;flex-direction:column;padding:6px 6px 8px}
 .n-row.read{color:var(--text-3)}
@@ -367,15 +426,116 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .dr-snd select:hover{border-color:var(--line-strong);color:var(--text-1)}
 .dr-snd option{background:var(--bg-3);color:var(--text-1)}
 
-/* 组头的逆序开关 */
-.g-act.sort{display:inline-flex;align-items:center;gap:4px}
-/* 刚结束：默认收成一行（后面跟几个标题当预览），点开用 grid 0fr → 1fr 撑开 */
-.g-fold{display:inline-flex;align-items:center;gap:5px;margin-left:-5px;padding:1px 5px 1px 3px;border-radius:var(--r);font-weight:600;color:inherit;
+/* ============ 毛玻璃（Win11：窗口背后是系统 Acrylic 模糊） ============
+   页面底色改成约八成不透明，背后的桌面透出一点模糊的颜色；文字对比度不变 */
+[data-glass],[data-glass] body{background:transparent!important}
+[data-glass] .f{background:color-mix(in srgb,var(--bg-2) 80%,transparent)}
+[data-glass] .f::before{opacity:.6}
+[data-glass] .f-top{background:color-mix(in srgb,var(--bg-2) 35%,transparent);backdrop-filter:none;-webkit-backdrop-filter:none}
+[data-glass] .f-drawer{background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+[data-glass] .tst{background:color-mix(in srgb,var(--bg-2) 82%,transparent)}
+[data-glass] .n-card{background:linear-gradient(color-mix(in srgb,var(--bg-3) 92%,transparent),color-mix(in srgb,var(--bg-3) 92%,transparent)) padding-box,var(--edge) border-box}
+
+/* ============ 托盘菜单（view=menu） ============
+   头部：logo + 版本 + 会话统计 + 总进度环；六宫格常用操作；开关列表（拨动开关）；底栏 */
+html:not([data-glass]):has(.mn),html:not([data-glass]):has(.mn) body{background:var(--bg-2)}
+.mn{width:300px;display:flex;flex-direction:column;outline:none;user-select:none}
+[data-glass] .mn{background:color-mix(in srgb,var(--bg-2) 78%,transparent)}
+.mn-h{display:flex;align-items:center;gap:11px;padding:14px 14px 12px}
+.mn-logo{width:34px;height:34px}
+.mn-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mn-ht b{color:var(--text-1);font-weight:600;font-size:14px}
+.mn-ht b .t4{font-weight:400;font-size:11.5px;margin-left:2px}
+.mn-st{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);white-space:nowrap}
+.mn-st b{color:var(--text-1);font-weight:510}
+.mn-st .w{display:inline-flex;align-items:center;gap:5px}
+.mn-ring text{font-size:10px;font-weight:600;fill:var(--text-2)}
+.mn-ring circle:last-of-type{transition:stroke-dasharray 500ms var(--ease-out)}
+.mn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:2px 10px 10px}
+.mn-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 4px 10px;border-radius:var(--r-lg);
+  background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft);color:var(--text-2);
+  transition:background-color var(--t-hover) var(--ease),box-shadow var(--t-hover) var(--ease),transform 220ms cubic-bezier(.34,1.56,.64,1)}
+.mn-tile:hover{background:var(--layer-3);box-shadow:inset 0 0 0 1px var(--line-strong);color:var(--text-1);transform:translateY(-1px)}
+.mn-tile:active{transform:scale(.96)}
+.mn-ti{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--layer-3);color:var(--text-1);transition:background-color 160ms var(--ease),color 160ms var(--ease)}
+.mn-tile:hover .mn-ti svg{animation:tiNudge 420ms cubic-bezier(.34,1.56,.64,1)}
+@keyframes tiNudge{40%{transform:scale(1.18) rotate(-6deg)}}
+.mn-tl{font-size:12px;font-weight:510;white-space:nowrap}
+.mn-ts{font-size:10.5px;color:var(--text-4);white-space:nowrap;margin-top:-3px}
+.mn-tile.on .mn-ti{background:color-mix(in srgb,var(--brand) 22%,transparent);color:var(--brand-hi)}
+.mn-tile.on{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 40%,transparent)}
+.mn-list{display:flex;flex-direction:column;padding:4px 6px 6px;box-shadow:inset 0 1px 0 var(--line-soft)}
+.mn-row{display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border-radius:var(--r);font-size:12.5px;color:var(--text-2);cursor:pointer;
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.mn-row:hover{background:var(--hover);color:var(--text-1)}
+.mn-row select{appearance:none;-webkit-appearance:none;height:24px;padding:0 22px 0 8px;border-radius:var(--r);border:1px solid var(--line);cursor:pointer;font:inherit;font-size:12px;color:var(--text-2);
+  background:var(--layer-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 4l2.5 2.5L7.5 4' fill='none' stroke='%238A8F98' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center}
+.mn-row option{background:var(--bg-3);color:var(--text-1)}
+/* 拨动开关：滑块用弹簧，打开时轨道变品牌绿 */
+.sw{position:relative;flex-shrink:0;width:30px;height:18px;border-radius:9px;background:var(--line-strong);transition:background-color 180ms var(--ease)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);
+  transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
+.sw.on{background:var(--brand)}
+.sw.on::after{transform:translateX(12px)}
+.mn-row:active .sw::after{width:17px}
+.mn-row:active .sw.on::after{transform:translateX(9px)}
+.mn-f{display:flex;align-items:center;height:38px;padding:0 6px;box-shadow:inset 0 1px 0 var(--line-soft)}
+.mn-f button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:28px;border-radius:var(--r);font-size:12px;color:var(--text-3);
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.mn-f button:hover{background:var(--hover);color:var(--text-1)}
+.mn-f .quit:hover{color:var(--red)}
+.mn-f i{width:1px;height:14px;background:var(--line)}
+@media (prefers-reduced-motion:reduce){.mn-tile:hover .mn-ti svg{animation:none}}
+
+/* ============ 右下角提醒卡（view=toast 的独立小窗口） ============
+   窗口就是这一摞卡片的大小，贴在屏幕右下角；新卡在最下面（离角落最近）。
+   底部一条倒计时，鼠标停在任意一张上全部暂停。 */
+html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{background:var(--bg-2)}
+.tst{width:340px;display:flex;flex-direction:column}
+.tc{position:relative;display:flex;align-items:flex-start;gap:12px;padding:13px 34px 15px 14px;cursor:pointer;overflow:hidden;
+  transition:background-color var(--t-hover) var(--ease)}
+.tc+.tc{box-shadow:inset 0 1px 0 var(--line-soft)}
+.tc:hover{background:var(--hover)}
+.tc-ic,.tc-tx{animation:tcIn 420ms cubic-bezier(.34,1.4,.64,1) backwards}
+.tc-tx{animation-delay:40ms}
+@keyframes tcIn{from{opacity:0;transform:translateX(26px)}}
+.tc-ic svg{display:block;overflow:visible}
+/* 签名动效：圆先弹出来，再一笔描出对勾；做完的还会往外扩一圈 */
+.tc-ok circle:first-child{transform-box:fill-box;transform-origin:center;animation:pop 360ms 60ms var(--ease-out) backwards}
+.tc-ok path{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 360ms 220ms var(--ease-out) forwards}
+.tc-burst{transform-box:fill-box;transform-origin:center;opacity:0;animation:burst 700ms 260ms var(--ease-out)}
+@keyframes burst{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.7)}}
+.tc-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:12.5px;line-height:1.45}
+.tc-tx b{color:var(--text-1);font-weight:600;font-size:13px}
+.tc-tx span{color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.tc-tx em{display:flex;align-items:center;gap:6px;margin-top:2px;font-style:normal;font-size:11.5px;color:var(--text-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-tx em i{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.tc-x{position:absolute;top:8px;right:6px;width:22px;height:22px;opacity:0}
+.tc:hover .tc-x,.tc:focus-within .tc-x{opacity:1}
+.tc-bar{position:absolute;left:0;right:0;bottom:0;height:2px;transform-origin:left;background:var(--brand);opacity:.9;animation:tcBar linear forwards}
+.k-waiting .tc-bar{background:var(--orange)} .k-failed .tc-bar,.k-blocked .tc-bar{background:var(--red)}
+.k-info .tc-bar,.k-success .tc-bar,.k-warning .tc-bar{background:var(--text-3)}
+.tst:hover .tc-bar{animation-play-state:paused}
+@keyframes tcBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){.tc-ic,.tc-tx,.tc-ok circle:first-child,.tc-burst{animation:none}.tc-ok path{animation:none;stroke-dashoffset:0}}
+
+/* 组头：一律单行，不许被挤成竖排；操作按钮只放图标，鼠标移到组头上（或键盘聚焦）才出现 */
+.g-h{white-space:nowrap;min-height:34px}
+.g-h>*{flex-shrink:0}
+.g-tools{display:inline-flex;align-items:center;gap:2px;margin:-4px -6px -4px 0;opacity:0;transition:opacity 140ms var(--ease)}
+.g-tools .ib{width:24px;height:24px}
+.g-h:hover .g-tools,.g-h:focus-within .g-tools{opacity:1}
+@media (hover:none){.g-tools{opacity:1}}
+/* 刚结束：默认收成一行（大一点的完成勾 + 数量 + 标题预览），点开用 grid 0fr → 1fr 撑开 */
+.g-fold{display:inline-flex;align-items:center;gap:6px;margin-left:-5px;padding:2px 6px 2px 3px;border-radius:var(--r);font-weight:600;color:inherit;
   transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
 .g-fold:hover{background:var(--hover);color:var(--text-2)}
 .g-fold .chev{transition:transform var(--t-menu) var(--ease-out)}
 .hist.open .g-fold .chev{transform:rotate(90deg)}
-.g-peek{flex:0 1 auto;min-width:0;font-weight:400;color:var(--text-4)}
+.g-done{transition:transform 220ms var(--ease-out)}
+.g-fold:hover .g-done{transform:scale(1.08)}
+.g-fold .c{color:var(--text-3);font-weight:510}
+.g-h>.g-peek{flex:1 1 auto;min-width:0;font-weight:400;color:var(--text-4)}
 .hist:not(.open) .g-h{padding-bottom:10px}
 .g-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-panel) var(--ease-out)}
 .hist.open .g-body{grid-template-rows:1fr}
@@ -643,6 +803,8 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 </style>
 </head>
 <body>
+<!-- logo 进度环的渐变：放在文档里一份，所有 logo 引用它 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="tick-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CF2B5"/><stop offset="1" stop-color="#22B573"/></linearGradient></defs></svg>
 <div id="root"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div class="overlay" id="guide" hidden><div class="dialog" role="dialog" aria-label="接入 agent" id="guide-box"></div></div>
@@ -654,6 +816,8 @@ const qs = new URLSearchParams(location.search);
 const VIEW = qs.get('view');                       // float：原生悬浮窗；mini：浏览器小窗；空：面板
 const NATIVE = typeof window.tickDrag === 'function'; // Go 宿主注入的函数
 const FLOAT = VIEW === 'float' || VIEW === 'mini';
+const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示悬浮窗转过来的卡片，不连数据
+const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
 const WIN = qs.get('host') === 'panel' && typeof window.tickWin === 'function'; // 原生面板窗口：无边框，标题栏由页面画
 if (WIN) document.documentElement.dataset.win = '';
 const HTTP = location.protocol.startsWith('http');
@@ -803,7 +967,8 @@ const ring = p => {
 };
 const L = (d, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const IC = {
-  logo: '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  // 64 格：深色方块里一圈翠绿进度环（走到 78%）+ 白色对勾，和托盘图标同一套
+  logo: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="19" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="6"/><circle class="lg-ring" cx="32" cy="32" r="19" fill="none" stroke="url(#tick-ring)" stroke-width="6" stroke-linecap="round" pathLength="100" stroke-dasharray="78 100" transform="rotate(-90 32 32)"/><path class="lg-chk" d="M24 32.5l5.6 5.6 11-11.8" fill="none" stroke="#fff" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   pin: L('<path d="M6 2.5h4l-.7 3.6 2.2 2.6h-7l2.2-2.6zM8 8.7v4.8"/>', 15),
   pinOn: L('<path d="M6 2.5h4l-.7 3.6 2.2 2.6h-7l2.2-2.6z" fill="currentColor"/><path d="M8 8.7v4.8"/>', 15),
   // 图钉：一个图标，置顶时实心竖直，取消时空心歪 45°，用过渡在两种状态间变形
@@ -835,8 +1000,15 @@ const IC = {
   link: L('<path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5V9M9.5 2.5h4v4M13.5 2.5l-6 6"/>', 14),
   copy: L('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>', 14),
   // 铃铛：有新通知时轻轻摆一下（.bell.ring），铃舌单独一笔跟着晃
+  // “刚结束”组头的完成勾：比行内状态图标大一号
+  doneBig: '<svg class="g-done" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="var(--green)"/><path d="M4.9 8.2l2.1 2.1 4.1-4.3" fill="none" stroke="var(--bg)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   bell: '<svg class="bell-ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="bell-body" d="M4 11V7.2a4 4 0 0 1 8 0V11l1 1.2H3z"/><path class="bell-clap" d="M6.6 13.6a1.5 1.5 0 0 0 2.8 0"/></svg>',
   bellOff: L('<path d="M4 11V7.2a4 4 0 0 1 6.6-3M12 7.2V11l1 1.2H5.5M6.6 13.6a1.5 1.5 0 0 0 2.8 0M2.5 2.5l11 11"/>', 22),
+  skip: L('<path d="M4 4.5l4.5 3.5L4 11.5zM9 4.5l4.5 3.5L9 11.5z"/>', 12),
+  update: L('<path d="M13 8a5 5 0 1 1-1.6-3.7M13 3v3h-3"/>', 18),
+  globe: L('<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.4 3.4 2.4 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.6 5.9 5.6 8s.8 3.9 2.4 5.5"/>', 18),
+  power: L('<path d="M8 2.5v5M4.6 4.6a4.8 4.8 0 1 0 6.8 0"/>', 13),
+  undoArrow: L('<path d="M5.5 6.5H10a3 3 0 0 1 0 6H7M5.5 6.5L8 4M5.5 6.5L8 9"/>', 12),
   sortDown: L('<path d="M5 3.5v9M2.8 10.3L5 12.5l2.2-2.2M9 4.5h4.5M9 8h3.2M9 11.5h1.8"/>', 13),
   sortUp: L('<path d="M5 12.5v-9M2.8 5.7L5 3.5l2.2 2.2M9 4.5h1.8M9 8h3.2M9 11.5h4.5"/>', 13),
   sound: L('<path d="M3 6.2h2.2L8.5 3.5v9L5.2 9.8H3zM11 5.8a3 3 0 0 1 0 4.4M12.8 4.2a5.4 5.4 0 0 1 0 7.6"/>', 14),
@@ -845,7 +1017,16 @@ const IC = {
   chevL: L('<path d="M9.5 4l-4 4 4 4"/>', 14),
   chevR: L('<path d="M6.5 4l4 4-4 4"/>', 14),
 };
-const segs = (s, live) => `<span class="segs" aria-hidden="true">${s.items.map(it => `<i class="${it.status}${live && it.status === 'doing' && it.startedAt ? ' live' : ''}"></i>`).join('')}</span>`;
+// 进度：12 项以内每项一段；更长的清单段会细成一条线，改成一整条进度（完成部分 + 正在做的那一格）
+const segs = (s, live) => {
+  const n = s.items.length;
+  if (n <= 12) return `<span class="segs" aria-hidden="true">${s.items.map(it => `<i class="${it.status}${live && it.status === 'doing' && it.startedAt ? ' live' : ''}"></i>`).join('')}</span>`;
+  const done = s.items.filter(finished).length;
+  const doing = s.items.find(it => it.status === 'doing');
+  const blocked = s.items.some(it => it.status === 'blocked');
+  const w = v => `${(v / n * 100).toFixed(2)}%`;
+  return `<span class="pbar${blocked ? ' blocked' : ''}" aria-hidden="true"><i class="pb-d" style="width:${w(done)}"></i>${doing ? `<i class="pb-n${live && doing.startedAt ? ' live' : ''}" style="left:${w(done)};width:${w(1)}"></i>` : ''}</span>`;
+};
 function connChip() {
   const [cls, text] = { live: ['live', '已连接'], lost: ['lost', '重连中…'], demo: ['', '演示数据'], connecting: ['', '连接中…'] }[S.conn];
   return `<span class="conn ${cls}" title="${esc(S.conn === 'demo' ? '没连上本机 Tick 服务，下面是模拟数据' : BASE)}"><i></i>${text}</span>`;
@@ -856,14 +1037,16 @@ function ingest(s) {
   const prev = S.sessions.get(s.id);
   S.sessions.set(s.id, s);
   if (!prev || !S.ready) return;
-  for (const it of s.items) {
+  s.items.forEach((it, i) => {
     const old = prev.items.find(x => x.id === it.id);
     if (old && old.status !== 'done' && it.status === 'done') {
       const k = `${s.id}:${it.id}`;
       S.justDone.add(k);
       setTimeout(() => S.justDone.delete(k), 1500);
+      // 勾了一项：右下角弹提醒卡。最后一项紧跟着会有“做完了”，那张会替换它
+      sendToast(toastCard(s, 'item', { index: i + 1, text: it.note ? `${it.text} · ${it.note}` : it.text }));
     }
-  }
+  });
   // 会话做完：状态图标描勾、整行亮一下，只在真正做完的那一刻
   if (prev.status !== 'done' && s.status === 'done') {
     S.celebrate.add(s.id);
@@ -876,6 +1059,8 @@ function ingestNotice(n) {
   S.notices.unshift(n);
   if (!n.read && S.ready) {
     announce(n);
+    const s = S.sessions.get(n.sessionId);
+    sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
     if (NATIVE && S.dock.tucked) speakFor(n);
     if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) S.drawerWant = true;
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
@@ -1038,9 +1223,171 @@ const root = $('root');
 function render() {
   if (S.dragging) return; // 拖动结束后会补一次
   document.documentElement.dataset.theme = S.theme;
+  // 毛玻璃的着色跟页面主题走（深色主题用深色 Acrylic）
+  if (NATIVE && S.themeSent !== S.theme && typeof window.tickTheme === 'function') { S.themeSent = S.theme; window.tickTheme(S.theme === 'dark'); }
+  if (TOAST) return renderToast();
+  if (MENU) return renderMenu();
   if (FLOAT) renderFloat(root, NATIVE ? 'native' : 'page');
   else renderPanel();
   if (pip.root) { pip.root.ownerDocument.documentElement.dataset.theme = S.theme; renderFloat(pip.root, 'pip'); }
+}
+
+// ======================================================================
+// 右下角提醒卡
+// 悬浮窗页面发现“勾了一项 / 做完 / 没做成 / 等你 / 卡住 / agent 主动提醒”时，把卡片交给宿主，
+// 宿主在屏幕右下角开一个小窗口（view=toast）显示。每张卡底部一条倒计时，走完自动消失；
+// 鼠标停在上面暂停，点卡片打开悬浮窗并定位到那个会话，点叉号关掉。
+// 同一个会话只占一张卡：新的事件替换旧的（“勾了一项”不会盖掉“等你 / 做完”）。
+// ======================================================================
+const TOAST_TTL = { item: 6000, done: 9000, failed: 12000, waiting: 30000, blocked: 30000, info: 7000, success: 7000, warning: 9000 };
+const TOAST_RANK = { item: 0, info: 1, success: 1, warning: 1, done: 2, failed: 2, waiting: 3, blocked: 3 };
+function toastCard(s, kind, extra = {}) {
+  const a = agentOf(s?.agent || extra.agentId);
+  const p = s ? progress(s) : { done: 0, total: 0 };
+  return { id: `${now()}-${Math.random().toString(36).slice(2, 6)}`, sid: s?.id || '', kind, agent: a.name, mark: a.mark, color: a.color,
+    sub: s?.title || '', done: p.done, total: p.total, ttl: TOAST_TTL[kind] || 7000, ...extra };
+}
+function sendToast(card) {
+  if (!NATIVE || typeof window.tickToast !== 'function' || S.dnd) return;
+  window.tickToast(JSON.stringify(card));
+}
+
+// ---------- 提醒卡窗口（view=toast） ----------
+function startToast() {
+  S.toasts = [];
+  document.documentElement.dataset.theme = S.theme;
+  window.tickToastGlass?.().then(on => document.documentElement.toggleAttribute('data-glass', !!on));
+  // 宿主每来一张卡调用一次；同一会话合并
+  window.tickToastAdd = card => {
+    const k = S.toasts.findIndex(x => x.sid && x.sid === card.sid);
+    if (k >= 0) {
+      const old = S.toasts[k];
+      if (TOAST_RANK[card.kind] < TOAST_RANK[old.kind] && old.kind !== 'item') return; // 勾一项不盖掉等你 / 做完
+      card.n = old.kind === 'item' && card.kind === 'item' ? (old.n || 1) + 1 : 1;
+      S.toasts.splice(k, 1);
+    }
+    S.toasts.push(card);
+    if (S.toasts.length > 4) S.toasts.splice(0, S.toasts.length - 4);
+    schedule();
+  };
+  root.addEventListener('animationend', e => {
+    if (!e.target.classList?.contains('tc-bar')) return;
+    const id = e.target.dataset.id;
+    S.toasts = S.toasts.filter(x => x.id !== id);
+    schedule();
+  });
+  root.addEventListener('click', e => {
+    const c = e.target.closest('.tc');
+    if (!c) return;
+    const card = S.toasts.find(x => x.id === c.dataset.id);
+    S.toasts = S.toasts.filter(x => x !== card);
+    schedule();
+    if (!e.target.closest('[data-act="tc-close"]') && card?.sid) window.tickToastOpen(card.sid);
+  });
+  new ResizeObserver(() => {
+    const r = root.firstElementChild?.getBoundingClientRect();
+    window.tickToastFit(Math.ceil(r?.width || 0), S.toasts.length ? Math.ceil(r?.height || 0) : 0);
+  }).observe(root);
+  render();
+  window.tickToastReady();
+}
+function renderToast() {
+  const ic = k => ({
+    item: '<svg class="tc-ok" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--brand)"/><path d="M9.2 15.4l3.9 3.9 7.8-8.2" pathLength="1" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    done: '<svg class="tc-ok" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--brand)"/><path d="M9.2 15.4l3.9 3.9 7.8-8.2" pathLength="1" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="tc-burst" cx="15" cy="15" r="13" fill="none" stroke="var(--brand)" stroke-width="2"/></svg>',
+    failed: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--red)"/><path d="M10.5 10.5l9 9M19.5 10.5l-9 9" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    waiting: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--orange)"/><rect x="11" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/><rect x="16.2" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/></svg>',
+    blocked: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--red)"/><rect x="9" y="13.6" width="12" height="2.8" rx="1.2" fill="#fff"/></svg>',
+  }[k] || `<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--layer-3)" stroke="var(--line-strong)"/><circle cx="15" cy="15" r="4" fill="${k === 'warning' ? 'var(--orange)' : 'var(--blue)'}"/></svg>`);
+  const head = c => `${esc(c.agent)} ${{ item: c.n > 1 ? `勾了 ${c.n} 项` : `勾了 #${c.index}`, done: '做完了', failed: '没做成', waiting: '在等你', blocked: '卡住了' }[c.kind] || ''}`;
+  const entered = morph(root, S.toasts.length ? `<div class="tst">${S.toasts.map(c => `<div class="tc k-${esc(c.kind)}" data-key="tc-${esc(c.sid || c.id)}" data-id="${esc(c.id)}" data-enter="grow" data-exit role="button" tabindex="0" title="点一下打开">
+      <div class="tc-ic" data-key="ic-${esc(c.id)}">${ic(c.kind)}</div>
+      <div class="tc-tx" data-key="tx-${esc(c.id)}"><b>${head(c)}</b><span>${esc(firstLine(c.text))}</span>${c.sub ? `<em><i style="background:${esc(c.color)}"></i>${esc(c.sub)}${c.total ? ` · ${c.done}/${c.total}` : ''}</em>` : ''}</div>
+      <button class="ib tc-x" data-act="tc-close" title="关掉" aria-label="关掉">${IC.xs}</button>
+      <i class="tc-bar" data-key="bar-${esc(c.id)}" data-id="${esc(c.id)}" style="animation-duration:${Number(c.ttl) || 7000}ms"></i>
+    </div>`).join('')}</div>` : '');
+  settle(entered);
+}
+
+// ======================================================================
+// 托盘菜单（view=menu）：头部状态 + 六宫格常用操作 + 开关列表 + 提示音 + 底栏
+// ======================================================================
+function startMenu() {
+  window.tickMenuOpen = st => {
+    S.menu = st;
+    render();
+    // 每次弹出都重播一次入场（宫格依次弹出），并把焦点放进来，方便 Esc 关掉
+    const box = root.querySelector('.mn');
+    if (box && !RM.matches) {
+      box.animate([{ opacity: 0, transform: 'translateY(8px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT });
+      box.querySelectorAll('.mn-tile').forEach((el, i) => el.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }],
+        { duration: 300, delay: 40 + i * 28, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }));
+    }
+    root.querySelector('.mn')?.focus();
+    // 再次弹出时尺寸没变，ResizeObserver 不会触发：主动报一次，宿主才知道该显示了
+    requestAnimationFrame(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickMenuFit(el.offsetWidth, el.offsetHeight); });
+  };
+  window.tickMenuHidden = () => { root.querySelector('.mn')?.blur(); };
+  const act = async (name, on, val = '') => {
+    const st = await window.tickMenuAct(name, on, val);
+    if (st) { S.menu = JSON.parse(st); render(); }
+  };
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-m]');
+    if (b) act(b.dataset.m, b.getAttribute('aria-pressed') !== 'true', b.dataset.v || '');
+  });
+  root.addEventListener('change', e => { if (e.target.matches('[data-m-sound]')) act('sound', true, e.target.value); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickMenuClose(); });
+  // 报布局尺寸（offset*），不受入场动画的缩放影响
+  new ResizeObserver(() => {
+    const el = root.firstElementChild;
+    if (el?.offsetHeight) window.tickMenuFit(el.offsetWidth, el.offsetHeight);
+  }).observe(root);
+  window.tickMenuReady();
+}
+function renderMenu() {
+  const m = S.menu;
+  if (!m) return;
+  document.documentElement.toggleAttribute('data-glass', !!m.glass);
+  const left = m.dnd && m.dndUntil ? Math.max(1, Math.round((m.dndUntil - now()) / MIN)) : 0;
+  const status = m.running + m.waiting
+    ? `${m.running ? `<b class="num">${m.running}</b> 进行中` : ''}${m.waiting ? `<span class="w"><i class="wdot"></i><b class="num">${m.waiting}</b> 等你</span>` : ''}${m.total ? `<span class="t4 num">· 清单 ${m.done}/${m.total}</span>` : ''}`
+    : '<span class="t3">都安静着</span>';
+  const pct = m.total ? m.done / m.total : (m.running + m.waiting ? 0 : 1);
+  const C = 2 * Math.PI * 15;
+  const tile = (key, icon, label, sub = '', on = null) => `<button class="mn-tile${on ? ' on' : ''}" data-m="${key}"${on !== null ? ` aria-pressed="${!!on}"` : ''}>
+      <span class="mn-ti">${icon}</span><span class="mn-tl">${label}</span>${sub ? `<span class="mn-ts">${sub}</span>` : ''}</button>`;
+  const sw = (key, label, on, hint = '') => `<button class="mn-row" data-m="${key}" aria-pressed="${!!on}" title="${esc(hint)}"><span class="grow">${label}</span><i class="sw${on ? ' on' : ''}"></i></button>`;
+  const html = `<div class="mn" tabindex="-1">
+    <header class="mn-h">
+      <span class="logo mn-logo">${IC.logo}</span>
+      <div class="mn-ht"><b>Tick <span class="t4 num">${esc(m.version)}</span></b><span class="mn-st">${status}</span></div>
+      <svg class="mn-ring" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line-strong)" stroke-width="3"/>
+        <circle cx="18" cy="18" r="15" fill="none" stroke="${m.waiting ? 'var(--orange)' : 'url(#tick-ring)'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(pct * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 18 18)"/>
+        <text x="18" y="22" text-anchor="middle" class="num">${Math.round(pct * 100)}</text></svg>
+    </header>
+    <div class="mn-grid">
+      ${tile('float', IC.pip, m.visible ? '收起悬浮窗' : '显示悬浮窗', m.hotkey ? esc(m.hotkey) : '')}
+      ${tile('panel', IC.panel, '打开面板', '历史 · 搜索')}
+      ${tile('dnd', IC.moon, m.dnd ? '勿扰中' : '勿扰 1 小时', m.dnd ? `还剩 ${left} 分钟` : '不弹提醒', m.dnd)}
+      ${tile('update', IC.update, m.pending ? '重启到新版' : '检查更新', m.pending ? esc(m.pending) : '自动更新' + (m.autoUpdate ? '开' : '关'))}
+      ${tile('mcp', IC.copy, '复制 MCP', '接入 agent')}
+      ${tile('browser', IC.globe, '浏览器打开', '127.0.0.1')}
+    </div>
+    <div class="mn-list">
+      ${sw('pin', '悬浮窗置顶', m.pinned)}
+      ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
+      ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
+      ${sw('autostart', '开机启动', m.autostart)}
+      ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
+      <label class="mn-row"><span class="grow">提示音</span><select data-m-sound aria-label="提示音">
+        ${[{ id: '', name: '不响' }, ...(m.sounds || [])].map(o => `<option value="${esc(o.id)}"${o.id === m.sound ? ' selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
+    </div>
+    <footer class="mn-f"><button data-m="sounddir">${IC.folder}声音文件夹</button><i></i><button data-m="quit" class="quit">${IC.power}退出 Tick</button></footer>
+  </div>`;
+  morph(root, html);
+  const sel = root.querySelector('[data-m-sound]');
+  if (sel && sel.value !== m.sound) sel.value = m.sound;
 }
 
 // ======================================================================
@@ -1259,7 +1606,7 @@ function renderFloat(el, mode) {
   const live = sweeper();
   const first = !el.firstElementChild;
   const nUnread = d.unread.length;
-  const bell = S.compact ? '' : `<button class="ib bell${S.drawer ? ' on' : ''}${d.cards.length ? ' hot' : ''}" data-key="a-bell" data-act="drawer"
+  const bell = S.compact ? '' : `<button class="ib bell${S.drawer ? ' on' : ''}${nUnread ? ' unread' : ''}${d.cards.length ? ' hot' : ''}" data-key="a-bell" data-act="drawer"
       title="${S.drawer ? '收起通知' : nUnread ? `${nUnread} 条未读通知` : '通知'}" aria-pressed="${S.drawer}">${IC.bell}${nUnread ? `<span class="bdg num" data-roll>${nUnread > 99 ? '99+' : nUnread}</span>` : ''}</button>`;
   const acts = `<div class="f-acts">
     ${bell}
@@ -1273,12 +1620,13 @@ function renderFloat(el, mode) {
     : '<span data-key="c-q">都安静着</span>';
   const group = (key, title, count, body, act = '') => `<section class="grp" data-key="${key}" data-enter="grow" data-exit>
     <div class="g-h">${title} <span class="c num" data-roll>${count}</span><span class="grow"></span>${act}</div>${body}</section>`;
-  const sortBtn = `<button class="g-act sort" data-act="order" title="${S.order === 'old' ? '现在最早登记的在前，点一下换成最新在前' : '现在最新登记的在前，点一下倒过来'}">${S.order === 'old' ? IC.sortUp : IC.sortDown}${S.order === 'old' ? '最早在前' : '最新在前'}</button>`;
-  // 刚结束：默认收起成一行，点组头展开；高度用 grid 0fr ↔ 1fr 过渡
+  // 组头的操作只放图标，鼠标移到组头上才出现（文字写在提示里）
+  const sortBtn = `<span class="g-tools"><button class="ib" data-act="order" title="${S.order === 'old' ? '现在最早登记的在前，点一下换成最新在前' : '现在最新登记的在前，点一下倒过来'}" aria-label="切换排序">${S.order === 'old' ? IC.sortUp : IC.sortDown}</button></span>`;
+  // 刚结束：默认收起成一行，组头是一个大一点的完成勾 + 数量 + 标题预览；点组头展开，高度用 grid 0fr ↔ 1fr 过渡
   const hist = d.recent.length ? `<section class="grp hist${S.histOpen ? ' open' : ''}" data-key="g-d" data-enter="grow" data-exit>
-      <div class="g-h"><button class="g-fold" data-act="hist" aria-expanded="${S.histOpen}">${IC.chev}刚结束 <span class="c num" data-roll>${d.recent.length}</span></button>
-        ${S.histOpen ? '' : `<span class="g-peek trunc" data-key="peek">${esc(d.recent.slice(0, 3).map(s => s.title).join(' · '))}</span>`}<span class="grow"></span>
-        <button class="g-act" data-act="archive-ended" title="归档后到面板的“已归档”里能找回">清掉</button></div>
+      <div class="g-h"><button class="g-fold" data-act="hist" aria-expanded="${S.histOpen}" title="${S.histOpen ? '收起' : '刚结束的会话（30 分钟内），点开看'}" aria-label="刚结束 ${d.recent.length} 个">${IC.chev}${IC.doneBig}<span class="c num" data-roll>${d.recent.length}</span></button>
+        <span class="g-peek trunc" data-key="peek">${S.histOpen ? '' : esc(d.recent.slice(0, 3).map(s => s.title).join(' · '))}</span>
+        <span class="g-tools"><button class="ib" data-act="archive-ended" title="清掉：归档这些会话，面板“已归档”里能找回" aria-label="清掉刚结束的会话">${IC.archive}</button></span></div>
       <div class="g-body"><div><div class="s-list" data-flip>${d.recent.map(s => sessionRow(s, live)).join('')}</div></div></div></section>` : '';
   // 贴边收起时整块换成小标签（或消息气泡）；外层 .f 的尺寸在两种形态之间平滑变形，原生窗口跟着长
   const tucked = mode === 'native' && S.dock.tucked;
@@ -1302,8 +1650,8 @@ function renderFloat(el, mode) {
     </div>
     <footer class="f-foot">${connChip()}<span class="grow"></span>${feedHtml()}</footer>
   </div>`;
-  // 抽屉放在朝屏幕中间的那一侧：靠右的窗口往左拉开（右边缘不动），靠左的往右
-  const inner = tucked ? tabHtml(d, live) : drawer && S.side === 'right' ? drawerHtml(d) + main : drawer ? main + drawerHtml(d) : main;
+  // 抽屉盖在当前窗口上（从铃铛那里展开），窗口不变宽；内容太矮时窗口长高一些给抽屉留地方
+  const inner = tucked ? tabHtml(d, live) : drawer ? main + drawerHtml(d) : main;
   const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
   // 只在形态变化（面板 ↔ 标签 ↔ 气泡 ↔ 胶囊 ↔ 抽屉 ↔ 转盘）时做盒子变形；内容变高由条目自己的撑开动画负责
   const shape = `${tucked}|${tucked && !!S.speak}|${S.compact}|${drawer}|${fan}`;
@@ -1356,10 +1704,10 @@ function drawerHtml(d) {
       <span class="grow"></span>
       ${S.sound ? `<button class="ib" data-act="sound-test" title="试听">${IC.play}</button>` : ''}
       <button class="ib" data-act="sound-dir" title="打开声音文件夹：放进自己的 .wav 就能选">${IC.folder}</button></footer>` : '';
-  return `<aside class="f-drawer" data-key="drawer">
+  return `<aside class="f-drawer" data-key="drawer" data-exit="fade">
     <header class="dr-top" data-drag><b>通知</b><span class="seg">${tab('unread', '未读', unread)}${tab('all', '全部', 0)}</span><span class="grow"></span>
       ${unread ? '<button class="g-act" data-act="read-all">全部已读</button>' : ''}
-      <button class="ib" data-act="drawer" title="收起抽屉">${S.side === 'right' ? IC.chevR : IC.chevL}</button></header>
+      <button class="ib" data-act="drawer" title="关闭通知（Esc）" aria-label="关闭通知">${IC.x}</button></header>
     <div class="dr-body">
       ${d.cards.length ? `<div class="n-area" data-flip>${d.cards.map(cardHtml).join('')}</div>` : ''}
       ${list.length ? `<div class="dr-list" data-flip>${list.map(noticeRow).join('')}</div>` : ''}
@@ -1550,13 +1898,37 @@ function pillHtml(d, live) {
   return `<span class="pill-tx" data-key="pill-q"><span class="tx t3">${d.nR ? `${d.nR} 个会话在跑` : '都安静着'}</span></span>`;
 }
 
+// 长清单：悬浮窗里超过 8 条时只显示当前这一步前一条、后四条，前后各折成一行“前面 N 项已完成 / 后面还有 N 项”，
+// 点一下展开全部，展开后底部有“只看当前附近”收回。面板详情里永远显示全部
+const ITEMS_LONG = 8, ITEMS_WIN = 6;
 function itemsHtml(s) {
-  return s.items.map(it => {
+  const all = s.items;
+  const sid = esc(s.id);
+  let from = 0, to = all.length;
+  const long = FLOAT && all.length > ITEMS_LONG;
+  if (long && !S.open.has(`all:${s.id}`)) {
+    let c = all.findIndex(it => it.status === 'doing' || it.status === 'blocked');
+    if (c < 0) c = all.findIndex(it => it.status === 'todo');
+    if (c < 0) c = all.length - 1;
+    from = Math.max(0, Math.min(c - 1, all.length - ITEMS_WIN));
+    to = Math.min(all.length, from + ITEMS_WIN);
+  }
+  const head = all.slice(0, from);
+  const fold = (key, label, icon) => `<button class="it-fold" data-act="items-all" data-sid="${sid}" data-key="${key}">${icon}<span>${label}</span></button>`;
+  const doneBefore = head.filter(finished).length;
+  const pre = from ? fold('fold-pre', doneBefore === from ? `前面 ${from} 项已完成` : `前面 ${from} 项（${doneBefore} 项已完成）`, `<span class="it-fold-ic ok">${sicon('done')}</span>`) : '';
+  const post = to < all.length ? fold('fold-post', `后面还有 ${all.length - to} 项`, `<span class="it-fold-ic">${IC.chev}</span>`) : '';
+  const back = long && S.open.has(`all:${s.id}`) ? fold('fold-back', '只看当前附近', `<span class="it-fold-ic up">${IC.chev}</span>`) : '';
+  return pre + all.slice(from, to).map(it => {
     const { ms, approx } = itemMs(s, it);
     const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
+    // 悬停时右侧的耗时让位给两个小操作：复制这一条、跳过（已完成 / 已跳过的换成“恢复成待办”）
+    const acts = `<span class="it-acts"><button class="ib" data-act="item-copy" title="复制这一条">${IC.copy}</button>${it.status === 'skipped' || it.status === 'done'
+      ? `<button class="ib" data-act="item-todo" title="恢复成待办">${IC.undoArrow}</button>`
+      : `<button class="ib" data-act="item-skip" title="跳过这一条">${IC.skip}</button>`}</span>`;
     return `<div class="it-s ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-key="${esc(it.id)}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"><button class="it-tick" data-act="item-cycle" title="${it.status === 'done' ? '取消勾选' : '手动勾上（agent 忘了勾时用）'}">${sicon(it.status)}</button><span class="tx">${esc(it.text)}${it.note ? `<span class="nt">${esc(it.note)}</span>` : ''}</span>
-      <span class="tm num"${it.status === 'doing' && it.startedAt ? ` data-clock="item" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"` : ''}>${tm}</span></div>`;
-  }).join('') || `<div class="it-s"><span class="tx t3">${s.status === 'planning' ? '正在写清单…' : '没有清单'}</span></div>`;
+      <span class="tm num"${it.status === 'doing' && it.startedAt ? ` data-clock="item" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"` : ''}>${tm}</span>${acts}</div>`;
+  }).join('') + post + back || `<div class="it-s"><span class="tx t3">${s.status === 'planning' ? '正在写清单…' : '没有清单'}</span></div>`;
 }
 
 function cardHtml(n) {
@@ -1620,6 +1992,12 @@ function sessionRow(s, live) {
         ${isStale(s) ? `<span class="stale">${short(now() - s.updatedAt)} 没动静 ·</span>` : ''}<span class="tm num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span>
       ${p.total && !isEnded(s) ? `<span class="segs-wrap">${segs(s, ticking)}</span>` : ''}
     </button>
+    <div class="s-quick" data-key="q-${esc(s.id)}">
+      ${s.link ? `<button class="ib" data-act="open-link" data-sid="${esc(s.id)}" title="回到对话">${IC.link}</button>` : ''}
+      <button class="ib" data-act="relay" data-sid="${esc(s.id)}" title="复制接力提示：粘给任何 agent 都能接着做">${IC.copy}</button>
+      <button class="ib" data-act="open-panel-session" data-sid="${esc(s.id)}" title="在面板里看完整清单和动态">${IC.panel}</button>
+      ${isEnded(s) ? `<button class="ib" data-act="archive" data-sid="${esc(s.id)}" title="归档">${IC.archive}</button>` : ''}
+    </div>
     ${kidsHtml(s, live)}
     <div class="s-items"><div><div class="pad">
       ${itemsHtml(s)}
@@ -1889,6 +2267,7 @@ window.tickHostState = st => {
   if ('side' in st) S.side = st.side === 'left' ? 'left' : 'right';
   if ('vside' in st) S.vside = st.vside === 'bottom' ? 'bottom' : 'top';
   if ('sound' in st) S.sound = st.sound || '';
+  if ('glass' in st) document.documentElement.toggleAttribute('data-glass', !!st.glass);
   if (Array.isArray(st.sounds)) S.sounds = st.sounds;
   schedule();
 };
@@ -1920,6 +2299,7 @@ async function openPip() {
     const el = win.document.createElement('div');
     win.document.body.append(el);
     el.addEventListener('click', onClick);
+    el.addEventListener('pointermove', scrub, { passive: true });
     win.setInterval(() => tickClocks(el), 1000); // 小窗自己的计时器，主标签页隐藏时也准
     win.addEventListener('pagehide', () => { pip.win = null; pip.root = null; });
     pip.win = win;
@@ -2021,6 +2401,27 @@ async function onClick(e) {
     case 'dtab': S.drawerTab = el.dataset.tab; schedule(); break;
     case 'order': S.order = S.order === 'old' ? 'new' : 'old'; store.set('order', S.order); schedule(); break;
     case 'hist': S.histOpen = !S.histOpen; schedule(); break;
+    case 'item-copy': {
+      e.stopPropagation();
+      const it = s?.items.find(x => x.id === el.closest('[data-iid]')?.dataset.iid);
+      if (it) toast(await copy(it.note ? `${it.text}\n${it.note}` : it.text) ? '已复制这一条' : '复制没成功');
+      break;
+    }
+    case 'item-skip': case 'item-todo': {
+      e.stopPropagation();
+      const iid = el.closest('[data-iid]')?.dataset.iid;
+      if (!s || !iid) break;
+      try { await post(`/api/sessions/${s.id}/items/${iid}`, act === 'item-skip' ? { status: 'skipped', note: '手动跳过' } : { status: 'todo' }, 'PATCH'); }
+      catch (err) { toast(`没改成：${esc(err.message)}`); }
+      break;
+    }
+    case 'items-all': {
+      e.stopPropagation();
+      const k = `all:${sid}`;
+      if (S.open.has(k)) S.open.delete(k); else S.open.add(k);
+      schedule();
+      break;
+    }
     case 'feed': if (sid) focusSession(sid); break;
     case 'fan-open': case 'fan-more':
       S.fan = false;
@@ -2217,6 +2618,49 @@ document.addEventListener('pointerdown', e => {
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) document.addEventListener(t, end, true);
   NATIVE ? window.tickDrag() : window.tickWin('drag');
 });
+// ============ 进度条擦洗：鼠标在进度条上左右移动，显示对应那一步的内容、状态和耗时 ============
+const tips = new WeakMap(); // 每个文档（主页面 / 置顶小窗）一个提示框
+function scrub(e) {
+  const doc = e.target.ownerDocument || document;
+  const bar = e.target.closest?.('.segs-wrap')?.querySelector('.segs,.pbar') || e.target.closest?.('.segs,.pbar');
+  let tip = tips.get(doc);
+  const prevHov = doc.querySelector('.segs i.hov');
+  const s = bar && S.sessions.get(bar.closest('[data-sid]')?.dataset.sid || S.sel);
+  if (!bar || !s || !s.items.length) {
+    prevHov?.classList.remove('hov');
+    tip?.classList.remove('on');
+    return;
+  }
+  const r = bar.getBoundingClientRect();
+  const n = s.items.length;
+  const i = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n)));
+  const it = s.items[i];
+  const seg = bar.classList.contains('segs') ? bar.children[i] : null;
+  if (prevHov !== seg) { prevHov?.classList.remove('hov'); seg?.classList.add('hov'); }
+  if (!tip) {
+    tip = doc.createElement('div');
+    tip.className = 'seg-tip';
+    doc.body.appendChild(tip);
+    tips.set(doc, tip);
+  }
+  const { ms, approx } = itemMs(s, it);
+  const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
+  const key = `${s.id}:${it.id}:${it.status}:${tm}`;
+  if (tip.dataset.k !== key) {
+    tip.dataset.k = key;
+    tip.innerHTML = `<b>${sicon(it.status)}#${i + 1} ${esc(ITEM[it.status] || '')}<span class="st num">${esc(tm)}</span></b><span>${esc(it.text)}</span>${it.note ? `<span class="nt">${esc(firstLine(it.note))}</span>` : ''}`;
+  }
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  const vw = doc.defaultView.innerWidth;
+  const x = Math.max(6, Math.min(vw - w - 6, e.clientX - w / 2));
+  const y = r.top - h - 8 < 4 ? r.bottom + 8 : r.top - h - 8;
+  tip.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
+  tip.classList.add('on');
+}
+document.addEventListener('pointermove', scrub, { passive: true });
+document.addEventListener('pointerleave', () => tips.get(document)?.classList.remove('on'));
+document.addEventListener('scroll', () => tips.get(document)?.classList.remove('on'), { capture: true, passive: true });
+
 // 面板：双击标题栏最大化 / 还原，和系统标题栏一样
 document.addEventListener('dblclick', e => {
   if (WIN && !e.target.closest('button,a,input,label') && dragZone(e.target)) window.tickWin('max');
@@ -2231,6 +2675,7 @@ $('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) $('
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (!$('guide').hidden) $('guide').hidden = true;
+    else if (S.drawer) { S.drawer = false; schedule(); }
     else if (S.sel) { S.sel = null; schedule(); }
     return;
   }
@@ -2268,6 +2713,7 @@ let clockTimer = 0;
 let slowTimer = 0;
 S.hostHidden = false;
 function setIdle() {
+  if (TOAST || MENU) return; // 提醒卡的倒计时靠动画走，不能暂停；菜单只在看得见时存在
   const idle = S.hostHidden || (document.hidden && !pip.win) || (S.dock.tucked && !visible().some(s => s.status === 'running'));
   if (idle === S.idle) return;
   S.idle = idle;
@@ -2293,6 +2739,8 @@ window.tickVisible = on => {
 
 // ============ 启动 ============
 (async () => {
+  if (TOAST) { document.title = 'Tick 提醒'; startToast(); return; }
+  if (MENU) { document.title = 'Tick 菜单'; startMenu(); return; }
   if (FLOAT) document.title = 'Tick 小窗';
   if (NATIVE) {
     try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }
@@ -2300,7 +2748,10 @@ window.tickVisible = on => {
     S.compact = qs.has('pill') || store.get('compact', false);
   }
   await connect();
-  if (NATIVE) window.tickReady();
+  if (NATIVE) {
+    window.tickReady();
+    setInterval(() => window.tickBeat?.(), 15000); // 心跳：宿主 90 秒收不到就重新加载页面
+  }
   const hash = location.hash.slice(1);
   if (hash === 'guide') openGuide();
   else if (hash && S.sessions.has(hash)) openSession(hash, false);

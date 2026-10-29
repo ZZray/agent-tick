@@ -29,6 +29,7 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
 - 需要用户决定或操作时：tick_notify kind=waiting，message 写成一眼能答的问题。用户回复后接着 doing 下一条即可。卡在环境或权限上用 kind=blocked。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
+- 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。
 - 其他值得用户知道的事用 tick_notify kind=info / success / warning。不要写密钥。Tick 连不上不影响主任务。`
 
 // 每个 MCP 连接记住客户端名（推断 agent）和最近登记的会话；同一连接可能并发调用

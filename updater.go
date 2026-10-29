@@ -166,6 +166,14 @@ func checkUpdate() (string, *release, error) {
 
 // applyUpdate 下载、校验、替换当前程序文件。正在运行的 exe 不能覆盖，但能改名：旧的挪成 .old
 func applyUpdate(r *release) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return applyUpdateTo(r, exe)
+}
+
+func applyUpdateTo(r *release, exe string) error {
 	var exeURL, sumURL string
 	for _, a := range r.Assets {
 		switch a.Name {
@@ -192,10 +200,6 @@ func applyUpdate(r *release) error {
 	}
 	if want == "" {
 		return errors.New("SHA256SUMS 里没有这个平台的校验值")
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
 	}
 	tmp := exe + ".new"
 	f, err := os.Create(tmp)

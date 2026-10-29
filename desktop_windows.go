@@ -22,7 +22,6 @@ import (
 	"unsafe"
 
 	"fyne.io/systray"
-	toast "git.sr.ht/~jackmordaunt/go-toast/v2"
 	webview2 "github.com/jchv/go-webview2"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -127,8 +126,39 @@ func (f *floatWin) pushHostState() {
 	pinned, dnd, sound := f.pinned(), f.dnd(), f.soundState()
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,%s})", pinned, dnd, h, v, sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,%s})", pinned, dnd, h, v, glassOn, sound))
 	})
+}
+
+// watchdog 每 20 秒看两件事：
+//   - 界面线程还活着吗：往窗口线程派一个空任务，15 秒没执行就是卡死了。有守护进程时直接退出，让它重启；
+//   - 页面还活着吗：窗口看得见时页面每 15 秒报一次心跳，90 秒没报（渲染进程崩了、页面白了）就重新加载页面。
+//     窗口藏起来时浏览器会限流计时器，这段时间不算
+func (f *floatWin) watchdog() {
+	f.lastBeat.Store(now())
+	url := fmt.Sprintf("http://127.0.0.1:%d/?view=float", f.srv.port)
+	for range time.Tick(20 * time.Second) {
+		alive := make(chan struct{}, 1)
+		f.dispatch(func() { alive <- struct{}{} })
+		select {
+		case <-alive:
+		case <-time.After(15 * time.Second):
+			log.Printf("界面线程 15 秒没有响应")
+			if isWorker() {
+				os.Exit(exitHung) // 守护进程会重启
+			}
+			continue
+		}
+		if !f.visible() || f.fsHidden.Load() {
+			f.lastBeat.Store(now())
+			continue
+		}
+		if now()-f.lastBeat.Load() > 90_000 {
+			log.Printf("悬浮窗页面 90 秒没有心跳，重新加载")
+			f.lastBeat.Store(now())
+			f.dispatch(func() { f.w.Navigate(url) })
+		}
+	}
 }
 
 // side 窗口中心在所在屏幕的哪一半（左 / 右、上 / 下），和 fit 的锚定规则一致
@@ -162,7 +192,8 @@ type floatWin struct {
 	dock     dockRuntime
 	dockReq  chan func()
 	tucked   atomic.Bool
-	fsHidden atomic.Bool // 因全屏让开了
+	fsHidden atomic.Bool  // 因全屏让开了
+	lastBeat atomic.Int64 // 页面上次报心跳的时间（毫秒）
 }
 
 // inDock 把一个操作交给 dockLoop 执行；队列满了就丢，下一轮轮询会自己纠正
@@ -192,6 +223,7 @@ var theFloat *floatWin
 
 func runDesktop(srv *Server, serve func()) {
 	pSetDpiAwareness.Call(^uintptr(3)) // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+	initGlass()                        // 要在建第一个 WebView 之前
 	dir := filepath.Dir(srv.store.file)
 	f := &floatWin{srv: srv, file: filepath.Join(dir, "desktop.json"), set: deskSettings{Pinned: true}, cssW: 340, cssH: 160, dockReq: make(chan func(), 16),
 		dataPath: filepath.Join(dir, "webview")} // 两个窗口共用一份 WebView2 数据，共享浏览器进程，省内存
@@ -202,7 +234,7 @@ func runDesktop(srv *Server, serve func()) {
 	srv.showFloat = func() { f.dispatch(f.summon) }
 	srv.showPanel = func(hash string) { openPanel(srv, f, hash) }
 
-	f.w = webview2.NewWithOptions(webview2.WebViewOptions{
+	f.w = newGlassWebView(webview2.WebViewOptions{
 		DataPath:      f.dataPath,
 		WindowOptions: webview2.WindowOptions{Title: "Tick", Width: 340, Height: 160},
 	})
@@ -218,10 +250,11 @@ func runDesktop(srv *Server, serve func()) {
 	} else {
 		log.Printf("全局快捷键 Ctrl+Alt+T 注册失败（可能被占用）：%v", err)
 	}
-	setupToast(srv, f)
+	setupNotices(srv, f)
 	serve()
 	go runTray(srv, f)
 	go f.dockLoop()
+	go f.watchdog()
 	f.w.Navigate(fmt.Sprintf("http://127.0.0.1:%d/?view=float", srv.port))
 	// 页面 1.5 秒内没报就绪也先显示出来，免得看不到窗口
 	time.AfterFunc(1500*time.Millisecond, func() { f.dispatch(func() { f.ready() }) })
@@ -243,6 +276,7 @@ func (f *floatWin) style() {
 	pDwmSetWindowAttribute.Call(h, 33, uintptr(unsafe.Pointer(&round)), 4) // Win11 圆角
 	border := uint32(0x00332F2E)                                           // 1px 边框，COLORREF 是 BGR
 	pDwmSetWindowAttribute.Call(h, 34, uintptr(unsafe.Pointer(&border)), 4)
+	applyGlass(h, true)
 	f.orig, _, _ = pGetWindowLongPtr.Call(h, uintptr(gwlpWndProcU()))
 	pSetWindowLongPtr.Call(h, uintptr(gwlpWndProcU()), syscall.NewCallback(floatProc))
 	x, y := f.defaultPos()
@@ -519,6 +553,9 @@ func (f *floatWin) bind() {
 	must(f.w.Bind("tickPanel", func(hash string) { openPanel(f.srv, f, hash) })) // hash 如 "#s_ab12cd"、"#guide"
 	must(f.w.Bind("tickSound", func(id string) { go f.setSound(id) }))           // 换提示音并试听；"" = 不响
 	must(f.w.Bind("tickSoundDir", f.openSoundDir))
+	must(f.w.Bind("tickBeat", func() { f.lastBeat.Store(now()) }))              // 页面心跳，见 watchdog
+	must(f.w.Bind("tickToast", f.toast))                                        // 右下角提醒卡（JSON）
+	must(f.w.Bind("tickTheme", func(dark bool) { setDarkFrame(f.hwnd, dark) })) // 毛玻璃的着色跟页面主题走
 }
 
 // openExternal 用系统默认程序打开链接（浏览器、codex:// 等）；拒绝本地文件和脚本协议
@@ -539,14 +576,15 @@ func openExternal(url string) error {
 func runTray(srv *Server, f *floatWin) {
 	runtime.LockOSThread()
 	systray.Run(func() {
-		systray.SetIcon(iconICO(false))
+		systray.SetIcon(iconICO(iconState{Progress: 1}))
 		systray.SetTooltip("Tick")
+		t := &tray{f: f, srv: srv}
+		// 系统菜单只在宫格弹窗建不出来时才会出现（后备）；动作和弹窗共用 t.act
 		mShow := systray.AddMenuItem("收到托盘", "")
 		mPin := systray.AddMenuItemCheckbox("悬浮窗置顶", "", f.pinned())
 		mAutoHide := systray.AddMenuItemCheckbox("贴边后自动隐藏", "拖到屏幕左、右、上边缘松手即可贴边", f.autoHide())
 		mFS := systray.AddMenuItemCheckbox("全屏时让开", "游戏、视频、演示全屏时自动隐藏", f.fullscreenHide())
-		mDnd := systray.AddMenuItemCheckbox("勿扰 1 小时", "不弹系统通知和气泡；悬浮窗里照常记录", f.dnd())
-		// 提示音：单选。列表在启动时读一次；往声音文件夹里放了新 wav，悬浮窗通知抽屉里会实时出现
+		mDnd := systray.AddMenuItemCheckbox("勿扰 1 小时", "不弹提醒卡和气泡；悬浮窗里照常记录", f.dnd())
 		mSound := systray.AddMenuItem("通知声音", "")
 		soundOpts := append([]soundOpt{{"", "无"}}, f.sounds()...)
 		soundItems := make([]*systray.MenuItem, len(soundOpts))
@@ -554,136 +592,89 @@ func runTray(srv *Server, f *floatWin) {
 			soundItems[i] = mSound.AddSubMenuItemCheckbox(o.Name, "", o.ID == f.soundID())
 			go func(i int, id string) {
 				for range soundItems[i].ClickedCh {
-					f.setSound(id)
+					t.act("sound", true, id)
 				}
 			}(i, o.ID)
 		}
 		mSoundDir := mSound.AddSubMenuItem("打开声音文件夹…", "把自己的 .wav 放进去，重开 Tick 后出现在这里")
-		go func() {
-			for range mSoundDir.ClickedCh {
-				f.openSoundDir()
-			}
-		}()
 		systray.AddSeparator()
 		mPanel := systray.AddMenuItem("打开面板", "完整面板：历史、搜索、编辑")
 		mBrowser := systray.AddMenuItem("在浏览器里打开", "")
 		mMCP := systray.AddMenuItem("复制 MCP 地址", "")
 		mAuto := systray.AddMenuItemCheckbox("开机启动", "", autostartEnabled())
-		f.mu.Lock()
-		autoUp := !f.set.NoAutoUpdate
-		f.mu.Unlock()
 		mUpdate := systray.AddMenuItem("检查更新（当前 "+version+"）", "")
-		mAutoUp := systray.AddMenuItemCheckbox("自动更新", "每 12 小时检查一次，空闲时重启到新版本", autoUp)
-		up := &updater{f: f, srv: srv, menu: mUpdate}
-		srv.restart = func() { up.pending = "新版本"; up.restartWhenIdle(false) }
-		go up.loop()
+		mAutoUp := systray.AddMenuItemCheckbox("自动更新", "每 12 小时检查一次，空闲时重启到新版本", !f.set.NoAutoUpdate)
+		t.up = &updater{f: f, srv: srv, menu: mUpdate}
+		srv.restart = func() { t.up.setPending("新版本"); t.up.restartWhenIdle(false) }
+		go t.up.loop()
 		systray.AddSeparator()
 		mQuit := systray.AddMenuItem("退出 Tick", "")
 		key := ""
 		if f.hotkey != "" {
 			key = "\t" + f.hotkey // 菜单里右对齐显示快捷键
 		}
-		refresh := func() {
-			if f.visible() {
+		check := func(m *systray.MenuItem, on bool) {
+			if on {
+				m.Check()
+			} else {
+				m.Uncheck()
+			}
+		}
+		t.refresh = func() {
+			st := t.state()
+			if st.Visible {
 				mShow.SetTitle("收到托盘" + key)
 			} else {
 				mShow.SetTitle("显示悬浮窗" + key)
 			}
-			if f.dnd() {
-				mDnd.Check()
-			} else {
-				mDnd.Uncheck()
-			}
-			if f.pinned() {
-				mPin.Check()
-			} else {
-				mPin.Uncheck()
-			}
-			cur := f.soundID()
+			check(mDnd, st.Dnd)
+			check(mPin, st.Pinned)
+			check(mAutoHide, st.AutoHide)
+			check(mFS, st.FsHide)
+			check(mAuto, st.Autostart)
+			check(mAutoUp, st.AutoUpdate)
 			for i, o := range soundOpts {
-				if o.ID == cur {
-					soundItems[i].Check()
-				} else {
-					soundItems[i].Uncheck()
-				}
+				check(soundItems[i], o.ID == st.Sound)
 			}
 		}
-		f.setOnChange(refresh)
-		refresh()
-		systray.SetOnTapped(f.toggle) // 左键开关悬浮窗，右键出菜单
+		f.setOnChange(t.refresh)
+		t.refresh()
+		theTray = t
+		systray.SetOnTapped(f.toggle)         // 左键开关悬浮窗
+		systray.SetOnSecondaryTapped(func() { // 右键：宫格弹窗；建不出来时 open 返回 false，之后改出系统菜单
+			if !theMenu.open(t) {
+				systray.SetOnSecondaryTapped(nil)
+			}
+		})
 		go func() {
 			for {
 				select {
 				case <-mShow.ClickedCh:
-					f.toggle()
+					t.act("float", true, "")
 				case <-mPin.ClickedCh:
-					on := !mPin.Checked()
-					f.dispatch(func() { f.setPinned(on) })
+					t.act("pin", !mPin.Checked(), "")
 				case <-mAutoHide.ClickedCh:
-					on := !mAutoHide.Checked()
-					f.mu.Lock()
-					f.set.NoAutoHide = !on
-					f.mu.Unlock()
-					f.saveSettings()
-					if on {
-						mAutoHide.Check()
-					} else {
-						mAutoHide.Uncheck()
-						if f.tucked.Load() {
-							f.inDock(func() { f.setTucked(false) })
-						}
-					}
+					t.act("autohide", !mAutoHide.Checked(), "")
 				case <-mDnd.ClickedCh:
-					f.setDnd(!f.dnd())
+					t.act("dnd", !f.dnd(), "")
 				case <-mFS.ClickedCh:
-					on := !mFS.Checked()
-					f.mu.Lock()
-					f.set.NoFullscreenHide = !on
-					f.mu.Unlock()
-					f.saveSettings()
-					if on {
-						mFS.Check()
-					} else {
-						mFS.Uncheck()
-					}
+					t.act("fs", !mFS.Checked(), "")
+				case <-mSoundDir.ClickedCh:
+					t.act("sounddir", true, "")
 				case <-mPanel.ClickedCh:
-					openPanel(srv, f, "")
+					t.act("panel", true, "")
 				case <-mBrowser.ClickedCh:
-					_ = openExternal(fmt.Sprintf("http://127.0.0.1:%d/", srv.port))
+					t.act("browser", true, "")
 				case <-mMCP.ClickedCh:
-					copyText(fmt.Sprintf("http://127.0.0.1:%d/mcp", srv.port))
+					t.act("mcp", true, "")
 				case <-mUpdate.ClickedCh:
-					if up.pending != "" {
-						go up.restartWhenIdle(true)
-					} else {
-						go up.check(true)
-					}
+					t.act("update", true, "")
 				case <-mAutoUp.ClickedCh:
-					on := !mAutoUp.Checked()
-					f.mu.Lock()
-					f.set.NoAutoUpdate = !on
-					f.mu.Unlock()
-					f.saveSettings()
-					if on {
-						mAutoUp.Check()
-					} else {
-						mAutoUp.Uncheck()
-					}
+					t.act("autoupdate", !mAutoUp.Checked(), "")
 				case <-mAuto.ClickedCh:
-					on := !mAuto.Checked()
-					if err := setAutostart(on); err != nil {
-						log.Printf("开机启动设置失败：%v", err)
-					} else if on {
-						mAuto.Check()
-					} else {
-						mAuto.Uncheck()
-					}
+					t.act("autostart", !mAuto.Checked(), "")
 				case <-mQuit.ClickedCh:
-					f.dispatch(func() {
-						f.saveSettings()
-						f.w.Terminate()
-					})
-					systray.Quit()
+					t.act("quit", true, "")
 					return
 				}
 			}
@@ -692,19 +683,59 @@ func runTray(srv *Server, f *floatWin) {
 	}, nil)
 }
 
-// trayStatus 跟着数据变化更新托盘提示和图标（有人在等就加橙点）
+var theTray *tray
+
+// trayFlash 让托盘图标闪 n 下（亮帧和平常帧交替）；n = 0 表示马上停
+var trayFlash = make(chan int, 4)
+
+// trayStatus 跟着数据变化更新托盘提示和图标，并负责闪动。
+// 图标上的环是活的：弧长 = 进行中会话的总完成比例（按 1/24 取整，免得每勾一项都重画），有人在等你时变橙
 func trayStatus(srv *Server) {
 	ch, _ := srv.store.Subscribe()
-	icons := map[bool][]byte{false: iconICO(false), true: iconICO(true)}
-	lastDot := false
+	cache := map[iconState][]byte{}
+	base := iconState{Progress: 1}
+	shown := iconState{Progress: -1}
+	set := func(k iconState) {
+		if k == shown {
+			return
+		}
+		b, ok := cache[k]
+		if !ok {
+			b = iconICO(k)
+			cache[k] = b
+		}
+		systray.SetIcon(b)
+		shown = k
+	}
+	flash := iconState{Progress: 1, Tone: toneFlash}
+	var blink *time.Ticker
+	var tickC <-chan time.Time
+	left := 0
+	stop := func() {
+		if blink != nil {
+			blink.Stop()
+			blink, tickC = nil, nil
+		}
+		left = 0
+		set(base)
+	}
 	update := func() {
-		running, waiting := 0, 0
+		running, waiting, done, total := 0, 0, 0, 0
 		for _, s := range srv.store.Sessions(false) {
+			active := isWaiting(s.Status) || s.Status == "running" || s.Status == "planning"
 			switch {
 			case isWaiting(s.Status):
 				waiting++
-			case s.Status == "running" || s.Status == "planning":
+			case active:
 				running++
+			}
+			if active {
+				for _, it := range s.Items {
+					total++
+					if it.Status == "done" || it.Status == "skipped" {
+						done++
+					}
+				}
 			}
 		}
 		tip := "Tick · 没有进行中的会话"
@@ -713,16 +744,57 @@ func trayStatus(srv *Server) {
 			if waiting > 0 {
 				tip += fmt.Sprintf(" · %d 等你", waiting)
 			}
+			if total > 0 {
+				tip += fmt.Sprintf(" · 清单 %d/%d", done, total)
+			}
 		}
 		systray.SetTooltip(tip)
-		if dot := waiting > 0; dot != lastDot {
-			systray.SetIcon(icons[dot])
-			lastDot = dot
+		base = iconState{Progress: 1}
+		if running+waiting > 0 {
+			base.Progress = 0
+			if total > 0 {
+				base.Progress = math.Round(float64(done)/float64(total)*24) / 24
+			}
+		}
+		if waiting > 0 {
+			base.Tone = toneOrange
+		}
+		if blink == nil {
+			set(base)
 		}
 	}
 	update()
-	for range ch {
-		update()
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+			update()
+		case n := <-trayFlash:
+			if n <= 0 {
+				stop()
+				continue
+			}
+			left = max(left, n*2) // 正在闪就接着闪，不叠加
+			if blink == nil {
+				blink = time.NewTicker(420 * time.Millisecond)
+				tickC = blink.C
+				set(flash)
+				left--
+			}
+		case <-tickC:
+			if left <= 0 {
+				stop()
+				continue
+			}
+			left--
+			if left%2 == 1 {
+				set(flash)
+			} else {
+				set(base)
+			}
+		}
 	}
 }
 
@@ -763,70 +835,21 @@ func setAutostart(on bool) error {
 	return k.SetStringValue("Tick", `"`+exe+`"`)
 }
 
-// ---------- 系统通知 ----------
-
-const toastGUID = "{6F3B2C1D-4A5E-4F7A-9B8C-1D2E3F4A5B6C}"
-
-func setupToast(srv *Server, f *floatWin) {
-	dir := filepath.Dir(srv.store.file)
-	iconPath := filepath.Join(dir, "tick.png")
-	_ = os.WriteFile(iconPath, iconPNG(128, false), 0o644)
-	exe, _ := os.Executable()
-	if err := toast.SetAppData(toast.AppData{AppID: "Tick", GUID: toastGUID, ActivationExe: exe, IconPath: iconPath}); err != nil {
-		log.Printf("系统通知初始化失败（悬浮窗照常显示）：%v", err)
-	}
-	// 点通知：打开悬浮窗并定位到那个会话
-	toast.SetActivationCallback(func(args string, _ []toast.UserData) {
+// ---------- 通知 ----------
+// 不用 Windows 系统通知：提醒卡（右下角）、托盘闪动和提示音见 toast_windows.go。
+// 这里只管“等你 / 受阻”时把收到托盘的悬浮窗叫出来（不抢焦点）；收在边上时由页面把标签变成气泡。
+// 勿扰期间不叫出来，悬浮窗里照常记下
+func setupNotices(srv *Server, f *floatWin) {
+	srv.store.SetOnNotice(func(n *Notice) {
+		if f.dnd() || !isWaiting(n.Kind) {
+			return
+		}
 		f.dispatch(func() {
-			f.summon()
-			if strings.HasPrefix(args, "s_") {
-				f.w.Eval(fmt.Sprintf("window.tickFocus && tickFocus(%q)", args))
+			if !f.visible() && !f.fsHidden.Load() {
+				f.show(false)
 			}
 		})
 	})
-	titles := map[string]string{"waiting": "%s 在等你", "blocked": "%s 卡住了", "done": "%s 做完了", "failed": "%s 没做成"}
-	srv.store.SetOnNotice(func(n *Notice) {
-		agent := agentDisplay(n.Agent)
-		title := agent
-		if t, ok := titles[n.Kind]; ok {
-			title = fmt.Sprintf(t, agent)
-		}
-		if n.Title != "" {
-			title += " · " + clip(n.Title, 40)
-		}
-		// 等你 / 受阻：收到托盘的悬浮窗自己出来（不抢焦点）。
-		// 收在边上时不展开整个面板，由页面把小标签变成气泡显示这条消息（像灵动岛）
-		// 勿扰期间：不弹系统通知，也不把藏起来的窗口叫出来；悬浮窗里照常记下
-		if f.dnd() {
-			return
-		}
-		if isWaiting(n.Kind) {
-			f.dispatch(func() {
-				if !f.visible() && !f.fsHidden.Load() {
-					f.show(false)
-				}
-			})
-		}
-		go f.playNotice()
-		go func() {
-			// 系统通知静音：要不要响、响什么由 Tick 的提示音设置决定（默认不响）
-			t := toast.Notification{AppID: "Tick", Title: title, Body: clip(n.Text, 200), ActivationArguments: n.SessionID, Audio: toast.Silent}
-			if err := t.Push(); err != nil {
-				log.Printf("系统通知没发出去：%v", err)
-			}
-		}()
-	})
-}
-
-func agentDisplay(a string) string {
-	names := map[string]string{"claude": "Claude", "codex": "Codex", "cursor": "Cursor", "kiro": "Kiro"}
-	if n, ok := names[a]; ok {
-		return n
-	}
-	if a == "" {
-		return "Agent"
-	}
-	return strings.ToUpper(a[:1]) + a[1:]
 }
 
 // ---------- 杂项 ----------
@@ -870,5 +893,8 @@ func fatal(msg string) {
 	t, _ := windows.UTF16PtrFromString(msg)
 	c, _ := windows.UTF16PtrFromString("Tick")
 	pMessageBox.Call(0, uintptr(unsafe.Pointer(t)), uintptr(unsafe.Pointer(c)), 0x10)
+	if isWorker() {
+		os.Exit(exitFatal) // 已经告诉用户了，守护进程别再重启弹同一个窗
+	}
 	os.Exit(1)
 }

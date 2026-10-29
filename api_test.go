@@ -2,8 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io"
 	"net"
 	"net/http"
@@ -469,6 +473,85 @@ func TestDelete(t *testing.T) {
 	}
 	if len(h.notices(p)) != 0 {
 		t.Fatal("相关通知应一起删掉")
+	}
+}
+
+// 图标：各种状态、各种尺寸都能画出来，大小正确；设了 TICK_ICON_OUT 就把 PNG 写出来人工看
+func TestIconRender(t *testing.T) {
+	dir := os.Getenv("TICK_ICON_OUT")
+	states := map[string]iconState{"app": appIcon, "idle": {Progress: 1}, "p0": {}, "p35": {Progress: 0.35}, "wait": {Progress: 0.6, Tone: toneOrange}, "flash": {Progress: 1, Tone: toneFlash}}
+	for name, st := range states {
+		for _, sz := range []int{16, 20, 32, 64, 128} {
+			b := iconPNG(sz, st)
+			img, err := png.Decode(bytes.NewReader(b))
+			if err != nil || img.Bounds().Dx() != sz {
+				t.Fatalf("%s %d: %v", name, sz, err)
+			}
+			if dir != "" {
+				_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s-%d.png", name, sz)), b, 0o644)
+			}
+		}
+	}
+	if ico := iconICO(appIcon); len(ico) < 100 || ico[2] != 1 {
+		t.Fatal("ICO 头不对")
+	}
+}
+
+// 自动更新的替换：校验通过才换，旧文件挪成 .old；校验不过、缺资产时原文件一个字节都不动
+func TestApplyUpdate(t *testing.T) {
+	good := []byte("new tick binary v9")
+	sum := sha256.Sum256(good)
+	sums := hex.EncodeToString(sum[:]) + "  " + assetName() + "\n"
+	body := good
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/bin":
+			_, _ = w.Write(body)
+		case "/sums":
+			_, _ = io.WriteString(w, sums)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	rel := &release{Tag: "v9.0.0", Assets: []asset{{assetName(), srv.URL + "/bin"}, {"SHA256SUMS", srv.URL + "/sums"}}}
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "tick.exe")
+	write := func() { _ = os.WriteFile(exe, []byte("old"), 0o755); _ = os.Remove(exe + ".old") }
+	read := func(p string) string { b, _ := os.ReadFile(p); return string(b) }
+
+	write()
+	if err := applyUpdateTo(rel, exe); err != nil {
+		t.Fatalf("正常更新失败：%v", err)
+	}
+	if read(exe) != string(good) || read(exe+".old") != "old" {
+		t.Fatalf("替换结果不对：exe=%q old=%q", read(exe), read(exe+".old"))
+	}
+	if _, err := os.Stat(exe + ".new"); err == nil {
+		t.Fatal("临时文件没清掉")
+	}
+
+	write()
+	body = []byte("tampered")
+	if err := applyUpdateTo(rel, exe); err == nil || !strings.Contains(err.Error(), "校验不通过") {
+		t.Fatalf("校验不过应该报错：%v", err)
+	}
+	if read(exe) != "old" {
+		t.Fatal("校验不过时原文件被动了")
+	}
+	if _, err := os.Stat(exe + ".new"); err == nil {
+		t.Fatal("校验不过时临时文件没删")
+	}
+
+	write()
+	if err := applyUpdateTo(&release{Tag: "v9.0.0", Assets: rel.Assets[1:]}, exe); err == nil || read(exe) != "old" {
+		t.Fatalf("缺资产应该报错且不动原文件：%v", err)
+	}
+	// 版本比较：开发版永远比正式版旧，发布版之间按数字比
+	for _, c := range [][3]string{{"v0.5.0", "0.4.1", "1"}, {"v0.4.1", "0.4.1", "0"}, {"v0.4.1", "0.4.1-dev", "1"}, {"v0.4.10", "0.4.9", "1"}, {"v0.4.0", "0.5.0", "0"}} {
+		if got := newer(c[0], c[1]); got != (c[2] == "1") {
+			t.Fatalf("newer(%s, %s) = %v", c[0], c[1], got)
+		}
 	}
 }
 

@@ -59,6 +59,17 @@ func main() {
 	logFile := setupLog(*dataDir)
 	defer logFile.Close()
 
+	// 桌面模式：先当守护进程，真正干活的是子进程，崩了能自动重启（见 supervisor.go）。
+	// 已经有一个 Tick 在跑就只把它叫出来
+	if !*headless && desktopSupported && !isWorker() && os.Getenv("TICK_NO_SUPERVISOR") != "1" {
+		if os.Getenv("TICK_RESTART") != "1" && pingTick(*port) {
+			_ = showExisting(*port)
+			return
+		}
+		supervise(*dataDir, os.Args[1:])
+		return
+	}
+
 	cleanupOld()
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", *port))
 	// 更新后重启：旧进程还在退出，端口要等一会儿才空出来
@@ -91,7 +102,8 @@ func main() {
 
 	if srv.desktop {
 		runDesktop(srv, serve) // 桌面端挂好回调后才开始接请求；阻塞到用户从托盘退出
-		return
+		logFile.Close()
+		os.Exit(exitCode) // 0 = 正常退出；exitRestart = 已换好新版本，守护进程用新文件重启
 	}
 	serve()
 	fmt.Printf("Tick %s 已启动：http://127.0.0.1:%d\nMCP：http://127.0.0.1:%d/mcp\n数据：%s\n", version, *port, *port, *dataDir)
