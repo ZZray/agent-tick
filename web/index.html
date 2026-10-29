@@ -887,6 +887,65 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 .code pre{font:12px/1.7 var(--mono);padding:10px 76px 10px 12px;white-space:pre-wrap;word-break:break-all;color:var(--text-2)}
 .code .btn{position:absolute;top:6px;right:6px}
 
+/* ============ 全屏卡片：一桌牌，正面看进度，背面看清单 ============ */
+.deck{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+  background:radial-gradient(1100px 520px at 50% -8%,color-mix(in srgb,var(--brand) 11%,transparent),transparent 70%),var(--bg)}
+.deck[hidden]{display:none}
+.dk-h{display:flex;align-items:center;gap:10px;height:52px;padding:0 14px 0 22px;flex-shrink:0;color:var(--text-1)}
+.dk-h .logo{width:20px;height:20px}
+.dk-h b{font-weight:600;letter-spacing:-.01em}
+.dk-w{font-size:12px;color:var(--orange);background:color-mix(in srgb,var(--orange) 14%,transparent);padding:2px 8px;border-radius:99px}
+.dk-hint{font-size:12px;margin-right:6px}
+.dk-grid{flex:1;overflow:auto;display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:28px;padding:20px 40px 40px;perspective:1600px}
+.dk-more{text-align:center;font-size:12px;padding:0 0 18px}
+.card{--tc:var(--brand);position:relative;width:264px;height:348px;flex-shrink:0;cursor:pointer;outline:none;perspective:900px;
+  transition:translate 220ms var(--ease-out)}
+.card.warn{--tc:var(--orange)} .card.bad{--tc:var(--red)} .card.ok{--tc:var(--green)} .card.idle{--tc:var(--text-4)}
+.card:hover,.card:focus-visible{translate:0 -6px}
+.cd-in{position:absolute;inset:0;transform-style:preserve-3d;transition:transform 160ms var(--ease-out);
+  transform:rotateX(var(--rx,0deg)) rotateY(calc(var(--ry,0deg) + var(--fl,0deg)))}
+.card.flip{--fl:180deg}
+.cd-face{position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;border-radius:14px;overflow:hidden;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;border:1px solid var(--line);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 10%,var(--bg-2)),var(--bg-2) 48%);
+  box-shadow:inset 0 1px 0 var(--hi),0 22px 44px -22px rgba(0,0,0,.7);transition:box-shadow 200ms var(--ease),border-color 200ms var(--ease)}
+.cd-face::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:var(--tc);opacity:.85}
+.cd-face::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity 200ms var(--ease);
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%),rgba(255,255,255,.08),transparent 60%)}
+.card:hover .cd-face::after{opacity:1}
+.card:hover .cd-face{border-color:color-mix(in srgb,var(--tc) 38%,var(--line))}
+.card:focus-visible .cd-face{border-color:var(--tc);box-shadow:0 0 0 3px color-mix(in srgb,var(--tc) 22%,transparent),0 22px 44px -22px rgba(0,0,0,.7)}
+.card.warn .cd-face{box-shadow:inset 0 1px 0 var(--hi),0 0 0 1px color-mix(in srgb,var(--orange) 30%,transparent),0 22px 50px -20px color-mix(in srgb,var(--orange) 35%,transparent)}
+.cd-b{transform:rotateY(180deg)}
+.cd-top{display:flex;align-items:center;gap:8px;font-size:12px;height:20px}
+.cd-st{display:flex;align-items:center;gap:5px;color:var(--text-2);white-space:nowrap}
+.cd-ring{position:relative;width:112px;height:112px;margin:22px auto 16px;flex-shrink:0}
+.cd-ring svg{width:100%;height:100%;display:block}
+.cr-bg{fill:none;stroke:var(--line-strong);stroke-width:5}
+.cr-v{fill:none;stroke:var(--tc);stroke-width:5;stroke-linecap:round;transition:stroke-dasharray 600ms var(--ease-out)}
+.cr-v.zero{opacity:0} /* 0% 时圆头线帽会留一个点 */
+.cd-ring b{position:absolute;inset:0;display:grid;place-items:center;grid-auto-flow:column;place-content:center;font-size:30px;font-weight:600;letter-spacing:-.03em;color:var(--text-1)}
+.cd-ring small{font-size:13px;font-weight:500;color:var(--text-3);margin-left:1px;align-self:end;padding-bottom:7px}
+.cd-t{font-size:15px;font-weight:600;line-height:1.4;color:var(--text-1);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.cd-s{margin-top:6px;font-size:12.5px;line-height:1.5;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.cd-f .segs,.cd-f .pbar{margin-top:auto}
+.cd-ft{display:flex;align-items:center;margin-top:10px;font-size:12px;color:var(--text-4)}
+.cd-bh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text-1);padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+.cd-bt{flex:1}
+.cd-list{list-style:none;flex:1;overflow:auto;margin:6px -6px 0;padding:4px 6px;
+  -webkit-mask-image:linear-gradient(transparent,#000 12px,#000 calc(100% - 12px),transparent);mask-image:linear-gradient(transparent,#000 12px,#000 calc(100% - 12px),transparent)}
+.cd-list li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:12.5px;line-height:1.45;color:var(--text-2)}
+.cd-list li .ic{margin-top:2px}
+.cd-list li span{min-width:0;word-break:break-word}
+.cd-list li small{display:block;font-size:11.5px;color:var(--text-4);margin-top:1px}
+.cd-list li.done span,.cd-list li.skipped span{color:var(--text-3)}
+.cd-list li.doing span{color:var(--text-1);font-weight:510}
+.cd-list li.none{color:var(--text-3)}
+.cd-sum{font-size:12px;line-height:1.5;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cd-acts{display:flex;gap:8px;margin-top:10px}
+.cd-acts .btn{flex:1;justify-content:center}
+
 /* ============ 无障碍与窄屏 ============ */
 @media (prefers-reduced-motion:reduce){
   .sweep::after,.segs i.doing.live::before,.pb-n.live::before{animation:none;display:none}
@@ -956,6 +1015,7 @@ const esc = v => {
 const TR_RE = [
   [/今天勾了 (\d+) 项/g, '$1 checked today'], [/勾了 (\d+) 项 · 干活 /g, '$1 checked · worked '], [/勾了 (\d+) 项/g, 'checked $1'],
   [/勾了 #(\d+)/g, 'checked #$1'], [/勾选 #(\d+)/g, 'check #$1'], [/还剩 (\d+) 分钟/g, '$1 min left'], [/(\d+) 条未读通知/g, '$1 unread'],
+  [/还有 (\d+) 个没铺开，回列表里看/g, '$1 more in the list'], [/(\d+) 个在等你/g, '$1 waiting on you'],
   [/刚结束 (\d+) 个/g, '$1 recently ended'], [/还有 (\d+) 个/g, '$1 more'], [/(\d+) 个会话在跑/g, '$1 running'],
   [/前面 (\d+) 项（(\d+) 项已完成）/g, '$1 earlier ($2 done)'], [/前面 (\d+) 项已完成/g, '$1 earlier, all done'], [/后面还有 (\d+) 项/g, '$1 more below'],
   [/(\d+) 个没做成/g, '$1 failed'], [/已结束 (\d+) 个掉线的会话/g, 'Ended $1 stalled sessions'], [/已归档 (\d+) 个结束的会话/g, 'Archived $1 ended sessions'], [/已归档 (\d+) 个/g, 'Archived $1'],
@@ -1023,7 +1083,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1063,6 +1123,7 @@ const S = {
   order: store.get('order', 'new'),           // 同一档里按登记时间：new 最新在前，old 最早在前
   histOpen: false,                             // 悬浮窗“刚结束”默认收起；窗口藏起来、贴边收起、收成胶囊时自动再收
   drawer: false, drawerTab: 'unread',          // 通知抽屉
+  deck: false, flipped: new Set(), deckMax: false, // 面板的全屏卡片：开着没有、翻到背面的卡、进卡片时是不是替用户最大化了窗口
   side: 'right', vside: 'top',                 // 宿主告诉的：窗口在屏幕哪一半（抽屉 / 转盘往屏幕中间长）
   sound: '', sounds: [],                       // 提示音（宿主侧播放）
   fan: false, fanFrom: null, fanGeo: null,     // 胶囊悬停时的环形任务列表（fanFrom：展开前横条的尺寸和鼠标位置）
@@ -1246,6 +1307,7 @@ const IC = {
   folder: L('<path d="M2.5 4.5A1 1 0 0 1 3.5 3.5h3l1.5 1.5h4.5a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/>', 14),
   chevL: L('<path d="M9.5 4l-4 4 4 4"/>', 14),
   chevR: L('<path d="M6.5 4l4 4-4 4"/>', 14),
+  cards: L('<rect x="2.5" y="4.5" width="7" height="9" rx="1.3"/><path d="M6 2.5h6.2a1.3 1.3 0 0 1 1.3 1.3V11"/>', 14),
 };
 // 进度：12 项以内每项一段；更长的清单段会细成一条线，改成一整条进度（完成部分 + 正在做的那一格）
 const segs = (s, live) => {
@@ -2518,7 +2580,7 @@ function renderPanel() {
   if (!root.querySelector('.app')) {
     root.innerHTML = tr(`<div class="app"><aside class="side" id="side"></aside><main class="main"><section class="panel">
       <header class="top" id="top" data-drag></header><div class="body" id="body"><div class="list" id="list"></div><div class="detail" id="detail" hidden></div></div>
-    </section></main></div>`);
+    </section></main><div class="deck" id="deck" hidden role="dialog" aria-modal="true" aria-label="卡片"></div></div>`);
   }
   const live = visible();
   const archived = S.sessions.size - live.length;
@@ -2555,6 +2617,7 @@ function renderPanel() {
     ? `<b>搜索</b><span class="t4 num" data-roll>${rows}</span>`
     : `<b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num" data-roll>${rows}</span>`);
   morph($('top').querySelector('.top-r'), `${t ? `<span class="today num">今天勾了 ${t} 项</span>` : ''}
+    <button class="btn ghost" data-act="deck" data-tip="全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）">${IC.cards}卡片</button>
     <button class="btn ghost" data-act="order" data-tip="${S.order === 'old' ? '现在最早的在前，点一下换成最新在前' : '现在最新的在前，点一下倒过来'}">${S.order === 'old' ? IC.sortUp : IC.sortDown}${S.order === 'old' ? '最早在前' : '最新在前'}</button>
     ${typeof window.tickFloat === 'function'
       ? `<button class="btn" data-act="float" data-tip="把桌面悬浮窗叫出来（Ctrl+Alt+T）">${IC.pip}悬浮窗</button>`
@@ -2579,6 +2642,97 @@ function renderPanel() {
   list._view = viewKey;
   list.scrollTop = keep;
   renderDetail();
+  renderDeck();
+}
+
+// ---------- 全屏卡片：当前视图的会话铺成一桌牌，点一张翻到背面看清单 ----------
+const DECK_MAX = 24;
+const CARD_C = 2 * Math.PI * 34;
+function deckCard(s) {
+  const a = agentOf(s.agent);
+  const p = progress(s);
+  const pct = p.total ? p.done / p.total : 0;
+  const tone = isWaiting(s) ? 'warn' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'idle' : 'run';
+  const on = S.flipped.has(s.id);
+  const sid = esc(s.id);
+  return `<div class="card ${tone}${on ? ' flip' : ''}" data-key="c-${sid}" data-exit="fade" data-sid="${sid}" data-act="card-flip" tabindex="0" role="button" aria-pressed="${on}" aria-label="${esc(s.title)}">
+    <div class="cd-in">
+      <div class="cd-face cd-f">
+        <div class="cd-top"><span class="tile">${esc(a.mark)}</span><span class="t3 trunc">${esc(a.name)}</span><span class="grow"></span><span class="cd-st">${sicon(isDormant(s) ? 'dormant' : s.status)}${STATUS[s.status]}</span></div>
+        <div class="cd-ring"><svg viewBox="0 0 80 80" aria-hidden="true"><circle class="cr-bg" cx="40" cy="40" r="34"/><circle class="cr-v${pct ? '' : ' zero'}" cx="40" cy="40" r="34" stroke-dasharray="${(pct * CARD_C).toFixed(1)} ${CARD_C.toFixed(1)}" transform="rotate(-90 40 40)"/></svg>
+          <b class="num">${p.total ? Math.round(pct * 100) : '–'}${p.total ? '<small>%</small>' : ''}</b></div>
+        <h3 class="cd-t">${esc(s.title)}</h3>
+        <p class="cd-s">${esc(isWaiting(s) && s.statusNote ? s.statusNote : firstLine(subline(s)))}</p>
+        ${p.total ? segs(s, true) : ''}
+        <div class="cd-ft num"><span>${p.done}/${p.total} 项</span><span class="grow"></span><span data-clock="short" data-sid="${sid}">${short(elapsed(s))}</span></div>
+      </div>
+      <div class="cd-face cd-b">
+        <div class="cd-bh"><span class="cd-bt trunc">${esc(s.title)}</span><span class="num t4">${p.done}/${p.total}</span></div>
+        <ol class="cd-list">${s.items.map(it => `<li class="${it.status}">${sicon(it.status)}<span>${esc(it.text)}${it.note ? `<small>${esc(it.note)}</small>` : ''}</span></li>`).join('')
+          || `<li class="none">${s.status === 'planning' ? '正在写清单…' : '这个会话没有清单。'}</li>`}</ol>
+        ${s.summary ? `<p class="cd-sum">${esc(s.summary)}</p>` : ''}
+        <div class="cd-acts"><button class="btn" data-act="card-open" data-sid="${sid}">看详情</button>${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${sid}">${IC.link}回到对话</button>` : ''}</div>
+      </div>
+    </div></div>`;
+}
+function renderDeck() {
+  const deck = $('deck');
+  if (!S.deck) { deck.hidden = true; return; }
+  const opening = deck.hidden;
+  deck.hidden = false;
+  const all = groups().flatMap(g => g[1]);
+  const list = all.slice(0, DECK_MAX);
+  const wait = list.filter(isWaiting).length;
+  if (opening) deck.replaceChildren();
+  const entered = morph(deck, `<header class="dk-h" data-drag><span class="logo">${IC.logo}</span><b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num">${list.length}</span>
+      ${wait ? `<span class="dk-w num">${wait} 个在等你</span>` : ''}<span class="grow"></span><span class="t4 dk-hint">点卡片翻面 · 方向键切换 · Esc 退出</span>
+      <button class="ib" data-act="deck" data-tip="退出卡片（Esc）">${IC.x}</button></header>
+    <div class="dk-grid">${list.length ? list.map(deckCard).join('') : '<div class="empty"><h2>这里没有会话</h2><p>换个视图再来铺卡片。</p></div>'}</div>
+    ${all.length > list.length ? `<p class="dk-more t4">还有 ${all.length - list.length} 个没铺开，回列表里看</p>` : ''}`);
+  // 发牌：新来的卡从下方带一点旋转飞进来，刚打开时一张接一张
+  if (!RM.matches) entered.filter(n => n.classList?.contains('card')).forEach((el, k) => {
+    const side = k % 2 ? 1 : -1;
+    el.animate([{ transform: `translate(${side * 24}px, 70vh) rotate(${side * (6 + (k % 3) * 3)}deg) scale(.92)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: 620, delay: opening ? Math.min(k, 12) * 45 : 0, easing: 'cubic-bezier(.2,.9,.25,1.08)', fill: 'backwards' });
+  });
+  if (opening) {
+    if (!RM.matches) deck.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: EASE_OUT });
+    requestAnimationFrame(() => deck.querySelector('.card')?.focus({ preventScroll: true }));
+  }
+}
+// 进出卡片。原生面板窗口进来时替用户最大化，退出时还原（本来就是最大化的不动）；
+// 浏览器里请求全屏，被拒（比如不是用户手势）也没关系，卡片照样盖满整个页面
+function toggleDeck(on = !S.deck) {
+  if (on === S.deck) return;
+  if (WIN) {
+    const max = document.documentElement.hasAttribute('data-max');
+    if (on && !max) { S.deckMax = true; window.tickWin('max'); }
+    if (!on && S.deckMax && max) window.tickWin('max');
+    if (!on) S.deckMax = false;
+  } else if (document.fullscreenEnabled) {
+    if (on) document.documentElement.requestFullscreen().catch(() => {});
+    else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }
+  S.deck = on;
+  if (on) { S.flipped.clear(); return schedule(); }
+  const deck = $('deck');
+  const done = () => { schedule(); document.querySelector('[data-act="deck"]')?.focus({ preventScroll: true }); };
+  if (RM.matches) return done();
+  deck.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.985)' }], { duration: 140, easing: 'ease-in' }).onfinish = done;
+}
+// 翻面：中途把牌往前抬一点再转过去，像从桌上拿起来翻
+function flipCard(card) {
+  const on = !S.flipped.has(card.dataset.sid);
+  if (on) S.flipped.add(card.dataset.sid); else S.flipped.delete(card.dataset.sid);
+  card.classList.toggle('flip', on);
+  card.setAttribute('aria-pressed', String(on));
+  // 背面清单直接滚到正在做的那条（没有就第一条没做的），前面勾完的往上收
+  const list = card.querySelector('.cd-list');
+  const cur = on && list.querySelector('li.doing, li.blocked, li.todo');
+  if (cur) list.scrollTop = Math.max(0, cur.offsetTop - list.offsetTop - 34);
+  if (RM.matches) return;
+  card.querySelector('.cd-in').animate([{ transform: `rotateY(${on ? 0 : 180}deg)` }, { transform: 'translateZ(80px) rotateY(90deg) scale(1.05)', offset: 0.5 }, { transform: `rotateY(${on ? 180 : 0}deg)` }],
+    { duration: 560, easing: 'cubic-bezier(.3,.7,.2,1)' });
 }
 
 function panelEmpty() {
@@ -2830,6 +2984,9 @@ async function onClick(e) {
       if (sid) focusSession(sid);
       break;
     case 'select': openSession(sid, true); break;
+    case 'deck': toggleDeck(); break;
+    case 'card-flip': flipCard(el); break;
+    case 'card-open': toggleDeck(false); openSession(sid, true); break;
     case 'close': S.sel = null; history.replaceState(null, '', location.pathname + location.search); schedule(); break;
     case 'toggle': {
       const row = el.closest('.kid, .s'); // 子任务行和会话行都能就地展开
@@ -3330,6 +3487,24 @@ document.addEventListener('scroll', () => tips.get(document)?.classList.remove('
 document.addEventListener('dblclick', e => {
   if (WIN && !e.target.closest('button,a,input,label') && dragZone(e.target)) window.tickWin('max');
 });
+// 卡片跟着鼠标微微倾斜，高光落在鼠标那一侧；只动鼠标下那一张
+let tiltCard = null;
+document.addEventListener('pointermove', e => {
+  if (!S.deck || RM.matches) return;
+  const c = e.target.closest('.card');
+  if (tiltCard && tiltCard !== c) ['--rx', '--ry', '--mx', '--my'].forEach(k => tiltCard.style.removeProperty(k));
+  tiltCard = c;
+  if (!c) return;
+  const r = c.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - 0.5;
+  const y = (e.clientY - r.top) / r.height - 0.5;
+  c.style.setProperty('--rx', `${(-y * 8).toFixed(2)}deg`);
+  c.style.setProperty('--ry', `${(x * 10).toFixed(2)}deg`);
+  c.style.setProperty('--mx', `${((x + 0.5) * 100).toFixed(1)}%`);
+  c.style.setProperty('--my', `${((y + 0.5) * 100).toFixed(1)}%`);
+}, { passive: true });
+// 浏览器里按 Esc 退出全屏时页面收不到按键，跟着把卡片收掉
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.deck && !WIN) toggleDeck(false); });
 window.tickWinState = st => {
   document.documentElement.toggleAttribute('data-max', !!st.max);
   const b = document.querySelector('[data-act="win-max"]');
@@ -3338,6 +3513,20 @@ window.tickWinState = st => {
 if (WIN) window.tickWin('state');
 $('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) $('guide').hidden = true; });
 document.addEventListener('keydown', e => {
+  // 卡片开着：方向键在牌之间走（上下按一行几张跳），回车 / 空格翻面，Esc 退出
+  if (S.deck && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key === 'Escape') { toggleDeck(false); return; }
+    const cards = [...$('deck').querySelectorAll('.card:not([data-leaving])')];
+    const at = cards.indexOf(document.activeElement);
+    if ((e.key === 'Enter' || e.key === ' ') && at >= 0) { e.preventDefault(); flipCard(cards[at]); return; }
+    const cols = cards.filter(c => c.offsetTop === cards[0]?.offsetTop).length || 1;
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols }[e.key];
+    if (step && cards.length) {
+      e.preventDefault();
+      cards[Math.min(Math.max(at < 0 ? 0 : at + step, 0), cards.length - 1)].focus();
+    }
+    return;
+  }
   if (e.key === 'Escape') {
     if (!$('guide').hidden) $('guide').hidden = true;
     else if (S.drawer) { S.drawer = false; schedule(); }
@@ -3347,6 +3536,7 @@ document.addEventListener('keydown', e => {
   if (FLOAT || e.target.matches('input,textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
   const ids = groups().flatMap(g => g[1].map(s => s.id));
   if (e.key === '/' && $('q')) { e.preventDefault(); $('q').focus(); $('q').select(); return; }
+  if (e.key === 'c' && $('deck')) { toggleDeck(true); return; }
   if ((e.key === 'j' || e.key === 'k') && ids.length) {
     const at = ids.indexOf(S.sel);
     openSession(ids[Math.min(Math.max(at + (e.key === 'j' ? 1 : -1), 0), ids.length - 1)], false); // 键盘切换不做动画
