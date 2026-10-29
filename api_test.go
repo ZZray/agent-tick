@@ -515,6 +515,18 @@ func TestDelete(t *testing.T) {
 	if len(h.notices(p)) != 0 {
 		t.Fatal("相关通知应一起删掉")
 	}
+	// 清空通知历史：会话还在，通知全没了
+	q := h.ok("POST", "/api/sessions", map[string]any{"agent": "kiro", "title": "留着", "items": []string{"一"}})["id"].(string)
+	h.ok("PATCH", "/api/sessions/"+q, map[string]any{"status": "waiting", "note": "?"})
+	if got := h.ok("DELETE", "/api/notices", nil); got["deleted"].(float64) < 1 {
+		t.Fatalf("清空应删掉至少一条：%v", got)
+	}
+	if len(h.notices(q)) != 0 {
+		t.Fatal("清空后不该还有通知")
+	}
+	if code, _, _ := h.do("GET", "/api/sessions/"+q, nil); code != 200 {
+		t.Fatal("清空通知不该动会话")
+	}
 }
 
 // 图标：各种状态、各种尺寸都能画出来，大小正确；设了 TICK_ICON_OUT 就把 PNG 写出来人工看

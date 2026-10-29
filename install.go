@@ -117,12 +117,7 @@ func runInstall(args []string) int {
 			case dry:
 				say("  · 写入技能 %s", file)
 			default:
-				body := strings.ReplaceAll(skillTemplate, "{{EXE}}", target)
-				body = strings.ReplaceAll(body, "{{BASE}}", fmt.Sprintf("http://127.0.0.1:%d", defaultPort()))
-				if err := os.MkdirAll(t.skillDir, 0o755); err == nil {
-					err = os.WriteFile(file, []byte(body), 0o644)
-				}
-				if err != nil {
+				if err := writeSkill(t.skillDir, renderSkill(target, defaultPort())); err != nil {
 					say("  ✗ 写入技能失败：%v", err)
 				} else {
 					say("  ✓ 技能：%s", file)
@@ -155,6 +150,81 @@ func runInstall(args []string) int {
 		say("在对话里说“用 tick 记录进度”或直接 @tick 即可。")
 	}
 	return 0
+}
+
+// renderSkill 填好程序路径和服务地址的 SKILL.md 全文（tick install、面板里的“接入说明”、GET /skill 共用）
+func renderSkill(exe string, port int) string {
+	body := strings.ReplaceAll(skillTemplate, "{{EXE}}", exe)
+	return strings.ReplaceAll(body, "{{BASE}}", fmt.Sprintf("http://127.0.0.1:%d", port))
+}
+
+func writeSkill(dir, body string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o644)
+}
+
+// skillExe 技能里写的程序路径：装好了就用固定位置那份，否则用正在运行的这个
+func skillExe() string {
+	target := filepath.Join(installDir(), "tick.exe")
+	if _, err := os.Stat(target); err == nil {
+		return target
+	}
+	exe, _ := os.Executable()
+	return exe
+}
+
+// SkillInfo 一个 agent 的技能文件：在哪、装没装、是不是最新
+type SkillInfo struct {
+	Agent  string `json:"agent"`
+	Path   string `json:"path"`
+	Status string `json:"status"` // ok 已是最新；old 装过但不是这一版；missing 没装；noagent 本机没装这个 agent
+}
+
+// skillStatus 列出各 agent 的技能文件状态，body 是这一版应有的全文
+func skillStatus(body string) []SkillInfo {
+	home, _ := os.UserHomeDir()
+	var out []SkillInfo
+	for _, t := range installTargets(home) {
+		if t.skillDir == "" {
+			continue
+		}
+		info := SkillInfo{Agent: t.name, Path: filepath.Join(t.skillDir, "SKILL.md")}
+		switch b, err := os.ReadFile(info.Path); {
+		case err == nil && string(b) == body:
+			info.Status = "ok"
+		case err == nil:
+			info.Status = "old"
+		case dirExists(t.home):
+			info.Status = "missing"
+		default:
+			info.Status = "noagent"
+		}
+		out = append(out, info)
+	}
+	return out
+}
+
+func dirExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && st.IsDir()
+}
+
+// updateSkills 把这一版技能写给本机装了的每个 agent（只写技能，不动 MCP 配置）
+func updateSkills(body string) (int, error) {
+	home, _ := os.UserHomeDir()
+	n := 0
+	for _, t := range installTargets(home) {
+		if t.skillDir == "" || !dirExists(t.home) {
+			continue
+		}
+		if err := writeSkill(t.skillDir, body); err != nil {
+			return n, fmt.Errorf("%s：%w", t.name, err)
+		}
+		n++
+	}
+	return n, nil
 }
 
 func copyFile(src, dst string) error {

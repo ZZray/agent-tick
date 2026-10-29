@@ -25,9 +25,11 @@ var agentPatterns = []struct {
 }
 
 const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，用户靠它看进度、接收你的通知。
-- 多步任务（2 步以上或预计超过 5 分钟）：开工前 tick_start 写清单（3–12 条可检查的结果，验证单独成条），记住返回的 session_id，本对话一直用它。
+- 多步任务（2 步以上或预计超过 5 分钟）必须用：开工前 tick_start 写完整清单，记住返回的 session_id，本对话一直用它。
+- 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块。计划变了用 tick_plan 重发完整清单。
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
-- 需要用户决定或操作时：tick_notify kind=waiting，message 写成一眼能答的问题。用户回复后接着 doing 下一条即可。卡在环境或权限上用 kind=blocked。
+- 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
+- 用户回答后立刻更新：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单。不要让会话一直停在“等你”。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
 - 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。
 - 其他值得用户知道的事用 tick_notify kind=info / success / warning。不要写密钥。Tick 连不上不影响主任务。`
@@ -262,7 +264,12 @@ func describe(s *Session) string {
 		b.WriteString("：" + s.StatusNote)
 	}
 	fmt.Fprintf(&b, " · 清单 %d/%d", done, len(s.Items))
+	group := ""
 	for i, it := range s.Items {
+		if it.Group != group {
+			group = it.Group
+			fmt.Fprintf(&b, "\n  # %s", group)
+		}
 		fmt.Fprintf(&b, "\n  %s %d. %s", marks[it.Status], i+1, it.Text)
 		if it.Note != "" {
 			b.WriteString("\n        " + it.Note)
@@ -285,13 +292,17 @@ func schema(props map[string]any, required ...string) map[string]any {
 }
 
 var sidProp = map[string]any{"type": "string", "description": "会话 ID（tick_start 返回的 s_ 开头那串）。省略时用本连接最近登记的会话。"}
-var strArr = map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
+
+const itemsDesc = "完整清单：从第一步到验证、提交，按执行顺序把整件事要做的每一步都写上，每条一个能检查的结果，不要只写几个大阶段。" +
+	"涉及多个模块时用 \"# 模块名\" 单独一项开一段，后面的条目归这个模块（例：[\"# 后端\", \"加接口\", \"补测试\", \"# 前端\", \"接页面\"]）；标题行不算条目、不占序号"
+
+var strArr = map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": itemsDesc}
 
 var mcpTools = []map[string]any{
 	{"name": "tick_start", "description": "登记一个任务会话并写下清单，用户的 Tick 小窗会立刻显示。多步任务开工前调用一次；同一对话里的后续任务用 tick_plan 追加，不另开会话。返回 session_id。",
 		"inputSchema": schema(map[string]any{
 			"title":             map[string]any{"type": "string", "description": "任务标题，一句话"},
-			"items":             map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "清单：按执行顺序，每条一个可检查的结果"},
+			"items":             map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": itemsDesc},
 			"goal":              map[string]any{"type": "string", "description": "完成标准（可选）"},
 			"conversation_id":   map[string]any{"type": "string", "description": "你所在对话的 ID（能拿到就给）。同一 ID 再次调用会拿回原会话"},
 			"link":              map[string]any{"type": "string", "description": "能回到这个对话的链接（可选），例如 codex://threads/<id>"},

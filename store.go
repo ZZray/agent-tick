@@ -24,7 +24,7 @@ const (
 	maxAgent, maxID, maxTitle, maxText = 40, 200, 200, 300
 	maxNote, maxSummary, maxPath       = 2000, 4000, 500
 	maxItems, maxEvents, maxEventText  = 100, 300, 300
-	maxNotices                         = 300
+	maxNotices, maxGroup               = 300, 60
 )
 
 var (
@@ -45,6 +45,7 @@ func isPaused(s string) bool { return isWaiting(s) || isEnded(s) }
 type Item struct {
 	ID        string `json:"id"`
 	Text      string `json:"text"`
+	Group     string `json:"group,omitempty"` // 所属模块：清单里 "# 模块名" 那一行之后的条目都归它，界面按模块分段显示
 	Status    string `json:"status"`
 	Note      string `json:"note"`
 	SpentMs   int64  `json:"spentMs"`
@@ -188,32 +189,48 @@ func linkField(p *string) (*string, error) {
 
 type itemInput struct {
 	Text   string
+	Group  string
 	Status string
 	Note   *string
 }
 
-// items 的每一项可以是字符串，或 {text, status, note}
+// moduleHead 清单里的模块标题行："# 后端"、"## 前端"。返回模块名；不是标题行返回 ok=false
+func moduleHead(s string) (string, bool) {
+	t := strings.TrimLeft(s, "#")
+	if t == s || (t != "" && t[0] != ' ' && t[0] != '\t') {
+		return "", false // 不以 # 开头，或 "#3 修复" 这种编号
+	}
+	return strings.TrimSpace(t), true
+}
+
+// items 的每一项可以是字符串，或 {text, group, status, note}。
+// 字符串 "# 模块名" 是模块标题：不算条目，它后面的条目都归这个模块，直到下一个标题（"#" 单独一行回到不分模块）
 func parseItems(raw []json.RawMessage) ([]itemInput, error) {
-	if len(raw) > maxItems {
+	if len(raw) > maxItems*2 { // 模块标题行不算条目，给它们留一倍的位置
 		return nil, bad("items 最多 %d 条", maxItems)
 	}
 	out := make([]itemInput, 0, len(raw))
+	group := ""
 	for i, r := range raw {
 		name := fmt.Sprintf("items[%d]", i)
 		var s string
 		if json.Unmarshal(r, &s) == nil {
+			if g, ok := moduleHead(s); ok {
+				group = clip(g, maxGroup)
+				continue
+			}
 			t, err := required(&s, name, maxText)
 			if err != nil {
 				return nil, err
 			}
-			out = append(out, itemInput{Text: t})
+			out = append(out, itemInput{Text: t, Group: group})
 			continue
 		}
 		var o struct {
-			Text, Status, Note *string
+			Text, Group, Status, Note *string
 		}
 		if err := json.Unmarshal(r, &o); err != nil {
-			return nil, bad("%s 必须是字符串或 {text, status, note}", name)
+			return nil, bad("%s 必须是字符串或 {text, group, status, note}", name)
 		}
 		t, err := required(o.Text, name+".text", maxText)
 		if err != nil {
@@ -227,7 +244,18 @@ func parseItems(raw []json.RawMessage) ([]itemInput, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, itemInput{Text: t, Status: st, Note: note})
+		g, err := field(o.Group, name+".group", maxGroup)
+		if err != nil {
+			return nil, err
+		}
+		x := itemInput{Text: t, Group: group, Status: st, Note: note}
+		if g != nil {
+			x.Group = *g
+		}
+		out = append(out, x)
+	}
+	if len(out) > maxItems {
+		return nil, bad("items 最多 %d 条", maxItems)
 	}
 	return out, nil
 }
@@ -596,7 +624,7 @@ func (st *Store) autoRun(s *Session) {
 }
 
 func newItem(s *Session, x itemInput) *Item {
-	it := &Item{ID: "i" + strconv.Itoa(s.NextItem), Text: x.Text, Status: "todo"}
+	it := &Item{ID: "i" + strconv.Itoa(s.NextItem), Text: x.Text, Group: x.Group, Status: "todo"}
 	s.NextItem++
 	if x.Note != nil {
 		it.Note = *x.Note
@@ -898,6 +926,7 @@ func (st *Store) ReplacePlan(id string, raw []json.RawMessage) (*Session, error)
 			}
 			it := pool[k]
 			pool = slices.Delete(pool, k, k+1)
+			it.Group = x.Group // 重发清单时可以重新分模块
 			if x.Status != "" {
 				setItemStatus(s, it, x.Status)
 			}
@@ -1119,6 +1148,30 @@ func (st *Store) Notify(in NotifyInput) (*Notice, error) {
 		return nil
 	})
 	return &n, err
+}
+
+// ClearNotices 清空通知历史（用户在通知抽屉里点“清空”）。会话本身和它们的动态不动
+func (st *Store) ClearNotices() int {
+	st.mu.Lock()
+	n := len(st.notices)
+	st.notices = nil
+	st.markDirty()
+	st.mu.Unlock()
+	st.publish("notices-cleared", map[string]int{"n": n})
+	return n
+}
+
+// UnreadNotices 还没读的通知条数（托盘按它闪）
+func (st *Store) UnreadNotices() int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	n := 0
+	for _, x := range st.notices {
+		if !x.Read {
+			n++
+		}
+	}
+	return n
 }
 
 type ReadInput struct {

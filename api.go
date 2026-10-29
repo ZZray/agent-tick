@@ -126,6 +126,12 @@ func (srv *Server) Handler() http.Handler {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte(strings.ReplaceAll(string(b), "{{BASE}}", srv.origins()[0])))
 	})
+	// 技能全文：agent 可以自己 GET 这一页，按“接入说明”里的路径存成 SKILL.md
+	mux.HandleFunc("GET /skill", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write([]byte(renderSkill(skillExe(), srv.port)))
+	})
 	mux.HandleFunc("GET /api/stream", srv.stream)
 	mux.Handle("/mcp", http.HandlerFunc(srv.serveMCP))
 
@@ -136,6 +142,15 @@ func (srv *Server) Handler() http.Handler {
 			h["theme"] = srv.theme()
 		}
 		return 200, h, nil
+	})
+	handle("GET /api/skills", func(*http.Request) (int, any, error) {
+		return 200, map[string]any{"skills": skillStatus(renderSkill(skillExe(), srv.port)), "url": srv.origins()[0] + "/skill"}, nil
+	})
+	// 一键更新：把这一版技能写给本机装了的每个 agent（和 tick install 写的是同一份）
+	handle("POST /api/skills", func(*http.Request) (int, any, error) {
+		body := renderSkill(skillExe(), srv.port)
+		n, err := updateSkills(body)
+		return 200, map[string]any{"updated": n, "skills": skillStatus(body)}, err
 	})
 	handle("GET /api/sessions", func(r *http.Request) (int, any, error) {
 		return 200, st.Sessions(r.URL.Query().Get("archived") == "1"), nil
@@ -260,6 +275,9 @@ func (srv *Server) Handler() http.Handler {
 		}
 		n, err := st.ReadNotices(in)
 		return 200, map[string]int{"updated": n}, err
+	})
+	handle("DELETE /api/notices", func(*http.Request) (int, any, error) {
+		return 200, map[string]int{"deleted": st.ClearNotices()}, nil
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 404, map[string]string{"error": "没有这个接口：" + r.Method + " " + r.URL.Path})
