@@ -229,7 +229,7 @@ func openPanel(srv *Server, f *floatWin, hash string) {
 				p.tellMax(true)
 			}
 		})
-		w.Navigate(fmt.Sprintf("http://127.0.0.1:%d/?host=panel%s", srv.port, hash))
+		w.Navigate(pageURL(srv.port, "host=panel") + hash)
 		w.Run()
 		p.mu.Lock()
 		p.w, p.hwnd = nil, 0

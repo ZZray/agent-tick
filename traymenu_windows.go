@@ -41,6 +41,7 @@ type trayState struct {
 	Sound      string     `json:"sound"`
 	Sounds     []soundOpt `json:"sounds"`
 	Theme      colorTheme   `json:"theme"`
+	Lang       string       `json:"lang"` // 用户选的语言，"" = 跟系统
 	Themes     []colorTheme `json:"themes"`
 	Version    string     `json:"version"`
 	Pending    string     `json:"pending"`
@@ -56,7 +57,7 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound}
+		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Dnd = f.dnd()
@@ -127,6 +128,17 @@ func (t *tray) act(name string, on bool, val string) {
 		copyText(fmt.Sprintf("http://127.0.0.1:%d/mcp", srv.port))
 	case "sound":
 		f.setSound(val) // 自己会推状态、试听
+	case "lang": // 换语言要重新加载所有页面和系统菜单，直接重启最省事（不等空闲，约 1 秒）
+		if val == "" || val == "zh" || val == "en" {
+			f.mu.Lock()
+			changed := f.set.Lang != val
+			f.set.Lang = val
+			f.mu.Unlock()
+			if changed {
+				f.saveSettings()
+				go t.up.restartWhenIdle(true)
+			}
+		}
 	case "theme":
 		if slices.ContainsFunc(themes, func(t colorTheme) bool { return t.ID == val }) {
 			f.mu.Lock()
@@ -266,7 +278,7 @@ func (m *menuWin) create(t *tray) {
 	// 动作执行完回新的状态给页面；会离开菜单的动作（打开面板、退出等）顺手收起
 	_ = w.Bind("tickMenuAct", func(name string, on bool, val string) string {
 		switch name {
-		case "float", "panel", "browser", "mcp", "update", "sounddir", "quit":
+		case "float", "panel", "browser", "mcp", "update", "sounddir", "quit", "lang":
 			m.hide()
 		}
 		t.act(name, on, val)
@@ -278,7 +290,7 @@ func (m *menuWin) create(t *tray) {
 	m.mu.Lock()
 	m.w, m.hwnd = w, h
 	m.mu.Unlock()
-	w.Navigate(fmt.Sprintf("http://127.0.0.1:%d/?view=menu", f.srv.port))
+	w.Navigate(pageURL(f.srv.port, "view=menu"))
 	w.Run()
 	m.mu.Lock()
 	m.w, m.hwnd, m.ready, m.opening = nil, 0, false, false

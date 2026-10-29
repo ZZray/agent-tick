@@ -46,8 +46,18 @@ const sndAsync, sndNoDefault, sndMemory = 0x1, 0x2, 0x4
 func (f *floatWin) soundDir() string { return filepath.Join(filepath.Dir(f.file), "sounds") }
 
 // sounds 内置的 + 用户文件夹里的 .wav（ID 以 file: 开头）
+var soundNamesEN = map[string]string{
+	"crisp": "Crisp", "crisp-single": "Crisp · single", "crisp-double": "Crisp · double",
+	"bell": "Bell", "bell-triad": "Bell · triad", "soft": "Soft", "soft-minor": "Soft · minor third", "soft-down": "Soft · falling",
+}
+
 func (f *floatWin) sounds() []soundOpt {
 	list := slices.Clone(builtinSounds)
+	if langEN.Load() {
+		for i := range list {
+			list[i].Name = soundNamesEN[list[i].ID]
+		}
+	}
 	if ents, err := os.ReadDir(f.soundDir()); err == nil {
 		for _, e := range ents {
 			if !e.IsDir() && strings.EqualFold(filepath.Ext(e.Name()), ".wav") {

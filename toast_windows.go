@@ -125,7 +125,7 @@ func (t *toastWin) open(f *floatWin) {
 	t.mu.Lock()
 	t.w, t.hwnd = w, h
 	t.mu.Unlock()
-	w.Navigate(fmt.Sprintf("http://127.0.0.1:%d/?view=toast", f.srv.port))
+	w.Navigate(pageURL(f.srv.port, "view=toast"))
 	w.Run()
 	t.mu.Lock()
 	t.w, t.hwnd, t.ready, t.opening = nil, 0, false, false

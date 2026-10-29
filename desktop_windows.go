@@ -92,6 +92,12 @@ type deskSettings struct {
 	NoAutoUpdate     bool      // 关掉自动更新（默认每天检查一次，有新版就在空闲时更新）
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
+	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
+}
+
+// pageURL 悬浮窗、提醒卡、托盘菜单、面板的页面地址，带上界面语言
+func pageURL(port int, query string) string {
+	return fmt.Sprintf("http://127.0.0.1:%d/?%s&lang=%s", port, query, curLang())
 }
 
 // colorTheme 主题色：进度条、进度环、未读角标、开关、流光和“进行中”点阵都用它。
@@ -168,7 +174,7 @@ func (f *floatWin) pushHostState() {
 //     窗口藏起来时浏览器会限流计时器，这段时间不算
 func (f *floatWin) watchdog() {
 	f.lastBeat.Store(now())
-	url := fmt.Sprintf("http://127.0.0.1:%d/?view=float", f.srv.port)
+	url := pageURL(f.srv.port, "view=float")
 	for range time.Tick(20 * time.Second) {
 		alive := make(chan struct{}, 1)
 		f.dispatch(func() { alive <- struct{}{} })
@@ -276,7 +282,8 @@ func runDesktop(srv *Server, serve func()) {
 		WindowOptions: webview2.WindowOptions{Title: "Tick", Width: 340, Height: 160},
 	})
 	if f.w == nil {
-		fatal("没能创建悬浮窗：需要 Microsoft Edge WebView2 运行时。\n服务仍可以用 tick -headless 启动，在浏览器里打开。")
+		fatal(L("没能创建悬浮窗：需要 Microsoft Edge WebView2 运行时。\n服务仍可以用 tick -headless 启动，在浏览器里打开。",
+			"Could not create the window: Tick needs the Microsoft Edge WebView2 runtime.\nYou can still run tick -headless and open it in a browser."))
 	}
 	f.hwnd = uintptr(f.w.Window())
 	f.style()
@@ -292,7 +299,7 @@ func runDesktop(srv *Server, serve func()) {
 	go runTray(srv, f)
 	go f.dockLoop()
 	go f.watchdog()
-	f.w.Navigate(fmt.Sprintf("http://127.0.0.1:%d/?view=float", srv.port))
+	f.w.Navigate(pageURL(srv.port, "view=float"))
 	// 页面 1.5 秒内没报就绪也先显示出来，免得看不到窗口
 	time.AfterFunc(1500*time.Millisecond, func() { f.dispatch(func() { f.ready() }) })
 	f.w.Run()
@@ -650,13 +657,13 @@ func runTray(srv *Server, f *floatWin) {
 		systray.SetTooltip("Tick")
 		t := &tray{f: f, srv: srv}
 		// 系统菜单只在宫格弹窗建不出来时才会出现（后备）；动作和弹窗共用 t.act
-		mShow := systray.AddMenuItem("收到托盘", "")
-		mPin := systray.AddMenuItemCheckbox("悬浮窗置顶", "", f.pinned())
-		mAutoHide := systray.AddMenuItemCheckbox("贴边后自动隐藏", "拖到屏幕左、右、上边缘松手即可贴边", f.autoHide())
-		mFS := systray.AddMenuItemCheckbox("全屏时让开", "游戏、视频、演示全屏时自动隐藏", f.fullscreenHide())
-		mDnd := systray.AddMenuItemCheckbox("勿扰 1 小时", "不弹提醒卡和气泡；悬浮窗里照常记录", f.dnd())
-		mSound := systray.AddMenuItem("通知声音", "")
-		soundOpts := append([]soundOpt{{"", "无"}}, f.sounds()...)
+		mShow := systray.AddMenuItem(L("收到托盘", "Hide to tray"), "")
+		mPin := systray.AddMenuItemCheckbox(L("悬浮窗置顶", "Keep on top"), "", f.pinned())
+		mAutoHide := systray.AddMenuItemCheckbox(L("贴边后自动隐藏", "Auto-hide when docked"), L("拖到屏幕左、右、上边缘松手即可贴边", "Drag to the left, right or top edge to dock"), f.autoHide())
+		mFS := systray.AddMenuItemCheckbox(L("全屏时让开", "Hide in fullscreen"), L("游戏、视频、演示全屏时自动隐藏", "Hide while games, videos or slides are fullscreen"), f.fullscreenHide())
+		mDnd := systray.AddMenuItemCheckbox(L("勿扰 1 小时", "Do not disturb, 1 hour"), L("不弹提醒卡和气泡；悬浮窗里照常记录", "No alerts or bubbles; the window still records everything"), f.dnd())
+		mSound := systray.AddMenuItem(L("通知声音", "Notification sound"), "")
+		soundOpts := append([]soundOpt{{"", L("无", "None")}}, f.sounds()...)
 		soundItems := make([]*systray.MenuItem, len(soundOpts))
 		for i, o := range soundOpts {
 			soundItems[i] = mSound.AddSubMenuItemCheckbox(o.Name, "", o.ID == f.soundID())
@@ -666,19 +673,19 @@ func runTray(srv *Server, f *floatWin) {
 				}
 			}(i, o.ID)
 		}
-		mSoundDir := mSound.AddSubMenuItem("打开声音文件夹…", "把自己的 .wav 放进去，重开 Tick 后出现在这里")
+		mSoundDir := mSound.AddSubMenuItem(L("打开声音文件夹…", "Open sound folder…"), L("把自己的 .wav 放进去，重开 Tick 后出现在这里", "Put your own .wav files here; they show up after restarting Tick"))
 		systray.AddSeparator()
-		mPanel := systray.AddMenuItem("打开面板", "完整面板：历史、搜索、编辑")
-		mBrowser := systray.AddMenuItem("在浏览器里打开", "")
-		mMCP := systray.AddMenuItem("复制 MCP 地址", "")
-		mAuto := systray.AddMenuItemCheckbox("开机启动", "", autostartEnabled())
-		mUpdate := systray.AddMenuItem("检查更新（当前 "+version+"）", "")
-		mAutoUp := systray.AddMenuItemCheckbox("自动更新", "每 12 小时检查一次，空闲时重启到新版本", !f.set.NoAutoUpdate)
+		mPanel := systray.AddMenuItem(L("打开面板", "Open panel"), L("完整面板：历史、搜索、编辑", "Full panel: history, search, editing"))
+		mBrowser := systray.AddMenuItem(L("在浏览器里打开", "Open in browser"), "")
+		mMCP := systray.AddMenuItem(L("复制 MCP 地址", "Copy MCP address"), "")
+		mAuto := systray.AddMenuItemCheckbox(L("开机启动", "Start with Windows"), "", autostartEnabled())
+		mUpdate := systray.AddMenuItem(L("检查更新（当前 ", "Check for updates (current ")+version+L("）", ")"), "")
+		mAutoUp := systray.AddMenuItemCheckbox(L("自动更新", "Auto-update"), L("每 12 小时检查一次，空闲时重启到新版本", "Checks every 12 hours and restarts into the new version when idle"), !f.set.NoAutoUpdate)
 		t.up = &updater{f: f, srv: srv, menu: mUpdate}
-		srv.restart = func() { t.up.setPending("新版本"); t.up.restartWhenIdle(false) }
+		srv.restart = func() { t.up.setPending(L("新版本", "new version")); t.up.restartWhenIdle(false) }
 		go t.up.loop()
 		systray.AddSeparator()
-		mQuit := systray.AddMenuItem("退出 Tick", "")
+		mQuit := systray.AddMenuItem(L("退出 Tick", "Quit Tick"), "")
 		key := ""
 		if f.hotkey != "" {
 			key = "\t" + f.hotkey // 菜单里右对齐显示快捷键
@@ -693,9 +700,9 @@ func runTray(srv *Server, f *floatWin) {
 		t.refresh = func() {
 			st := t.state()
 			if st.Visible {
-				mShow.SetTitle("收到托盘" + key)
+				mShow.SetTitle(L("收到托盘", "Hide to tray") + key)
 			} else {
-				mShow.SetTitle("显示悬浮窗" + key)
+				mShow.SetTitle(L("显示悬浮窗", "Show window") + key)
 			}
 			check(mDnd, st.Dnd)
 			check(mPin, st.Pinned)
@@ -809,14 +816,14 @@ func trayStatus(srv *Server) {
 				}
 			}
 		}
-		tip := "Tick · 没有进行中的会话"
+		tip := L("Tick · 没有进行中的会话", "Tick · nothing running")
 		if running+waiting > 0 {
-			tip = fmt.Sprintf("Tick · %d 进行中", running)
+			tip = fmt.Sprintf(L("Tick · %d 进行中", "Tick · %d running"), running)
 			if waiting > 0 {
-				tip += fmt.Sprintf(" · %d 等你", waiting)
+				tip += fmt.Sprintf(L(" · %d 等你", " · %d waiting"), waiting)
 			}
 			if total > 0 {
-				tip += fmt.Sprintf(" · 清单 %d/%d", done, total)
+				tip += fmt.Sprintf(L(" · 清单 %d/%d", " · %d/%d done"), done, total)
 			}
 		}
 		if tip != lastTip {

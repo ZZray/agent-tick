@@ -55,6 +55,7 @@ func main() {
 	dataDir := flag.String("data", defaultDataDir(), "数据目录")
 	headless := flag.Bool("headless", false, "只启动服务，不显示托盘和悬浮窗")
 	flag.Parse()
+	setLang(langPref(*dataDir)) // 守护进程弹的错误框也要跟着语言走，所以在这里就定
 
 	logFile := setupLog(*dataDir)
 	defer logFile.Close()
@@ -83,11 +84,11 @@ func main() {
 			_ = showExisting(*port)
 			return
 		}
-		fatal(fmt.Sprintf("端口 %d 被别的程序占用了。用 -port 换一个端口，或设置 TICK_PORT。", *port))
+		fatal(fmt.Sprintf(L("端口 %d 被别的程序占用了。用 -port 换一个端口，或设置 TICK_PORT。", "Port %d is used by another program. Pick another one with -port or set TICK_PORT."), *port))
 	}
 	store, err := OpenStore(*dataDir)
 	if err != nil {
-		fatal("数据文件打不开：" + err.Error())
+		fatal(L("数据文件打不开：", "Could not open the data file: ") + err.Error())
 	}
 	srv := &Server{store: store, port: *port, desktop: !*headless && desktopSupported, mcp: newMCPSessions()}
 	serve := func() {

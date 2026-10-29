@@ -64,7 +64,7 @@ func (u *updater) check(manual bool) {
 			return
 		}
 		u.setPending(tag)
-		u.menu.SetTitle("重启到新版本 " + tag)
+		u.menu.SetTitle(L("重启到新版本 ", "Restart to ") + tag)
 		log.Printf("已下载新版本 %s，等空闲时重启", tag)
 		say("新版本 "+tag+" 已下载，没有会话在跑时会自动重启；也可以在托盘里点“重启到新版本”", "info")
 	}
@@ -81,7 +81,11 @@ func (u *updater) restartWhenIdle(force bool) {
 		log.Printf("重启到新版本失败：%v", err)
 		return
 	}
-	log.Printf("重启到 %s", u.pending())
+	if p := u.pending(); p != "" {
+		log.Printf("重启到 %s", p)
+	} else {
+		log.Printf("重启（设置变了）")
+	}
 	u.f.dispatch(func() {
 		u.f.saveSettings()
 		u.f.w.Terminate()

@@ -66,7 +66,8 @@ func supervise(dataDir string, args []string) {
 			crashes = crashes[1:]
 		}
 		if len(crashes) >= 5 {
-			fatal(fmt.Sprintf("Tick 10 分钟内崩溃了 %d 次，先不自动重启了。\n崩溃记录：%s\n可以把它发给开发者，然后重新打开 Tick。", len(crashes), filepath.Join(dataDir, "crash.log")))
+			fatal(fmt.Sprintf(L("Tick 10 分钟内崩溃了 %d 次，先不自动重启了。\n崩溃记录：%s\n可以把它发给开发者，然后重新打开 Tick。",
+				"Tick crashed %d times in 10 minutes, so it will not restart automatically.\nCrash log: %s\nYou can send it to the developer, then start Tick again."), len(crashes), filepath.Join(dataDir, "crash.log")))
 		}
 		wait := backoff[min(len(crashes)-1, len(backoff)-1)]
 		log.Printf("Tick 子进程异常退出（退出码 %d，运行了 %s），%s 后重启", code, now.Sub(start).Round(time.Second), wait)
