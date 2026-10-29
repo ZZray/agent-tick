@@ -282,7 +282,8 @@ func relaunch() error {
 	if err != nil {
 		return err
 	}
-	cmd := execCommand(filepath.Clean(exe))
+	// 带上原来的启动参数（-port、-data），不然换了端口或数据目录的实例会以默认设置起来
+	cmd := execCommand(filepath.Clean(exe), os.Args[1:]...)
 	cmd.Env = append(os.Environ(), "TICK_RESTART=1")
 	return cmd.Start()
 }

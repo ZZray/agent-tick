@@ -102,6 +102,9 @@ func main() {
 
 	if srv.desktop {
 		runDesktop(srv, serve) // 桌面端挂好回调后才开始接请求；阻塞到用户从托盘退出
+		if err := store.Flush(); err != nil {
+			log.Printf("退出前写盘失败：%v", err)
+		}
 		logFile.Close()
 		os.Exit(exitCode) // 0 = 正常退出；exitRestart = 已换好新版本，守护进程用新文件重启
 	}

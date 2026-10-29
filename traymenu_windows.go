@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -39,6 +40,8 @@ type trayState struct {
 	AutoUpdate bool       `json:"autoUpdate"`
 	Sound      string     `json:"sound"`
 	Sounds     []soundOpt `json:"sounds"`
+	Theme      colorTheme   `json:"theme"`
+	Themes     []colorTheme `json:"themes"`
 	Version    string     `json:"version"`
 	Pending    string     `json:"pending"`
 	Hotkey     string     `json:"hotkey"`
@@ -57,6 +60,7 @@ func (t *tray) state() trayState {
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Dnd = f.dnd()
+	st.Theme, st.Themes = f.theme(), themes
 	st.Autostart = autostartEnabled()
 	st.Sounds = f.sounds()
 	st.Version, st.Pending, st.Hotkey, st.Glass = version, t.up.pending(), f.hotkey, glassOn
@@ -123,6 +127,14 @@ func (t *tray) act(name string, on bool, val string) {
 		copyText(fmt.Sprintf("http://127.0.0.1:%d/mcp", srv.port))
 	case "sound":
 		f.setSound(val) // 自己会推状态、试听
+	case "theme":
+		if slices.ContainsFunc(themes, func(t colorTheme) bool { return t.ID == val }) {
+			f.mu.Lock()
+			f.set.Theme = val
+			f.mu.Unlock()
+			f.saveSettings()
+			f.pushHostState()
+		}
 	case "sounddir":
 		f.openSoundDir()
 	case "quit":

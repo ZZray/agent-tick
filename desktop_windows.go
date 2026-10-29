@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -90,6 +91,36 @@ type deskSettings struct {
 	Panel            panelRect // 完整面板窗口上次的位置和大小
 	NoAutoUpdate     bool      // 关掉自动更新（默认每天检查一次，有新版就在空闲时更新）
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
+	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
+}
+
+// colorTheme 主题色：进度条、进度环、未读角标、开关、流光和“进行中”点阵都用它。
+// 表示状态的颜色（做完绿、等你橙、出错红）不跟着变
+type colorTheme struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Brand string `json:"brand"`
+	Hi    string `json:"hi"`
+	Lo    string `json:"lo"`
+}
+
+var themes = []colorTheme{
+	{"green", "翠绿", "#4CB782", "#6EE0A6", "#2C9C66"},
+	{"blue", "湖蓝", "#4EA7FC", "#8CC8FF", "#2F7FD6"},
+	{"violet", "紫罗兰", "#8B7CF6", "#B4A9FF", "#6654D9"},
+	{"pink", "樱粉", "#F472B6", "#FBA3D0", "#D9468F"},
+	{"amber", "琥珀", "#F2B33D", "#FFD27A", "#C98A14"},
+	{"cyan", "青碧", "#2DD4BF", "#7DEBDD", "#14A493"},
+}
+
+func (f *floatWin) theme() colorTheme {
+	f.mu.Lock()
+	id := f.set.Theme
+	f.mu.Unlock()
+	if i := slices.IndexFunc(themes, func(t colorTheme) bool { return t.ID == id }); i >= 0 {
+		return themes[i]
+	}
+	return themes[0]
 }
 
 func (f *floatWin) dnd() bool {
@@ -124,9 +155,10 @@ func (f *floatWin) setDnd(on bool) {
 // （抽屉往屏幕中间那一侧拉开：窗口变宽时靠右的保持右边缘不动，见 fit）
 func (f *floatWin) pushHostState() {
 	pinned, dnd, sound := f.pinned(), f.dnd(), f.soundState()
+	th, _ := json.Marshal(f.theme())
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,%s})", pinned, dnd, h, v, glassOn, sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,theme:%s,%s})", pinned, dnd, h, v, glassOn, th, sound))
 	})
 }
 
@@ -184,6 +216,10 @@ type floatWin struct {
 	set      deskSettings
 	cssW     float64 // 当前内容宽高（CSS 像素）
 	cssH     float64
+	// 环形列表展开期间钉住的屏幕点（鼠标所在处）：页面报尺寸时连同圆心位置一起报，窗口摆到让圆心落在这一点上。
+	// 只在界面线程（页面回调）里读写
+	anchor   point
+	anchorOn bool
 	shown    bool
 	onChange func() // 置顶 / 显示状态变了，托盘菜单跟着改；托盘线程设置，UI 线程调用，用 mu 保护
 	// 停靠：dock 只在 dockLoop 里读写，别的线程通过 dockReq 投递；tucked 页面和 fit 也要读，用原子量
@@ -233,6 +269,7 @@ func runDesktop(srv *Server, serve func()) {
 	theFloat = f
 	srv.showFloat = func() { f.dispatch(f.summon) }
 	srv.showPanel = func(hash string) { openPanel(srv, f, hash) }
+	srv.theme = func() any { return f.theme() }
 
 	f.w = newGlassWebView(webview2.WebViewOptions{
 		DataPath:      f.dataPath,
@@ -372,6 +409,36 @@ func (f *floatWin) saveSettings() {
 }
 
 // fit 按内容调窗口大小。窗口在屏幕下半部分时保持底边不动往上长，否则保持顶边
+// setAnchor 把页面坐标 (x, y) 对应的屏幕点钉住，返回这一点到工作区四边的距离（CSS 像素），
+// 页面据此决定任务往哪边散开。x < 0 表示取消
+func (f *floatWin) setAnchor(x, y float64) map[string]float64 {
+	if x < 0 {
+		f.anchorOn = false
+		return nil
+	}
+	r, wa, s := f.windowRect(), f.workArea(), f.scale()
+	f.anchor = point{r.Left + int32(math.Round(x*s)), r.Top + int32(math.Round(y*s))}
+	f.anchorOn = true
+	d := func(v int32) float64 { return math.Round(float64(v) / s) }
+	return map[string]float64{"l": d(f.anchor.X - wa.Left), "r": d(wa.Right - f.anchor.X), "u": d(f.anchor.Y - wa.Top), "d": d(wa.Bottom - f.anchor.Y)}
+}
+
+// fitAt 和 fit 一样按内容调尺寸，但窗口的位置让页面里的 (ax, ay) 落在钉住的屏幕点上（放不下时贴着工作区边）
+func (f *floatWin) fitAt(cssW, cssH, ax, ay float64) {
+	if !f.anchorOn {
+		f.fit(cssW, cssH)
+		return
+	}
+	f.cssW, f.cssH = math.Max(24, math.Min(cssW, 900)), math.Max(24, math.Min(cssH, 900))
+	wa, s := f.workArea(), f.scale()
+	w, h := f.physical(f.cssW, f.cssH)
+	x := f.anchor.X - int32(math.Round(ax*s))
+	y := f.anchor.Y - int32(math.Round(ay*s))
+	x = max(wa.Left, min(x, wa.Right-w))
+	y = max(wa.Top, min(y, wa.Bottom-h))
+	pSetWindowPos.Call(f.hwnd, 0, uintptr(x), uintptr(y), uintptr(w), uintptr(h), swpNoZOrder|swpNoActivate)
+}
+
 func (f *floatWin) fit(cssW, cssH float64) {
 	// 下限放到 24：贴边收起后窗口只是一个小标签
 	// 上限 720 宽：通知抽屉拉开时是主面板加抽屉的宽度
@@ -534,6 +601,8 @@ func (f *floatWin) bind() {
 	// 点标签：马上展开，并且停留一会儿再按自动隐藏规则收回
 	must(f.w.Bind("tickUntuck", func() { f.inDock(func() { f.peek(false, 1500*time.Millisecond) }) }))
 	must(f.w.Bind("tickFit", func(w, h float64) { f.fit(w, h) }))
+	must(f.w.Bind("tickFitAt", func(w, h, ax, ay float64) { f.fitAt(w, h, ax, ay) }))
+	must(f.w.Bind("tickAnchor", func(x, y float64) map[string]float64 { return f.setAnchor(x, y) }))
 	must(f.w.Bind("tickReady", func() { f.ready() }))
 	must(f.w.Bind("tickHide", func() { f.hide() }))
 	must(f.w.Bind("tickDnd", func(on bool) bool { f.setDnd(on); return on }))
@@ -556,6 +625,7 @@ func (f *floatWin) bind() {
 	must(f.w.Bind("tickBeat", func() { f.lastBeat.Store(now()) }))              // 页面心跳，见 watchdog
 	must(f.w.Bind("tickToast", f.toast))                                        // 右下角提醒卡（JSON）
 	must(f.w.Bind("tickTheme", func(dark bool) { setDarkFrame(f.hwnd, dark) })) // 毛玻璃的着色跟页面主题走
+	must(f.w.Bind("tickClear", func(on bool) bool { setClear(f.hwnd, on); return glassOn })) // 环形列表：窗口透明
 }
 
 // openExternal 用系统默认程序打开链接（浏览器、codex:// 等）；拒绝本地文件和脚本协议
@@ -708,6 +778,7 @@ func trayStatus(srv *Server) {
 		shown = k
 	}
 	flash := iconState{Progress: 1, Tone: toneFlash}
+	lastTip := ""
 	var blink *time.Ticker
 	var tickC <-chan time.Time
 	left := 0
@@ -748,7 +819,10 @@ func trayStatus(srv *Server) {
 				tip += fmt.Sprintf(" · 清单 %d/%d", done, total)
 			}
 		}
-		systray.SetTooltip(tip)
+		if tip != lastTip {
+			systray.SetTooltip(tip)
+			lastTip = tip
+		}
 		base = iconState{Progress: 1}
 		if running+waiting > 0 {
 			base.Progress = 0
@@ -764,12 +838,19 @@ func trayStatus(srv *Server) {
 		}
 	}
 	update()
+	// 一阵推送合成一次刷新：多个 agent 同时勾选时不必每条都遍历所有会话、调系统托盘接口
+	var coalesce <-chan time.Time
 	for {
 		select {
 		case _, ok := <-ch:
 			if !ok {
 				return
 			}
+			if coalesce == nil {
+				coalesce = time.After(200 * time.Millisecond)
+			}
+		case <-coalesce:
+			coalesce = nil
 			update()
 		case n := <-trayFlash:
 			if n <= 0 {

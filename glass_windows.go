@@ -60,6 +60,22 @@ func applyGlass(h uintptr, dark bool) {
 	setDarkFrame(h, dark)
 }
 
+// setClear 让窗口完全透明（环形列表展开时：只看得见圆和卡片，后面是桌面）：
+// 去掉 Acrylic、圆角裁切和 1px 边框；off 时恢复成悬浮窗原来的样子。
+// 没开毛玻璃时 WebView 底色不透明，做不到透明，什么也不改
+func setClear(h uintptr, on bool) {
+	if !glassOn {
+		return
+	}
+	kind, round, border := int32(backdropAcrylic), int32(2), uint32(0x00332F2E)
+	if on {
+		kind, round, border = 1, 1, 0xFFFFFFFE // DWMSBT_NONE、DWMWCP_DONOTROUND、DWMWA_COLOR_NONE
+	}
+	pDwmSetWindowAttribute.Call(h, dwmaSystemBackdrop, uintptr(unsafe.Pointer(&kind)), 4)
+	pDwmSetWindowAttribute.Call(h, 33, uintptr(unsafe.Pointer(&round)), 4)
+	pDwmSetWindowAttribute.Call(h, 34, uintptr(unsafe.Pointer(&border)), 4)
+}
+
 func setDarkFrame(h uintptr, dark bool) {
 	v := int32(0)
 	if dark {

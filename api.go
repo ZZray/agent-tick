@@ -32,6 +32,8 @@ type Server struct {
 	restart func()
 	// showPanel 打开本地完整面板窗口，hash 定位到会话（"#s_xxx"）
 	showPanel func(hash string)
+	// theme 返回当前主题色（桌面端设置里存的）；没有桌面端时为 nil，页面用默认色
+	theme func() any
 }
 
 func (srv *Server) origins() []string {
@@ -129,7 +131,11 @@ func (srv *Server) Handler() http.Handler {
 
 	handle("GET /api/health", func(*http.Request) (int, any, error) {
 		exe, _ := os.Executable()
-		return 200, map[string]any{"ok": true, "name": "tick", "version": version, "desktop": srv.desktop, "mcp": srv.origins()[0] + "/mcp", "exe": exe}, nil
+		h := map[string]any{"ok": true, "name": "tick", "version": version, "desktop": srv.desktop, "mcp": srv.origins()[0] + "/mcp", "exe": exe}
+		if srv.theme != nil {
+			h["theme"] = srv.theme()
+		}
+		return 200, h, nil
 	})
 	handle("GET /api/sessions", func(r *http.Request) (int, any, error) {
 		return 200, st.Sessions(r.URL.Query().Get("archived") == "1"), nil

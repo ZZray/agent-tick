@@ -244,7 +244,15 @@ type Store struct {
 	subMu    sync.Mutex
 	subs     map[chan Frame]struct{}
 	onNotice atomic.Pointer[func(*Notice)]
+
+	// 落盘合并：修改后最多等 saveDelay 写一次。多个 agent 一起高频勾选时，
+	// 每次请求都整份重写会让请求排队（实测每次 15~20ms）
+	saveMu    sync.Mutex // 串行写文件
+	saveTimer *time.Timer
+	dirty     bool
 }
+
+const saveDelay = 250 * time.Millisecond
 
 // Frame 是推给 SSE 订阅者的一条消息
 type Frame struct {
@@ -283,16 +291,56 @@ func OpenStore(dir string) (*Store, error) {
 	return st, nil
 }
 
-func (st *Store) save() error {
-	if err := os.MkdirAll(filepath.Dir(st.file), 0o755); err != nil {
-		return err
+// markDirty 在 st.mu 内调用：记下有改动，saveDelay 后写盘（已经排上就不重复排）
+func (st *Store) markDirty() {
+	st.dirty = true
+	if st.saveTimer == nil {
+		st.saveTimer = time.AfterFunc(saveDelay, func() {
+			if err := st.Flush(); err != nil {
+				log.Printf("数据写盘失败，1 秒后重试：%v", err)
+				st.mu.Lock()
+				st.saveTimer = nil
+				st.markDirty()
+				st.saveTimer.Reset(time.Second)
+				st.mu.Unlock()
+			}
+		})
+	}
+}
+
+// Flush 把还没写盘的改动立刻写下去（退出前、测试里调用）。序列化在锁内，写文件在锁外
+func (st *Store) Flush() error {
+	st.saveMu.Lock()
+	defer st.saveMu.Unlock()
+	st.mu.Lock()
+	if st.saveTimer != nil {
+		st.saveTimer.Stop()
+		st.saveTimer = nil
+	}
+	if !st.dirty {
+		st.mu.Unlock()
+		return nil
 	}
 	list := make([]*Session, 0, len(st.sessions))
 	for _, s := range st.sessions {
 		list = append(list, s)
 	}
 	b, err := json.Marshal(diskData{Version: 2, Sessions: list, Notices: st.notices})
+	st.dirty = false
+	st.mu.Unlock()
+	if err == nil {
+		err = st.write(b)
+	}
 	if err != nil {
+		st.mu.Lock()
+		st.dirty = true
+		st.mu.Unlock()
+	}
+	return err
+}
+
+func (st *Store) write(b []byte) error {
+	if err := os.MkdirAll(filepath.Dir(st.file), 0o755); err != nil {
 		return err
 	}
 	tmp := st.file + ".tmp"
@@ -301,7 +349,7 @@ func (st *Store) save() error {
 	}
 	// Windows 上杀毒或索引偶尔短暂占用目标文件，重试几次
 	for attempt := 1; ; attempt++ {
-		err = os.Rename(tmp, st.file)
+		err := os.Rename(tmp, st.file)
 		if err == nil || attempt >= 4 {
 			return err
 		}
@@ -352,9 +400,7 @@ func (st *Store) change(sessionID string, fn func(s *Session) error) (*Session, 
 		if s != nil {
 			s.UpdatedAt = now()
 		}
-		if err = st.save(); err != nil {
-			err = &apiError{500, "数据没能写入磁盘，本次修改已撤回：" + err.Error()}
-		}
+		st.markDirty()
 	}
 	if err != nil {
 		if backup != nil {
@@ -958,25 +1004,15 @@ func (st *Store) Delete(id string) ([]string, error) {
 			ids = append(ids, x.ID)
 		}
 	}
-	backup := map[string]*Session{}
 	for _, x := range ids {
-		backup[x] = st.sessions[x]
 		delete(st.sessions, x)
 	}
-	noticeBackup := st.notices
 	gone := map[string]bool{}
 	for _, x := range ids {
 		gone[x] = true
 	}
 	st.notices = slices.DeleteFunc(slices.Clone(st.notices), func(n *Notice) bool { return gone[n.SessionID] })
-	if err := st.save(); err != nil {
-		for k, v := range backup {
-			st.sessions[k] = v
-		}
-		st.notices = noticeBackup
-		st.mu.Unlock()
-		return nil, &apiError{500, "数据没能写入磁盘，删除已撤回：" + err.Error()}
-	}
+	st.markDirty()
 	st.mu.Unlock()
 	st.publish("deleted", map[string][]string{"ids": ids})
 	return ids, nil

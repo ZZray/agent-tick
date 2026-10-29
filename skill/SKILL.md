@@ -15,7 +15,7 @@ Tick 是用户本机的任务看板和置顶小窗（{{BASE}}）。用户靠它�
 {{EXE}}
 ```
 
-下文的 `tick` 都指这个程序。PowerShell 里写成 `& '{{EXE}}' …`。
+下文的 `tick` 都指这个程序。PowerShell 里写成 `& '{{EXE}}' …`。它是窗口程序，PowerShell 要拿输出必须接管道：`$sid = & '{{EXE}}' start … | Select-Object -First 1`；直接赋值拿到的是空值。
 
 ## 流程
 

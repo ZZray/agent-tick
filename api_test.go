@@ -39,6 +39,7 @@ func newHarness(t *testing.T, dir string) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = st.Flush() }) // 在临时目录删掉之前写完，免得定时器之后再写
 	srv := &Server{store: st, port: ln.Addr().(*net.TCPAddr).Port, mcp: newMCPSessions()}
 	ts := httptest.NewUnstartedServer(srv.Handler())
 	ts.Listener.Close()
@@ -336,6 +337,9 @@ func TestPersistence(t *testing.T) {
 	h := newHarness(t, dir)
 	id := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "持久化", "items": []string{"一"}})["id"].(string)
 	h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "waiting", "note": "?"})
+	if err := h.srv.store.Flush(); err != nil { // 正常退出时 main 会调 Flush
+		t.Fatal(err)
+	}
 	h2 := newHarness(t, dir)
 	if m := h2.ok("GET", "/api/sessions/"+id, nil); m["title"] != "持久化" {
 		t.Fatalf("重启后：%v", m)
