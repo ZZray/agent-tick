@@ -30,29 +30,29 @@ type tray struct {
 
 // trayState 弹窗要显示的一切：开关状态、版本、会话统计
 type trayState struct {
-	Visible    bool       `json:"visible"`
-	Pinned     bool       `json:"pinned"`
-	AutoHide   bool       `json:"autoHide"`
-	FsHide     bool       `json:"fsHide"`
-	Dnd        bool       `json:"dnd"`
-	DndUntil   int64      `json:"dndUntil"`
-	Autostart  bool       `json:"autostart"`
-	AutoUpdate bool       `json:"autoUpdate"`
-	Sound      string     `json:"sound"`
-	Sounds     []soundOpt `json:"sounds"`
+	Visible    bool         `json:"visible"`
+	Pinned     bool         `json:"pinned"`
+	AutoHide   bool         `json:"autoHide"`
+	FsHide     bool         `json:"fsHide"`
+	Dnd        bool         `json:"dnd"`
+	DndUntil   int64        `json:"dndUntil"`
+	Autostart  bool         `json:"autostart"`
+	AutoUpdate bool         `json:"autoUpdate"`
+	Sound      string       `json:"sound"`
+	Sounds     []soundOpt   `json:"sounds"`
 	Theme      colorTheme   `json:"theme"`
 	Lang       string       `json:"lang"` // 用户选的语言，"" = 跟系统
 	Strip      bool         `json:"strip"`
 	ToastLen   string       `json:"toastLen"`
 	Themes     []colorTheme `json:"themes"`
-	Version    string     `json:"version"`
-	Pending    string     `json:"pending"`
-	Hotkey     string     `json:"hotkey"`
-	Running    int        `json:"running"`
-	Waiting    int        `json:"waiting"`
-	Done       int        `json:"done"`
-	Total      int        `json:"total"`
-	Glass      bool       `json:"glass"`
+	Version    string       `json:"version"`
+	Pending    string       `json:"pending"`
+	Hotkey     string       `json:"hotkey"`
+	Running    int          `json:"running"`
+	Waiting    int          `json:"waiting"`
+	Done       int          `json:"done"`
+	Total      int          `json:"total"`
+	Glass      bool         `json:"glass"`
 }
 
 func (t *tray) state() trayState {

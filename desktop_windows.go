@@ -230,15 +230,15 @@ func (f *floatWin) side() (string, string) {
 }
 
 type floatWin struct {
-	srv      *Server
-	w        webview2.WebView
-	hwnd     uintptr
-	orig     uintptr
-	file     string
-	mu       sync.Mutex
-	set      deskSettings
-	cssW     float64 // 当前内容宽高（CSS 像素）
-	cssH     float64
+	srv  *Server
+	w    webview2.WebView
+	hwnd uintptr
+	orig uintptr
+	file string
+	mu   sync.Mutex
+	set  deskSettings
+	cssW float64 // 当前内容宽高（CSS 像素）
+	cssH float64
 	// 环形列表展开期间钉住的屏幕点（鼠标所在处）：页面报尺寸时连同圆心位置一起报，窗口摆到让圆心落在这一点上。
 	// 只在界面线程（页面回调）里读写
 	anchor   point
@@ -661,9 +661,9 @@ func (f *floatWin) bind() {
 	must(f.w.Bind("tickPanel", func(hash string) { openPanel(f.srv, f, hash) })) // hash 如 "#s_ab12cd"、"#guide"
 	must(f.w.Bind("tickSound", func(id string) { go f.setSound(id) }))           // 换提示音并试听；"" = 不响
 	must(f.w.Bind("tickSoundDir", f.openSoundDir))
-	must(f.w.Bind("tickBeat", func() { f.lastBeat.Store(now()) }))              // 页面心跳，见 watchdog
-	must(f.w.Bind("tickToast", f.toast))                                        // 右下角提醒卡（JSON）
-	must(f.w.Bind("tickTheme", func(dark bool) { setDarkFrame(f.hwnd, dark) })) // 毛玻璃的着色跟页面主题走
+	must(f.w.Bind("tickBeat", func() { f.lastBeat.Store(now()) }))                           // 页面心跳，见 watchdog
+	must(f.w.Bind("tickToast", f.toast))                                                     // 右下角提醒卡（JSON）
+	must(f.w.Bind("tickTheme", func(dark bool) { setDarkFrame(f.hwnd, dark) }))              // 毛玻璃的着色跟页面主题走
 	must(f.w.Bind("tickClear", func(on bool) bool { setClear(f.hwnd, on); return glassOn })) // 环形列表：窗口透明
 }
 
@@ -788,7 +788,8 @@ func runTray(srv *Server, f *floatWin) {
 				}
 			}
 		}()
-		go trayStatus(srv)
+		go trayStatus(srv, f)
+		go trayHover(srv, f)
 	}, nil)
 }
 
@@ -799,8 +800,12 @@ var trayFlash = make(chan int, 4)
 
 // trayStatus 跟着数据变化更新托盘提示和图标，并负责闪动。
 // 图标上的环是活的：弧长 = 进行中会话的总完成比例（按 1/24 取整，免得每勾一项都重画），有人在等你时变橙
-func trayStatus(srv *Server) {
+func trayStatus(srv *Server, f *floatWin) {
 	ch, _ := srv.store.Subscribe()
+	// 有没读的通知就一直闪（像微信），读完 / 清空 / 开了勿扰就停；勿扰到点了也要重新判断
+	dndCheck := time.NewTicker(30 * time.Second)
+	defer dndCheck.Stop()
+	nag := false
 	cache := map[iconState][]byte{}
 	base := iconState{Progress: 1}
 	shown := iconState{Progress: -1}
@@ -872,8 +877,20 @@ func trayStatus(srv *Server) {
 		if waiting > 0 {
 			base.Tone = toneOrange
 		}
-		if blink == nil {
+		nag = srv.store.UnreadNotices() > 0 && !f.dnd()
+		switch {
+		case nag && blink == nil:
+			blink = time.NewTicker(520 * time.Millisecond)
+			tickC = blink.C
+			left = 1
+			set(flash)
+		case !nag && blink != nil && left < 0:
+			stop() // 读完了：停在平常的图标上
+		case blink == nil:
 			set(base)
+		}
+		if nag {
+			left = -1 // 一直闪，直到 nag 变成 false
 		}
 	}
 	update()
@@ -891,10 +908,17 @@ func trayStatus(srv *Server) {
 		case <-coalesce:
 			coalesce = nil
 			update()
+		case <-dndCheck.C:
+			update()
 		case n := <-trayFlash:
 			if n <= 0 {
-				stop()
+				if !nag {
+					stop()
+				}
 				continue
+			}
+			if left < 0 {
+				continue // 已经在一直闪
 			}
 			left = max(left, n*2) // 正在闪就接着闪，不叠加
 			if blink == nil {
@@ -904,7 +928,15 @@ func trayStatus(srv *Server) {
 				left--
 			}
 		case <-tickC:
-			if left <= 0 {
+			if left < 0 { // 有未读：亮帧和平常帧来回换
+				if shown == flash {
+					set(base)
+				} else {
+					set(flash)
+				}
+				continue
+			}
+			if left == 0 {
 				stop()
 				continue
 			}

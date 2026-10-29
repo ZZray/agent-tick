@@ -127,7 +127,8 @@ func openPanel(srv *Server, f *floatWin, hash string) {
 			}
 			pSetForegroundWindow.Call(hwnd)
 			if hash != "" {
-				w.Eval(fmt.Sprintf("location.hash = %q", hash))
+				// 直接调页面的跳转函数：hash 和上次相同时改 location.hash 不会触发跳转
+				w.Eval(fmt.Sprintf("window.tickGo ? tickGo(%q) : (location.hash = %q)", hash, hash))
 			}
 		})
 		return
