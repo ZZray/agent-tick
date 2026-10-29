@@ -93,6 +93,13 @@ type deskSettings struct {
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
+	Strip            bool      // 贴边收起时缩成一根细条（每个任务一段颜色）；鼠标停上去只露出当前任务的进度卡，点了才展开
+}
+
+func (f *floatWin) strip() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.set.Strip
 }
 
 // pageURL 悬浮窗、提醒卡、托盘菜单、面板的页面地址，带上界面语言
@@ -160,11 +167,11 @@ func (f *floatWin) setDnd(on bool) {
 // pushHostState 把宿主侧状态告诉页面：置顶、勿扰、提示音，以及窗口在屏幕哪一半
 // （抽屉往屏幕中间那一侧拉开：窗口变宽时靠右的保持右边缘不动，见 fit）
 func (f *floatWin) pushHostState() {
-	pinned, dnd, sound := f.pinned(), f.dnd(), f.soundState()
+	pinned, dnd, sound, strip := f.pinned(), f.dnd(), f.soundState(), f.strip()
 	th, _ := json.Marshal(f.theme())
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,theme:%s,%s})", pinned, dnd, h, v, glassOn, th, sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,theme:%s,%s})", pinned, dnd, h, v, glassOn, strip, th, sound))
 	})
 }
 
@@ -294,6 +301,12 @@ func runDesktop(srv *Server, serve func()) {
 	} else {
 		log.Printf("全局快捷键 Ctrl+Alt+T 注册失败（可能被占用）：%v", err)
 	}
+	// Ctrl+Alt+→ / ← 在进行中的任务之间切换（收着时露出那个任务的进度卡）
+	for id, vk := range map[uintptr]uintptr{2: 0x27, 3: 0x25} {
+		if ok, _, err := pRegisterHotKey.Call(f.hwnd, id, 0x1|0x2|0x4000, vk); ok == 0 {
+			log.Printf("切换任务的快捷键注册失败（可能被占用）：%v", err)
+		}
+	}
 	setupNotices(srv, f)
 	serve()
 	go runTray(srv, f)
@@ -344,8 +357,17 @@ func floatProc(hwnd, msg, wp, lp uintptr) uintptr {
 	case wmClose: // Alt+F4 只是收起，退出走托盘
 		f.hide()
 		return 0
-	case wmHotkey: // 全局快捷键：叫出或收起
-		f.toggle()
+	case wmHotkey: // 全局快捷键：1 = 叫出或收起；2 / 3 = 切到下一个 / 上一个任务（页面决定怎么显示）
+		switch wp {
+		case 2, 3:
+			dir := 1
+			if wp == 3 {
+				dir = -1
+			}
+			f.w.Eval(fmt.Sprintf("window.tickCycle && tickCycle(%d)", dir))
+		default:
+			f.toggle()
+		}
 		return 0
 	case wmExitSizeMove:
 		f.rememberPos()
@@ -447,9 +469,9 @@ func (f *floatWin) fitAt(cssW, cssH, ax, ay float64) {
 }
 
 func (f *floatWin) fit(cssW, cssH float64) {
-	// 下限放到 24：贴边收起后窗口只是一个小标签
+	// 下限放到 6：贴边细条只有 8px 粗
 	// 上限 720 宽：通知抽屉拉开时是主面板加抽屉的宽度
-	f.cssW, f.cssH = math.Max(24, math.Min(cssW, 720)), math.Max(24, math.Min(cssH, 720))
+	f.cssW, f.cssH = math.Max(6, math.Min(cssW, 720)), math.Max(6, math.Min(cssH, 720))
 	old := f.windowRect()
 	wa := f.workArea()
 	w, h := f.physical(f.cssW, f.cssH)

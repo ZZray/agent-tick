@@ -41,6 +41,7 @@ type dockRuntime struct {
 	enteredAt  time.Time // 收起状态下鼠标进入窄边的时刻
 	holdHover  bool      // 等你：一直露着，直到鼠标进来过再离开
 	holdUntil  time.Time // 做完类通知：露到这个时间
+	stripHover bool      // 细条模式：鼠标是否在细条上（变化时告诉页面）
 }
 
 func (f *floatWin) dockEdge() string {
@@ -75,6 +76,8 @@ func (f *floatWin) dockPos(edge string, r rect) (int32, int32) {
 		x = wa.Right - w
 	case "top":
 		y = wa.Top
+	case "bottom": // 贴着任务栏上沿
+		y = wa.Bottom - h
 	}
 	return x, y
 }
@@ -133,6 +136,8 @@ func (f *floatWin) afterDrag() {
 		edge = "right"
 	case r.Top-wa.Top <= d:
 		edge = "top"
+	case wa.Bottom-r.Bottom <= d:
+		edge = "bottom"
 	}
 	f.mu.Lock()
 	f.set.Dock = edge
@@ -192,6 +197,18 @@ func (f *floatWin) dockLoop() {
 		m := int32(math.Round(6 * f.scale()))
 		inside := c.X >= r.Left-m && c.X < r.Right+m && c.Y >= r.Top-m && c.Y < r.Bottom+m
 		now := time.Now()
+		if !f.tucked.Load() {
+			f.dock.stripHover = false
+		}
+		if f.tucked.Load() && f.strip() {
+			// 细条：鼠标停上去不展开，只让页面露出当前任务的进度卡；点一下才展开（页面调 tickUntuck）
+			if inside != f.dock.stripHover {
+				f.dock.stripHover = inside
+				on := inside
+				f.dispatch(func() { f.w.Eval(fmt.Sprintf("window.tickStripHover && tickStripHover(%t)", on)) })
+			}
+			continue
+		}
 		if f.tucked.Load() {
 			// 收起时只认露出来的那条窄边（加上贴着的屏幕边缘），避免路过窗口原位置就弹出
 			if inside {

@@ -345,16 +345,44 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f.tucked::before{display:none}
 [data-dock=right] .f.native{justify-content:flex-end} /* 变形时内容贴着屏幕边，从边上长出来 */
 .tb{flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;width:30px;padding:7px 0 8px;cursor:pointer;user-select:none}
-[data-dock=top] .tb{flex-direction:row;width:auto;height:30px;padding:0 9px 0 7px}
+:is([data-dock=top],[data-dock=bottom]) .tb{flex-direction:row;width:auto;height:30px;padding:0 9px 0 7px}
+[data-dock=bottom] .f.native.tucked{align-items:flex-end}
+/* 细条：8px 粗，每个任务一段；横贴（上 / 下）时横着，竖贴（左 / 右）时竖着 */
+.tb.strip{gap:8px;padding:0;width:auto;height:auto;cursor:pointer}
+.sb{display:flex;flex-direction:column;gap:2px;padding:2px;width:8px;height:calc(var(--n) * 34px + 4px);max-height:300px;border-radius:4px;background:var(--bg-2)}
+:is([data-dock=top],[data-dock=bottom]) .sb{flex-direction:row;width:calc(var(--n) * 44px + 4px);max-width:360px;height:8px}
+.sb-g{flex:1;border-radius:2px;background:linear-gradient(to bottom,var(--c) var(--p),color-mix(in srgb,var(--c) 26%,transparent) var(--p));transition:filter 160ms var(--ease)}
+:is([data-dock=top],[data-dock=bottom]) .sb-g{background:linear-gradient(to right,var(--c) var(--p),color-mix(in srgb,var(--c) 26%,transparent) var(--p))}
+.sb-g.idle{background:var(--line-strong)}
+.sb-g.w{animation:sbW 1.4s ease-in-out infinite}
+@keyframes sbW{50%{filter:brightness(1.5)}}
+.strip.open .sb-g:not(.on){filter:saturate(.5) brightness(.75)}
+/* 进度卡：贴在细条朝屏幕里的那一侧 */
+.tb.strip.open{align-items:flex-start;padding:8px}
+[data-dock=right] .tb.strip.open{flex-direction:row-reverse}
+[data-dock=top] .tb.strip.open{flex-direction:column}
+[data-dock=bottom] .tb.strip.open{flex-direction:column-reverse}
+.sc{display:flex;flex-direction:column;gap:4px;width:250px;padding:2px 2px 0}
+.sc-h{display:flex;align-items:center;gap:7px}
+.sc-h b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:560;font-size:12.5px}
+.sc-h .num{color:var(--text-3);font-size:11.5px}
+.sc-s{position:relative;overflow:hidden;color:var(--text-2);font-size:12px;white-space:nowrap;text-overflow:ellipsis}
+.sc .segs{margin:3px 0 1px}
+.sc-m{display:flex;align-items:center;gap:6px;color:var(--text-4);font-size:11px;white-space:nowrap}
+.sc-m .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px}
+.sc-m .dot{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7}
+@media (prefers-reduced-motion:reduce){.sb-g.w{animation:none}}
 .tb .logo{width:16px;height:16px;border-radius:4px}
 .tb-sep{width:12px;height:1px;background:var(--line)}
-[data-dock=top] .tb-sep{width:1px;height:12px}
+:is([data-dock=top],[data-dock=bottom]) .tb-sep{width:1px;height:12px}
 .tb-more{font-size:10px;font-weight:600;color:var(--text-3);line-height:1}
 /* 有人等你：标签贴屏幕的那条边亮一道橙线 */
 .f.hot::after{content:"";position:absolute;background:var(--orange);border-radius:2px;pointer-events:none}
 [data-dock=right] .f.hot::after{right:0;top:9px;bottom:9px;width:2px}
 [data-dock=left] .f.hot::after{left:0;top:9px;bottom:9px;width:2px}
 [data-dock=top] .f.hot::after{top:0;left:9px;right:9px;height:2px}
+[data-dock=bottom] .f.hot::after{bottom:0;left:9px;right:9px;height:2px}
+.f.hot:has(.strip)::after{display:none} /* 细条自己会让等你的那段闪 */
 /* 勿扰中：标题栏一个月亮，点它结束 */
 .ib.dnd-on{color:var(--text-2);margin-left:-2px}
 /* 归档后的撤销条 */
@@ -384,7 +412,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 @keyframes orbit{to{transform:rotate(360deg)}}
 /* 消息气泡：标签横向长出来，图标 + 谁 + 一句话 */
 .tb.speak{flex-direction:row;align-items:flex-start;gap:8px;width:max-content;max-width:256px;padding:9px 12px 10px 10px}
-[data-dock=top] .tb.speak{height:auto}
+:is([data-dock=top],[data-dock=bottom]) .tb.speak{height:auto}
 .tb.speak .ic{margin-top:2px}
 .tb-tx{display:flex;flex-direction:column;min-width:0;max-width:212px;font-size:12px;line-height:1.45}
 .tb-tx b{color:var(--text-1);font-weight:510;white-space:nowrap}
@@ -995,7 +1023,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1639,6 +1667,7 @@ function renderMenu() {
       ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
       ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
       ${sw('autostart', '开机启动', m.autostart)}
+      ${sw('strip', '贴边收成细条', m.strip, '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
       <div class="mn-row nohov"><span class="grow">界面语言</span>${pickHtml('m-lang', [{ id: '', name: '跟随系统' }, { id: 'zh', name: '中文' }, { id: 'en', name: 'English' }], m.lang || '', '界面语言')}</div>
@@ -2091,6 +2120,7 @@ function tabHtml(d, live) {
     return `<div class="tb speak k-${esc(sp.kind)}" data-key="tab-speak-${esc(sp.id || sp.sessionId)}" data-enter="fade" data-drag data-act="untuck">
       ${sicon(sp.kind)}<div class="tb-tx"><b>${esc(agentOf(sp.agent).name)} ${verb}</b><span>${esc(firstLine(text))}</span></div></div>`;
   }
+  if (S.strip) return stripHtml(list, live);
   const shown = list.slice(0, 4);
   const more = list.length - shown.length;
   return `<div class="tb" data-key="tab" data-enter="fade" data-drag data-act="untuck" data-tip="${esc(list.length ? `${d.nR} 进行中${d.nW ? ` · ${d.nW} 等你` : ''}` : '都安静着')}">
@@ -2100,6 +2130,44 @@ function tabHtml(d, live) {
     ${more > 0 ? `<span class="tb-more num">+${more}</span>` : ''}
   </div>`;
 }
+
+// 细条：贴边收起时只剩一根 8px 的条，每个任务一段、各用一种颜色，段里按完成比例填满；等你的那段闪橙色。
+// 鼠标停上去（宿主调 tickStripHover）或按 Ctrl+Alt+← / →（tickCycle）时，条旁边长出当前任务的进度卡；点一下展开
+const STRIP_COLORS = ['#4CB782', '#4EA7FC', '#8B7CF6', '#F472B6', '#F2B33D', '#2DD4BF'];
+function stripHtml(list, live) {
+  const shown = list.slice(0, 8);
+  if (!shown.some(s => s.id === S.focusSid)) S.focusSid = shown[0]?.id || null;
+  const pct = s => { const p = progress(s); return p.total ? p.done / p.total : s.status === 'done' ? 1 : 0; };
+  const bar = `<span class="sb" style="--n:${Math.max(1, shown.length)}">${shown.length ? shown.map((s, i) => `<i class="sb-g${isWaiting(s) ? ' w' : ''}${s.id === S.focusSid ? ' on' : ''}" style="--c:${STRIP_COLORS[i % STRIP_COLORS.length]};--p:${(pct(s) * 100).toFixed(1)}%"></i>`).join('') : '<i class="sb-g idle"></i>'}</span>`;
+  const s = (S.stripHover || S.stripPeek) && shown.find(x => x.id === S.focusSid);
+  if (!s) return `<div class="tb strip" data-key="tab-strip" data-drag data-act="untuck">${bar}</div>`;
+  const p = progress(s);
+  const a = agentOf(s.agent);
+  const i = shown.indexOf(s);
+  const ticking = s.status === 'running' && !!current(s)?.startedAt && live();
+  return `<div class="tb strip open" data-key="tab-strip" data-drag data-act="untuck" data-sid="${esc(s.id)}">${bar}
+    <div class="sc" data-key="sc-${esc(s.id)}" data-enter="fade" style="--c:${STRIP_COLORS[i % STRIP_COLORS.length]}">
+      <div class="sc-h">${sicon(isDormant(s) ? 'dormant' : s.status)}<b>${esc(s.title)}</b><span class="num">${p.total ? `${p.done}/${p.total}` : ''}</span></div>
+      <div class="sc-s${ticking ? ' sweep' : ''}">${esc(firstLine(subline(s)))}</div>
+      ${p.total ? segs(s, ticking) : ''}
+      <div class="sc-m"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span>${esc(a.name)}<i class="dot"></i><span class="num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span><span class="grow"></span>${shown.length > 1 ? `<span class="num">${i + 1}/${shown.length} · Ctrl+Alt+← →</span>` : ''}</div>
+    </div></div>`;
+}
+window.tickStripHover = on => { S.stripHover = !!on; schedule(); };
+// 全局快捷键切任务：收着时露出那个任务的卡 2.6 秒；展开着就在列表里定位它
+let peekT = 0;
+window.tickCycle = dir => {
+  const list = [...floatData().active, ...floatData().stale];
+  if (!list.length) return;
+  const i = list.findIndex(s => s.id === S.focusSid);
+  S.focusSid = list[(i + dir + list.length) % list.length].id;
+  if (S.dock.tucked) {
+    S.stripPeek = true;
+    clearTimeout(peekT);
+    peekT = setTimeout(() => { S.stripPeek = false; schedule(); }, 2600);
+    schedule();
+  } else focusSession(S.focusSid);
+};
 
 // 一个会话的小进度环：弧长 = 完成比例；中间的符号表示状态（等你 = 暂停、卡住 = 横杠、做完 = 对勾）
 function mini(s, live) {
@@ -2648,6 +2716,7 @@ window.tickHostState = st => {
   if ('vside' in st) S.vside = st.vside === 'bottom' ? 'bottom' : 'top';
   if ('sound' in st) S.sound = st.sound || '';
   if ('theme' in st) setTheme(st.theme);
+  if ('strip' in st) S.strip = !!st.strip;
   if ('glass' in st) document.documentElement.toggleAttribute('data-glass', !!st.glass);
   if (Array.isArray(st.sounds)) S.sounds = st.sounds;
   schedule();
@@ -2833,8 +2902,8 @@ async function onClick(e) {
       const moved = S.downAt && Math.hypot(e.screenX - S.downAt[0], e.screenY - S.downAt[1]) > 4;
       if (moved) break;
       // 点在某个会话的环上：展开并直接打开那个会话；点在别处：只展开
-      const ring = e.target.closest('.mini[data-sid]');
-      if (ring) focusSession(ring.dataset.sid);
+      const ring = e.target.closest('.mini[data-sid], .strip.open[data-sid]');
+      if (ring) { S.stripHover = S.stripPeek = false; focusSession(ring.dataset.sid); }
       else if (S.speak?.sessionId) focusSession(S.speak.sessionId);
       else window.tickUntuck();
       break;
