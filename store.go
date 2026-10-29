@@ -254,6 +254,9 @@ type Store struct {
 
 const saveDelay = 250 * time.Millisecond
 
+// pushEvents 推送给页面的会话快照里带的动态条数（完整的用 GET 取）
+const pushEvents = 40
+
 // Frame 是推给 SSE 订阅者的一条消息
 type Frame struct {
 	Event string
@@ -417,9 +420,14 @@ func (st *Store) change(sessionID string, fn func(s *Session) error) (*Session, 
 	}
 	pending := cloneNotices(st.pending)
 	st.pending = nil
-	// 在锁内推送，保证订阅者收到的顺序和修改顺序一致（publish 不阻塞）
+	// 在锁内推送，保证订阅者收到的顺序和修改顺序一致（publish 不阻塞）。
+	// 推送只带最近 pushEvents 条动态（页面最多显示 40 条），否则每勾一项都要把几百条动态序列化、解析一遍
 	if snap != nil {
-		st.publish("session", snap)
+		pub := *snap
+		if n := len(pub.Events); n > pushEvents {
+			pub.Events = pub.Events[n-pushEvents:]
+		}
+		st.publish("session", &pub)
 	}
 	for _, n := range pending {
 		st.publish("notice", n)

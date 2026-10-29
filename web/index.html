@@ -138,11 +138,11 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 [data-idle] *,[data-idle] *::after,[data-idle] *::before{animation-play-state:paused!important}
 /* 进行中的点阵：九个点按对角线（x+y = 0…4）依次点亮，像一道光斜着扫过去。
    steps 动画只在跳变时重绘，比连续的渐变流光省得多；窗口隐藏时整体暂停（[data-idle]） */
-/* 不用 CSS 动画：页面每 140ms 改一次 <html data-ph>（见 dotTicker），只有这些小点跳一下，
+/* 不用 CSS 动画：页面每 140ms 给每个点阵图标改一次 data-ph（见 setIdle），只有这些小点跳一下，
    其余时间不出帧。阶段 0…4 依次点亮一条对角线，5、6 停一拍 */
 .dmx circle{opacity:.3}
-[data-ph="0"] .dmx .dm0,[data-ph="1"] .dmx .dm1,[data-ph="2"] .dmx .dm2,[data-ph="3"] .dmx .dm3,[data-ph="4"] .dmx .dm4{opacity:1}
-[data-ph="1"] .dmx .dm0,[data-ph="2"] .dmx .dm1,[data-ph="3"] .dmx .dm2,[data-ph="4"] .dmx .dm3,[data-ph="5"] .dmx .dm4{opacity:.6}
+.dmx[data-ph="0"] .dm0,.dmx[data-ph="1"] .dm1,.dmx[data-ph="2"] .dm2,.dmx[data-ph="3"] .dm3,.dmx[data-ph="4"] .dm4{opacity:1}
+.dmx[data-ph="1"] .dm0,.dmx[data-ph="2"] .dm1,.dmx[data-ph="3"] .dm2,.dmx[data-ph="4"] .dm3,.dmx[data-ph="5"] .dm4{opacity:.6}
 /* 签名动效：条目勾上时，圆点先鼓一下，对勾再描出来（这是全产品唯一的“表演”） */
 /* 会话做完时只描会话自己的那个状态图标（行首 / 标签里的环），不连带清单里所有已完成条目一起重播 */
 :is(.just,.celebrate>.s-head .s-l1,.mini.celebrate,.row.celebrate) > :is(.ic,svg) .ic-fill,.just .ic-fill{transform-box:fill-box;transform-origin:center;animation:pop 260ms var(--ease-out)}
@@ -871,7 +871,7 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
   .s-items,.n-list{transition:none}
   .segs i::after,.ring-v,.pin-ic,.chev{transition-property:background-color,opacity,fill-opacity!important}
   .m-orbit{animation:none;display:none}
-  .dmx circle,[data-ph] .dmx circle{opacity:.8!important}
+  .dmx circle,.dmx[data-ph] circle{opacity:.8!important}
   .m-arc{transition-property:stroke!important}
 }
 @media (prefers-reduced-transparency:reduce){
@@ -1461,9 +1461,32 @@ function toastCard(s, kind, extra = {}) {
   return { id: `${now()}-${Math.random().toString(36).slice(2, 6)}`, sid: s?.id || '', kind, agent: a.name, mark: a.mark, color: a.color,
     sub: s?.title || '', done: p.done, total: p.total, ttl: TOAST_TTL[kind] || 7000, ...extra };
 }
+// “勾了一项”的卡：同一会话 700ms 内最多发一次，期间勾的合成一张（card.add = 合了几项）。
+// 多个 agent 一起高频勾时，提醒卡窗口不用每条都重画、重启倒计时
+const itemQ = new Map(), itemLast = new Map([['', 0]]);
+let itemT = 0;
 function sendToast(card) {
   if (!NATIVE || typeof window.tickToast !== 'function' || S.dnd) return;
+  const sid = card.sid;
+  if (card.kind === 'item' && sid) {
+    const q = itemQ.get(sid);
+    card.add = (q?.add || 0) + 1;
+    itemQ.delete(sid);
+    itemQ.set(sid, card); // 放到最后：最近勾的排在后面
+    if (!itemT && now() - itemLast.get('') > 700) { flushItems(); return; }
+    itemT ||= setTimeout(flushItems, Math.max(50, 700 - (now() - (itemLast.get('') || 0))));
+    return;
+  }
+  if (sid) itemQ.delete(sid); // 等你 / 做完这类卡会盖掉还没发出去的“勾了一项”
   window.tickToast(JSON.stringify(card));
+}
+// 发出攒着的“勾了一项”：全局 700ms 一批，一批最多 2 张（最近勾的两个会话）；
+// 再多的会话同时在勾时，进度在悬浮窗里看，右下角不刷屏
+function flushItems() {
+  itemT = 0;
+  itemLast.set('', now());
+  for (const c of [...itemQ.values()].slice(-2)) window.tickToast(JSON.stringify(c));
+  itemQ.clear();
 }
 
 // ---------- 提醒卡窗口（view=toast） ----------
@@ -1477,12 +1500,12 @@ function startToast() {
     if (k >= 0) {
       const old = S.toasts[k];
       if (TOAST_RANK[card.kind] < TOAST_RANK[old.kind] && old.kind !== 'item') return; // 勾一项不盖掉等你 / 做完
-      card.n = old.kind === 'item' && card.kind === 'item' ? (old.n || 1) + 1 : 1;
+      card.n = old.kind === 'item' && card.kind === 'item' ? (old.n || 1) + (card.add || 1) : card.add || 1;
       S.toasts.splice(k, 1);
-    }
+    } else card.n = card.add || 1;
     S.toasts.push(card);
     if (S.toasts.length > 4) S.toasts.splice(0, S.toasts.length - 4);
-    schedule();
+    scheduleData(); // 一批卡连着到时合成一次重画
   };
   root.addEventListener('animationend', e => {
     if (!e.target.classList?.contains('tc-bar')) return;
@@ -1787,7 +1810,8 @@ function patchNode(o, n, entered) {
     if (o._h === html) return;
   }
   // style 归运行时（动画期间的裁切等），模板里不写 style，这里也不去删它
-  for (const a of [...o.attributes]) if (a.name !== 'style' && !n.hasAttribute(a.name)) o.removeAttribute(a.name);
+  // data-ph 是点阵的动画阶段，也归运行时
+  for (const a of [...o.attributes]) if (a.name !== 'style' && a.name !== 'data-ph' && !n.hasAttribute(a.name)) o.removeAttribute(a.name);
   for (const a of [...n.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
   const roll = o.hasAttribute('data-roll') ? o.textContent : null;
   patchChildren(o, n, entered);
@@ -3295,7 +3319,8 @@ function setIdle() {
     dotTimer = setInterval(() => {
       ph = (ph + 1) % 7;
       for (const doc of [document, pip.win?.document]) {
-        if (doc?.querySelector('.dmx')) doc.documentElement.dataset.ph = ph;
+        // 只改点阵图标自己的属性：改在 <html> 上会让整页每 140ms 重算一遍样式
+        if (doc) for (const el of doc.getElementsByClassName('dmx')) el.dataset.ph = ph;
       }
     }, 140);
     slowTimer = setInterval(schedule, 30e3); // “没动静”“刚结束”这类随时间变化的分组
