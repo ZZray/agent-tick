@@ -571,6 +571,15 @@ func (st *Store) setSessionStatus(s *Session, status string) bool {
 	return true
 }
 
+// unarchive：归档过的会话又有 agent 接着干活（开始做某条、改状态、追加或重发清单、重新登记），
+// 自动放回列表，不然新进度只进了“已归档”，悬浮窗和面板都看不见
+func unarchive(s *Session) {
+	if s.Archived {
+		s.Archived = false
+		addEvent(s, "unarchive", "有新进展，移出归档")
+	}
+}
+
 func (st *Store) wake(s *Session) {
 	st.setSessionStatus(s, "running")
 	s.StatusNote = ""
@@ -742,7 +751,7 @@ func (st *Store) Start(in StartInput) (s *Session, attached bool, err error) {
 			if val(goal) != "" && s.Goal == "" {
 				s.Goal = val(goal)
 			}
-			s.Archived = false
+			unarchive(s)
 			addEvent(s, "attach", "重新关联到这个会话")
 			return nil
 		})
@@ -816,6 +825,8 @@ func (st *Store) Patch(id string, in PatchInput) (*Session, error) {
 		}
 		if in.Archived != nil {
 			s.Archived = *in.Archived
+		} else if status != "" && !isEnded(status) {
+			unarchive(s) // agent 报在跑 / 等你 / 受阻：它回来了
 		}
 		if status == "" {
 			if note != nil {
@@ -897,6 +908,7 @@ func (st *Store) ReplacePlan(id string, raw []json.RawMessage) (*Session, error)
 		}
 		first := len(s.Items) == 0
 		s.Items = next
+		unarchive(s)
 		if first {
 			addEvent(s, "plan", fmt.Sprintf("写好清单：%d 项", len(next)))
 		} else {
@@ -928,6 +940,7 @@ func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string) (*S
 		if isEnded(s.Status) {
 			st.wake(s)
 		}
+		unarchive(s)
 		texts := make([]string, len(inputs))
 		for i, x := range inputs {
 			s.Items = append(s.Items, newItem(s, x))
@@ -976,6 +989,10 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 			st.wake(s)
 		} else if status != "" && status != "todo" && s.Status == "planning" {
 			st.setSessionStatus(s, "running")
+		}
+		// 勾选进度说明会话还在推进（结束后的补勾不算）
+		if status != "" && status != "todo" && !isEnded(s.Status) {
+			unarchive(s)
 		}
 		if text != nil {
 			it.Text = *text

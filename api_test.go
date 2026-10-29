@@ -450,6 +450,43 @@ func TestParentSession(t *testing.T) {
 	}
 }
 
+// 归档过的会话，agent 又接着报进度：自动移出归档；用户手动归档、结束后的状态变化不受影响
+func TestUnarchiveOnActivity(t *testing.T) {
+	h := newHarness(t, t.TempDir())
+	id := h.ok("POST", "/api/sessions", map[string]any{"agent": "kiro", "title": "归档后又来", "externalId": "conv-1", "items": []string{"一", "二", "三"}})["id"].(string)
+	archive := func() {
+		if s := h.ok("PATCH", "/api/sessions/"+id, map[string]any{"archived": true}); s["archived"] != true {
+			t.Fatal("应能归档")
+		}
+	}
+	for _, c := range []struct {
+		name         string
+		method, path string
+		body         map[string]any
+	}{
+		{"开始做一条", "PATCH", "/items/1", map[string]any{"status": "doing"}},
+		{"报等你", "PATCH", "", map[string]any{"status": "waiting", "note": "?"}},
+		{"追加条目", "POST", "/items", map[string]any{"text": "四"}},
+		{"重发清单", "PUT", "/items", map[string]any{"items": []string{"一", "二", "三", "四", "五"}}},
+	} {
+		archive()
+		if s := h.ok(c.method, "/api/sessions/"+id+c.path, c.body); s["archived"] != false {
+			t.Fatalf("%s 后应自动移出归档：%v", c.name, s["archived"])
+		}
+	}
+	// 同一对话重新登记
+	archive()
+	if s := h.ok("POST", "/api/sessions", map[string]any{"agent": "kiro", "title": "归档后又来", "externalId": "conv-1"}); s["archived"] != false || s["id"] != id {
+		t.Fatalf("重新登记应拿回原会话并移出归档：%v", s)
+	}
+	// 结束后归档，再补一个结束状态：不该被拉回来
+	h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "done", "summary": "好了"})
+	archive()
+	if s := h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "done", "summary": "改个总结"}); s["archived"] != true {
+		t.Fatal("结束状态不应移出归档")
+	}
+}
+
 func TestDelete(t *testing.T) {
 	h := newHarness(t, t.TempDir())
 	p := h.ok("POST", "/api/sessions", map[string]any{"agent": "kiro", "title": "删我", "items": []string{"一", "二", "三"}})["id"].(string)
