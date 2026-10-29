@@ -472,6 +472,46 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+// API 限流（403）时改走网页跳转拿最新 tag；没有发布时网页跳到 /releases
+func TestLatestReleaseFallback(t *testing.T) {
+	published := true
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/o/r/releases/latest":
+			http.Error(w, `{"message":"API rate limit exceeded"}`, 403)
+		case r.URL.Path == "/o/r/releases/latest" && published:
+			http.Redirect(w, r, "/o/r/releases/tag/v9.9.9", http.StatusFound)
+		case r.URL.Path == "/o/r/releases/latest":
+			http.Redirect(w, r, "/o/r/releases", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	oldAPI, oldWeb := githubAPI, githubWeb
+	githubAPI, githubWeb = srv.URL, srv.URL
+	defer func() { githubAPI, githubWeb = oldAPI, oldWeb }()
+
+	r, err := latestRelease("o/r")
+	if err != nil || r.Tag != "v9.9.9" {
+		t.Fatalf("限流后应从网页拿到 tag：%v %+v", err, r)
+	}
+	want := map[string]string{assetName(): srv.URL + "/o/r/releases/download/v9.9.9/" + assetName(), "SHA256SUMS": srv.URL + "/o/r/releases/download/v9.9.9/SHA256SUMS"}
+	for _, a := range r.Assets {
+		if want[a.Name] != a.URL {
+			t.Fatalf("资产地址不对：%s → %s", a.Name, a.URL)
+		}
+		delete(want, a.Name)
+	}
+	if len(want) != 0 {
+		t.Fatalf("缺资产：%v", want)
+	}
+	published = false
+	if _, err := latestRelease("o/r"); err != errNoRelease {
+		t.Fatalf("没有发布时应报 errNoRelease：%v", err)
+	}
+}
+
 func TestNewerVersion(t *testing.T) {
 	cases := []struct {
 		remote, local string

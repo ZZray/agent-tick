@@ -65,19 +65,27 @@ func newer(remote, local string) bool {
 	return false
 }
 
-type release struct {
-	Tag    string `json:"tag_name"`
-	Body   string `json:"body"`
-	Assets []struct {
-		Name string `json:"name"`
-		URL  string `json:"browser_download_url"`
-	} `json:"assets"`
+type asset struct {
+	Name string `json:"name"`
+	URL  string `json:"browser_download_url"`
 }
 
-var httpc = &http.Client{Timeout: 60 * time.Second}
+type release struct {
+	Tag    string  `json:"tag_name"`
+	Body   string  `json:"body"`
+	Assets []asset `json:"assets"`
+}
+
+var (
+	httpc     = &http.Client{Timeout: 60 * time.Second}
+	githubAPI = "https://api.github.com"
+	githubWeb = "https://github.com" // 测试里换成本地服务
+)
+
+var errNoRelease = errors.New("这个仓库还没有发布版本")
 
 func latestRelease(repo string) (*release, error) {
-	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+repo+"/releases/latest", nil)
+	req, _ := http.NewRequest("GET", githubAPI+"/repos/"+repo+"/releases/latest", nil)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "tick/"+version)
 	res, err := httpc.Do(req)
@@ -85,10 +93,15 @@ func latestRelease(repo string) (*release, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode == 404 {
-		return nil, errors.New("这个仓库还没有发布版本")
-	}
-	if res.StatusCode != 200 {
+	switch res.StatusCode {
+	case 200:
+	case 404:
+		return nil, errNoRelease
+	case 403, 429:
+		// 未登录的 API 每个出口 IP 每小时 60 次，走代理或公司网络时很容易用完。
+		// 这时改用网页上的“最新版本”跳转拿 tag，资产地址按发布约定拼出来，不占 API 额度
+		return latestViaRedirect(repo)
+	default:
 		return nil, fmt.Errorf("GitHub 返回 HTTP %d", res.StatusCode)
 	}
 	var r release
@@ -96,6 +109,28 @@ func latestRelease(repo string) (*release, error) {
 		return nil, err
 	}
 	return &r, nil
+}
+
+// latestViaRedirect：github.com/<repo>/releases/latest 会跳到 /releases/tag/<tag>；没有发布时跳到 /releases
+func latestViaRedirect(repo string) (*release, error) {
+	c := &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, _ := http.NewRequest("HEAD", githubWeb+"/"+repo+"/releases/latest", nil)
+	req.Header.Set("User-Agent", "tick/"+version)
+	res, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	res.Body.Close()
+	loc := res.Header.Get("Location")
+	if res.StatusCode/100 != 3 || loc == "" {
+		return nil, fmt.Errorf("GitHub 限流，网页也没拿到最新版本（HTTP %d）", res.StatusCode)
+	}
+	_, tag, ok := strings.Cut(loc, "/releases/tag/")
+	if !ok || tag == "" || strings.Contains(tag, "/") {
+		return nil, errNoRelease
+	}
+	base := githubWeb + "/" + repo + "/releases/download/" + tag + "/"
+	return &release{Tag: tag, Assets: []asset{{assetName(), base + assetName()}, {"SHA256SUMS", base + "SHA256SUMS"}}}, nil
 }
 
 func download(url string, w io.Writer, limit int64) error {
