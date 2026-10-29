@@ -473,6 +473,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .edge-fx{position:absolute;inset:0;z-index:30;pointer-events:none;border-radius:inherit;padding:1px;overflow:hidden;
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
   mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.f>.edge-fx{border-radius:8px} /* 悬浮窗的圆角是系统画的（DWM），CSS 里没有，这里补上同样的 8px */
 .edge-fx b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   background:conic-gradient(from 0deg,transparent 0 62%,color-mix(in srgb,var(--fx) 30%,transparent) 80%,var(--fx) 94%,transparent 100%)}
 
@@ -615,63 +616,74 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 .f-feed .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px}
 
 /* ============ 胶囊悬停：环形任务列表 ============
-   横条在鼠标下面缩成一个圆（圆心就钉在鼠标处，窗口围着它长出来，不挪位置），
-   任务一个个从圆心弹出去，落在朝屏幕空旷一侧的弧上：每个任务是一枚带进度环的小圆，
-   外面沿着射线方向挂一张信息卡（左右两侧的卡顺着射线倾斜）。底色不透明。 */
+   横条在鼠标下面缩成一个圆（圆心钉在鼠标处，窗口围着它长出来，不挪位置），
+   任务从圆心弹出去，上下等距、横向沿圆弧排开：每个任务一枚带进度环的小圆，外侧一张横放的信息卡。
+   展开时窗口透明（宿主关掉 Acrylic、圆角和边框，见 tickClear），圆和卡片自己是实底、带投影；
+   四周留 28px，投影和悬停光圈不会被窗口边裁掉 */
 .f.native.pill.v-bottom{align-items:flex-end}
 .f.native.pill.side-right{justify-content:flex-end}
-/* 展开时窗口完全透明（宿主关掉 Acrylic、圆角和边框，见 tickClear）：只剩圆和卡片浮在桌面上；
-   卡片和圆自己是实底并带投影，压在任何壁纸上都看得清 */
 [data-glass] .f.fanning{background:transparent;box-shadow:none}
 [data-glass] .f.fanning::before{display:none}
 html:not([data-glass]) .f.fanning{background:var(--bg-2)}
 .f.fanning .f-in{width:auto}
-.fan{--spring:cubic-bezier(.34,1.56,.64,1);position:relative;flex:none}
-
+.fan{--spring:cubic-bezier(.34,1.56,.64,1);--lift:0 10px 28px -12px rgba(0,0,0,.75),0 2px 6px -2px rgba(0,0,0,.4);position:relative;flex:none}
 .fan-at{position:absolute;width:0;height:0;pointer-events:none}
 /* 圆心：总进度环 + 进行中个数；点一下展开悬浮窗 */
-.fh{position:absolute;z-index:4;display:grid;place-items:center;width:52px;height:52px;border-radius:26px;overflow:hidden;cursor:pointer;
-  background:var(--bg-3);box-shadow:inset 0 0 0 1px var(--line-strong),0 6px 18px -6px rgba(0,0,0,.6);transition:box-shadow 200ms var(--ease),scale 260ms var(--spring)}
-.fh:hover{scale:1.08;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 60%,transparent),0 0 0 5px color-mix(in srgb,var(--brand) 16%,transparent),0 6px 18px -6px rgba(0,0,0,.6)}
+.fh{position:absolute;z-index:4;display:grid;place-items:center;width:56px;height:56px;border-radius:28px;cursor:pointer;
+  background:var(--bg-3);box-shadow:0 0 0 1px var(--line-strong),var(--lift);transition:box-shadow 200ms var(--ease),scale 260ms var(--spring)}
+.fh:hover,.fh:focus-visible{outline:none;scale:1.06;box-shadow:0 0 0 1px color-mix(in srgb,var(--brand) 55%,transparent),0 0 0 6px color-mix(in srgb,var(--brand) 14%,transparent),var(--lift)}
+.fh:active{scale:.96}
 .fh>*{animation:fade 180ms 300ms var(--ease) backwards}
-.fh svg{position:absolute;left:50%;top:50%;translate:-50% -50%}
+.fh svg{position:absolute;inset:0}
 .fh b{position:relative;font-size:17px;font-weight:650;color:var(--text-1);letter-spacing:-.02em}
-.fh .wd{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--bg-3)}
+.fh .wd{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2.5px var(--bg-3)}
 @keyframes fade{from{opacity:0}}
-/* 一个任务 = 连线 + 小圆 + 信息卡，放在同一个零尺寸的组里，悬停时三者一起亮 */
+/* 一个任务 = 连线 + 小圆 + 信息卡，放在同一个零尺寸的组里，悬停任何一个三者一起亮 */
 .fg{position:absolute;left:0;top:0;width:0;height:0}
-.fg-l{position:absolute;height:1px;transform-origin:0 50%;pointer-events:none;
+.fg-l{position:absolute;height:1px;transform-origin:0 50%;pointer-events:none;opacity:.7;
   background:linear-gradient(90deg,transparent 30px,var(--line-strong) 30px,var(--line-strong) calc(100% - 18px),transparent calc(100% - 18px));
-  animation:lnIn 300ms var(--ease-out) backwards;animation-delay:calc(var(--i) * 34ms + 200ms)}
+  animation:lnIn 300ms var(--ease-out) backwards;animation-delay:calc(var(--i) * 34ms + 200ms);transition:opacity 160ms var(--ease)}
 @keyframes lnIn{from{scale:0 1}}
-.fs{position:absolute;z-index:3;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--ag,#8A8F98) 16%,var(--bg-3));box-shadow:0 0 0 1px var(--line),0 4px 12px -4px rgba(0,0,0,.6);
+.fs{position:absolute;z-index:3;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  background:color-mix(in srgb,var(--ag,#8A8F98) 18%,var(--bg-3));box-shadow:0 0 0 1px var(--line),var(--lift);
   animation:fsIn 520ms var(--spring) backwards;animation-delay:calc(var(--i) * 34ms + 180ms);
-  transition:transform 240ms var(--spring),box-shadow 180ms var(--ease),opacity 160ms var(--ease)}
+  transition:transform 240ms var(--spring),box-shadow 180ms var(--ease),opacity 160ms var(--ease),filter 160ms var(--ease)}
 @keyframes fsIn{from{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
 .fs svg{position:absolute;inset:0;overflow:visible}
 .fs-tr{fill:none;stroke:var(--line-strong);stroke-width:2}
-.fs-arc{fill:none;stroke:var(--sc);stroke-width:2.2;stroke-linecap:round}
-.fs-m{position:relative;font-size:9.5px;font-weight:650;color:var(--text-1)}
-.fs-dot{position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--bg-2)}
-/* 信息卡横着放，宽度跟内容走（最宽 210），靠小圆那一侧对齐 */
-.fc{position:absolute;z-index:2;display:flex;flex-direction:column;justify-content:center;gap:1px;width:max-content;min-width:120px;max-width:200px;height:44px;padding:0 11px 0 12px;border-radius:9px;text-align:left;
-  background:var(--bg-3);box-shadow:inset 0 0 0 1px var(--line),0 6px 16px -8px rgba(0,0,0,.6);
-  animation:fcIn 360ms var(--ease-out) backwards;animation-delay:calc(var(--i) * 34ms + 300ms);
-  transition:box-shadow 180ms var(--ease),opacity 160ms var(--ease),background-color 160ms var(--ease)}
-@keyframes fcIn{from{opacity:0;transform:translate(var(--kx),var(--ky))}}
-.fc::before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--sc)}
-.fc-t{color:var(--text-1);font-weight:560;font-size:12px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fc-s{color:var(--text-3);font-size:11px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fc-m{display:flex;align-items:center;gap:5px;color:var(--text-4);font-size:11px;white-space:nowrap;overflow:hidden}
-.fc-m .tile.sm{width:13px;height:13px;font-size:7px;border-radius:4px}
-.fg.st-waiting .fc,.fg.st-blocked .fc{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 45%,transparent),0 6px 16px -8px rgba(0,0,0,.6)}
-.fg.more .fs-m{color:var(--text-3)}
+.fs-arc{fill:none;stroke:var(--sc);stroke-width:2.4;stroke-linecap:round;transition:stroke-dasharray 400ms var(--ease-out)}
+.fs-m{position:relative;font-size:10px;font-weight:650;color:var(--text-1)}
+.fs-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--bg-3)}
+/* 信息卡：三行（标题 + 进度 / 正在做的一步 / agent · 状态 · 用时），宽度跟内容走 */
+.fc{position:absolute;z-index:2;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-content:center;column-gap:7px;row-gap:3px;
+  width:max-content;min-width:168px;max-width:236px;height:58px;padding:0 12px 0 11px;border-radius:12px;text-align:left;cursor:pointer;
+  background:var(--bg-3);box-shadow:0 0 0 1px var(--line),var(--lift);
+  animation:fcIn 380ms var(--ease-out) backwards;animation-delay:calc(var(--i) * 34ms + 290ms);
+  transition:transform 220ms var(--spring),box-shadow 180ms var(--ease),opacity 160ms var(--ease),background-color 160ms var(--ease),filter 160ms var(--ease)}
+@keyframes fcIn{from{opacity:0;transform:translateX(var(--kx))}}
+.fc>.ic{grid-row:1;align-self:center}
+.fc-t{grid-row:1;color:var(--text-1);font-weight:560;font-size:12.5px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fc-p{grid-row:1;color:var(--text-3);font-size:11.5px;line-height:16px}
+.fc-s,.fc-m{grid-column:1/-1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:15px}
+.fc-s{color:var(--text-2);font-size:11.5px}
+.fc-m{display:flex;align-items:center;gap:6px;color:var(--text-4);font-size:11px}
+.fc-m .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px;flex-shrink:0}
+.fc-m .dot{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7;flex-shrink:0}
+.fc.solo{grid-template-columns:minmax(0,1fr)}
+.fg.st-waiting .fc,.fg.st-blocked .fc{box-shadow:0 0 0 1px color-mix(in srgb,var(--sc) 50%,transparent),var(--lift)}
+.fg.st-waiting .fc-s,.fg.st-blocked .fc-s{color:var(--text-1)}
+.fg.more .fs-m{color:var(--text-2)}
+/* 悬停 / 键盘焦点：这一组往外探一点，连线换成状态色，其余退后 */
+/* 退后用压暗而不是半透明：窗口是透明的，半透明会把后面的桌面透出来 */
+.fan:has(.fg:hover,.fg:focus-within) .fg:not(:hover,:focus-within) :is(.fs,.fc){filter:brightness(.62) saturate(.6)}
+.fan:has(.fg:hover,.fg:focus-within) .fg:not(:hover,:focus-within) .fg-l{opacity:.35}
+.fg:is(:hover,:focus-within) .fg-l{opacity:1;background:linear-gradient(90deg,transparent 30px,var(--sc) 30px,var(--sc) calc(100% - 18px),transparent calc(100% - 18px))}
+.fg:is(:hover,:focus-within) .fs{transform:scale(1.12);box-shadow:0 0 0 1px var(--line-strong),0 0 0 5px color-mix(in srgb,var(--sc) 20%,transparent),var(--lift)}
+.fg:is(:hover,:focus-within) .fc{transform:translateX(var(--nudge));background:var(--layer-3,var(--bg-3));box-shadow:0 0 0 1px var(--line-strong),var(--lift)}
+.fg .fs:focus-visible,.fg .fc:focus-visible{outline:none}
+.fg:has(.fs:focus-visible) .fc{box-shadow:0 0 0 1.5px var(--sc),var(--lift)}
+.fg :is(.fs,.fc):active{scale:.97}
 @media (hover:hover) and (pointer:fine){
-  .fan:has(.fg:hover) .fg:not(:hover) .fs,.fan:has(.fg:hover) .fg:not(:hover) .fc{opacity:.45}
-  .fg:hover .fs{transform:scale(1.18);box-shadow:0 0 0 1px var(--line-strong),0 0 0 5px color-mix(in srgb,var(--sc) 22%,transparent),0 6px 16px -4px rgba(0,0,0,.6)}
-  .fg:hover .fc{background:var(--layer-3,var(--bg-3));box-shadow:inset 0 0 0 1px var(--line-strong),0 0 0 3px color-mix(in srgb,var(--sc) 16%,transparent),0 8px 20px -8px rgba(0,0,0,.6)}
-  .fg:hover .fg-l{background:linear-gradient(90deg,transparent 30px,var(--sc) 30px,var(--sc) calc(100% - 18px),transparent calc(100% - 18px))}
   /* 贴边标签里的小环也一样：停上去弹一下，邻居跟着动 */
   .tb .mini{transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
   .tb .mini:hover{transform:scale(1.34)}
@@ -681,8 +693,8 @@ html:not([data-glass]) .f.fanning{background:var(--bg-2)}
 .fan.closing .fc{opacity:0;transition:opacity 100ms var(--ease)}
 .fan.closing .fs{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0;transition:transform 200ms ease-in,opacity 180ms var(--ease);transition-delay:calc((8 - var(--i)) * 10ms)}
 .fan.closing .fg-l{scale:0 1;transition:scale 160ms ease-in}
-.fan.closing::before,.fan.closing .fh>*{opacity:0;transition:opacity 120ms var(--ease)}
-@media (prefers-reduced-motion:reduce){.fs,.fc,.fg-l,.fh>*,.fan::before,.f-drawer{animation:none}.fs,.fc,.tb .mini{transition:opacity 120ms linear}}
+.fan.closing .fh>*{opacity:0;transition:opacity 120ms var(--ease)}
+@media (prefers-reduced-motion:reduce){.fs,.fc,.fg-l,.fh>*,.f-drawer{animation:none}.fs,.fc,.tb .mini{transition:opacity 120ms linear}}
 
 /* ======================================================================
    面板（浏览器里看历史与详情）
@@ -1131,6 +1143,7 @@ function ingestNotice(n) {
     announce(n);
     const s = S.sessions.get(n.sessionId);
     sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
+    noticeGlow(n.kind);
     if (NATIVE && S.dock.tucked) speakFor(n);
     if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) S.drawerWant = true;
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
@@ -1553,7 +1566,8 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const EASE_OUT = 'cubic-bezier(.23,1,.32,1)';
 const EASE_IN_OUT = 'cubic-bezier(.77,0,.175,1)';
 const keyOf = n => (n.nodeType === 1 ? n.getAttribute('data-key') : null);
-const isLeaving = n => n.nodeType === 1 && n.hasAttribute('data-leaving');
+// 正在退场的节点和运行时加进去的特效层（data-fx，比如边缘流光）不参与比对，重绘时原样留着
+const isLeaving = n => n.nodeType === 1 && (n.hasAttribute('data-leaving') || n.hasAttribute('data-fx'));
 
 function morph(parent, html) {
   const t = parent.ownerDocument.createElement('template');
@@ -1833,10 +1847,9 @@ function drawerHtml(d) {
 }
 
 // 胶囊悬停：环形任务列表。圆心 = 鼠标在横条上的位置（宿主把这一点钉在屏幕上，见 tickAnchor / fitAt），
-// 任务沿一段弧排开，弧朝屏幕上空间大的那一侧；每个任务外面沿射线挂一张信息卡。
-// 最多 8 个，再多就把最后一个换成“+N”
-// 最多显示 6 个（第 6 个位置在超出时换成“+N”）；小圆 30、卡片 44 高、行距 52，pad 留给投影
-const FAN = { max: 6, bub: 15, hub: 26, cw: 200, ch: 44, gap: 8, pad: 18, step: 52 };
+// 最多显示 6 个（超出时第 6 个位置换成“+N”）。小圆 32、卡片 58 高（三行）、行距 66；
+// 四周 pad 28 留给投影和悬停光圈，窗口透明时不会被边裁掉
+const FAN = { max: 6, bub: 16, hub: 28, cw: 236, ch: 58, gap: 10, pad: 28, step: 66 };
 // 布局照着草图：任务上下等距排成一列，横向沿圆弧往外鼓（离圆心远近随高度变），
 // 卡片横着放在小圆外侧、右边缘对齐小圆；整列朝屏幕上空旷的那一侧（窗口靠右就往左排）
 function fanLayout(n, room) {
@@ -1847,7 +1860,7 @@ function fanLayout(n, room) {
   let y0 = -half;
   if (-y0 > lim(room.u)) y0 = -lim(room.u);
   if (y0 + 2 * half > lim(room.d)) y0 = Math.max(-lim(room.u), lim(room.d) - 2 * half);
-  const R = Math.max(FAN.hub + FAN.bub + 46, Math.abs(y0) + 34, Math.abs(y0 + 2 * half) + 34);
+  const R = Math.max(FAN.hub + FAN.bub + 52, Math.abs(y0) + 40, Math.abs(y0 + 2 * half) + 40);
   const items = [];
   const pts = [[-FAN.hub, -FAN.hub], [FAN.hub, FAN.hub]];
   for (let i = 0; i < n; i++) {
@@ -1870,7 +1883,7 @@ function fanHtml(d, live) {
   const g = fanLayout(n, S.fanRoom || { l: 400, r: 400, u: 300, d: 300 });
   S.fanGeo = g;
   const stColor = s => (isWaiting(s) ? 'var(--orange)' : s.status === 'failed' ? 'var(--red)' : isEnded(s) ? 'var(--green)' : isDormant(s) ? 'var(--text-4)' : 'var(--brand)');
-  const C = 2 * Math.PI * 13;
+  const C = 2 * Math.PI * 14;
   const grp = (it, i, cls, sc, bubble, card, attrs = '') => `<div class="fg ${cls}" style="--i:${i};--sc:${sc}"${attrs}>
       <i class="fg-l" style="left:${g.hx}px;top:${g.hy}px;width:${it.len}px;transform:rotate(${it.a.toFixed(1)}deg)"></i>
       ${bubble(`left:${(g.hx + it.bx - FAN.bub).toFixed(1)}px;top:${(g.hy + it.by - FAN.bub).toFixed(1)}px;--dx:${(-it.bx).toFixed(1)}px;--dy:${(-it.by).toFixed(1)}px`)}
@@ -1886,30 +1899,30 @@ function fanHtml(d, live) {
     const attr = `data-act="fan-open" data-sid="${esc(s.id)}"`;
     return grp(it, i, `st-${s.status}`, stColor(s),
       st => `<button class="fs" ${attr} data-key="fs-${esc(s.id)}" style="${st};--ag:${a.color}" aria-label="${esc(`${a.name} · ${s.title}`)}">
-        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle class="fs-tr" cx="15" cy="15" r="13"/>
-          <circle class="fs-arc" cx="15" cy="15" r="13" stroke-dasharray="${(pct * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 15 15)"/></svg>
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><circle class="fs-tr" cx="16" cy="16" r="14"/>
+          <circle class="fs-arc" cx="16" cy="16" r="14" stroke-dasharray="${(pct * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 16 16)"/></svg>
         <span class="fs-m">${esc(a.mark)}</span>${isWaiting(s) ? '<i class="fs-dot"></i>' : ''}</button>`,
       st => `<button class="fc" ${attr} data-key="fc-${esc(s.id)}" style="${st}" tabindex="-1">
-        <span class="fc-t">${esc(s.title)}</span>
+        ${sicon(isDormant(s) ? 'dormant' : s.status)}<span class="fc-t">${esc(s.title)}</span><span class="fc-p num">${p.total ? `${p.done}/${p.total}` : ''}</span>
         <span class="fc-s">${esc(firstLine(sub || STATUS[s.status]))}</span>
-        <span class="fc-m">${esc(a.name)} · ${STATUS[s.status]}${p.total ? ` · <span class="num">${p.done}/${p.total}</span>` : ''} · <span class="num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span></button>`,
+        <span class="fc-m"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span>${esc(a.name)}<i class="dot"></i>${isDormant(s) ? '很久没动静' : STATUS[s.status]}<i class="dot"></i><span class="num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span></button>`,
       ` data-key="fg-${esc(s.id)}"`);
   };
   const act = d.active.length;
   const tot = d.active.reduce((t, s) => { const p = progress(s); t[0] += p.done; t[1] += p.total; return t; }, [0, 0]);
   const pct = tot[1] ? tot[0] / tot[1] : act ? 0 : 1;
-  const HC = 2 * Math.PI * 22;
+  const HC = 2 * Math.PI * 24;
   const hub = `<button class="fh" data-act="fan-hub" data-key="fh" aria-label="展开悬浮窗" style="left:${g.hx - FAN.hub}px;top:${g.hy - FAN.hub}px">
-      <svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="22" fill="none" stroke="var(--line-strong)" stroke-width="3"/>
-        <circle cx="28" cy="28" r="24" fill="none" stroke="${d.nW ? 'var(--orange)' : 'url(#tick-ring)'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(pct * HC).toFixed(1)} ${HC.toFixed(1)}" transform="rotate(-90 26 26)"/></svg>
+      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="var(--line-strong)" stroke-width="3"/>
+        <circle cx="28" cy="28" r="24" fill="none" stroke="${d.nW ? 'var(--orange)' : 'url(#tick-ring)'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(pct * HC).toFixed(1)} ${HC.toFixed(1)}" transform="rotate(-90 28 28)"/></svg>
       <b class="num">${act}</b>${d.nW ? '<i class="wd"></i>' : ''}</button>`;
   const body = list.length
     ? shown.map(one).join('') + (more > 0 ? grp(g.items[shown.length], shown.length, 'more', 'var(--text-3)',
       st => `<button class="fs" data-act="fan-more" data-key="fs-more" style="${st}" aria-label="展开看全部"><span class="fs-m num">+${more}</span></button>`,
-      st => `<button class="fc" data-act="fan-more" data-key="fc-more" style="${st}" tabindex="-1"><span class="fc-t">还有 ${more} 个</span><span class="fc-s">展开悬浮窗看全部</span></button>`, ' data-key="fg-more"') : '')
+      st => `<button class="fc solo" data-act="fan-more" data-key="fc-more" style="${st}" tabindex="-1"><span class="fc-t">还有 ${more} 个</span><span class="fc-s">展开悬浮窗看全部</span></button>`, ' data-key="fg-more"') : '')
     : grp(g.items[0], 0, 'empty', 'var(--text-4)', () => '',
-      st => `<button class="fc" data-act="fan-hub" data-key="fc-empty" style="${st}" tabindex="-1"><span class="fc-t">都安静着</span><span class="fc-s">agent 开工后会从这里散出来</span></button>`, ' data-key="fg-empty"');
-  return `<div class="fan" data-key="fan" style="width:${g.W}px;height:${g.H}px;--hx:${g.hx}px;--hy:${g.hy}px">
+      st => `<button class="fc solo" data-act="fan-hub" data-key="fc-empty" style="${st}" tabindex="-1"><span class="fc-t">都安静着</span><span class="fc-s">agent 开工后会从这里散出来</span></button>`, ' data-key="fg-empty"');
+  return `<div class="fan" data-key="fan" aria-label="进行中的任务" style="width:${g.W}px;height:${g.H}px;--hx:${g.hx}px;--hy:${g.hy}px;--nudge:${g.items[0]?.side === 'l' ? -4 : 4}px">
     <i class="fan-at" style="left:${g.hx}px;top:${g.hy}px"></i>${body}${hub}</div>`;
 }
 
@@ -2037,21 +2050,32 @@ function wireFloat(el, mode) {
         morphFan(true);
       }, 160);
     });
+    // 收起：卡片先淡掉、小圆收回圆心，再把圆心拉回横条
+    const closeFan = () => {
+      const fan = el.querySelector('.fan');
+      const done = () => { S.fan = false; render(); fanRestore(); };
+      if (!fan || RM.matches) return done();
+      tipHide();
+      fan.classList.add('closing');
+      fanT = setTimeout(() => {
+        const a = morphFan(false);
+        if (!a) return done();
+        a.finished.then(() => { if (el.querySelector('.fan.closing')) done(); }, () => {});
+      }, 170);
+    };
     el.addEventListener('pointerleave', () => {
       clearTimeout(fanT);
+      if (S.fan) fanT = setTimeout(closeFan, 280);
+    });
+    // 键盘：上下键在任务之间移动（圆心在最后），回车打开，Esc 收起
+    el.addEventListener('keydown', e => {
       if (!S.fan) return;
-      fanT = setTimeout(() => {
-        const fan = el.querySelector('.fan');
-        const done = () => { S.fan = false; render(); fanRestore(); };
-        if (!fan || RM.matches) return done();
-        tipHide();
-        fan.classList.add('closing');
-        fanT = setTimeout(() => {
-          const a = morphFan(false);
-          if (!a) return done();
-          a.finished.then(() => { if (el.querySelector('.fan.closing')) done(); }, () => {});
-        }, 170);
-      }, 280);
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); clearTimeout(fanT); closeFan(); return; }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const os = [...el.querySelectorAll('.fan .fs, .fan .fh')];
+      const i = os.indexOf(document.activeElement);
+      os[(i + (e.key === 'ArrowDown' ? 1 : os.length - 1)) % os.length]?.focus();
     });
     let last = '';
     // 窗口尺寸 = 外层盒子的实际尺寸（标签、胶囊、面板宽度各不相同，变形动画中逐帧报告）；
@@ -2832,7 +2856,22 @@ function pulse(doc) {
   // 边缘流光：等你 / 受阻的卡片隔一拍绕一圈；有会话在跑时整个悬浮窗边框每三拍绕一圈
   const n = (pulseN.set(doc, (pulseN.get(doc) || 0) + 1), pulseN.get(doc));
   if (n % 2) q('.n-card').forEach(c => edgeBeam(c, c.classList.contains('blocked') ? 'var(--red)' : 'var(--orange)', 1400));
-  if (n % 4 === 0 && doc.querySelector('.s .dmx')) edgeBeam(doc.querySelector('#root > .f, body > div > .f'), 'var(--brand-hi)', 1400);
+}
+// 来了新通知：悬浮窗外框（完整面板、收成横条、贴边标签都算）绕几圈光，过一阵自己停，平时不绕。
+// 等你 / 受阻绕 12 秒，没做成 8 秒，做完 6 秒，其他提醒绕一圈；勿扰时不绕
+const GLOW = { waiting: [12000, 'var(--orange)'], blocked: [12000, 'var(--red)'], failed: [8000, 'var(--red)'], done: [6000, 'var(--green)'] };
+let glowT = 0;
+function noticeGlow(kind) {
+  if (!FLOAT || S.dnd || RM.matches) return;
+  const [ms, color] = GLOW[kind] || [1700, 'var(--brand-hi)'];
+  const until = Date.now() + ms;
+  clearTimeout(glowT);
+  const run = () => {
+    const f = (pip.root && document.hidden ? pip.root : root).firstElementChild;
+    if (f && !S.fan && !S.idle) edgeBeam(f, color, 1600);
+    if (Date.now() + 1750 < until) glowT = setTimeout(run, 1750);
+  };
+  run();
 }
 const pulseN = new WeakMap();
 // 一束光沿元素边框转一圈后自己删掉：容器用遮罩只露出 1px 的边，里面一块锥形渐变旋转（只动 transform）
@@ -2841,6 +2880,7 @@ function edgeBeam(el, color, dur = 1800) {
   const doc = el.ownerDocument;
   const fx = doc.createElement('i');
   fx.className = 'edge-fx';
+  fx.setAttribute('data-fx', '');
   fx.style.setProperty('--fx', color);
   const b = doc.createElement('b');
   const d = Math.ceil(Math.hypot(el.offsetWidth, el.offsetHeight));
