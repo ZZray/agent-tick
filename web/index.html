@@ -1023,7 +1023,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1158,7 +1158,11 @@ function subline(s) {
   if (isWaiting(s)) return s.statusNote || tr(s.status === 'waiting' ? '等你回复' : '卡住了');
   if (s.status === 'planning') return tr('正在写清单');
   if (isEnded(s)) return s.summary || STATUS[s.status];
-  if (cur) return cur.text;
+  if (cur) {
+    // 同时在做好几条（agent 并行处理）：写第一条，后面注明还有几条在并行，展开能看到每条各自的计时
+    const n = s.items.filter(it => it.status === 'doing').length;
+    return n > 1 ? `${cur.text}${EN ? ` (+${n - 1} in parallel)` : `（另有 ${n - 1} 项并行）`}` : cur.text;
+  }
   if (p.total && p.done === p.total) return tr('清单都勾完了，等它收尾');
   const next = s.items.find(it => it.status === 'todo');
   if (next) return `${EN ? 'Next: ' : '下一条：'}${next.text}`;
@@ -1487,7 +1491,7 @@ function toastCard(s, kind, extra = {}) {
   const a = agentOf(s?.agent || extra.agentId);
   const p = s ? progress(s) : { done: 0, total: 0 };
   return { id: `${now()}-${Math.random().toString(36).slice(2, 6)}`, sid: s?.id || '', kind, agent: a.name, mark: a.mark, color: a.color,
-    sub: s?.title || '', done: p.done, total: p.total, ttl: TOAST_TTL[kind] || 7000, ...extra };
+    sub: s?.title || '', done: p.done, total: p.total, ttl: (TOAST_TTL[kind] || 7000) * ({ short: 0.5, long: 2 }[S.toastLen] || 1), ...extra };
 }
 // “勾了一项”的卡：同一会话 700ms 内最多发一次，期间勾的合成一张（card.add = 合了几项）。
 // 多个 agent 一起高频勾时，提醒卡窗口不用每条都重画、重启倒计时
@@ -1624,7 +1628,8 @@ function startMenu() {
     act(b.dataset.m, on, b.dataset.v || '');
   });
   PICK['m-sound'] = v => act('sound', true, v);
-  PICK['m-lang'] = v => act('lang', true, v); // 宿主存好后重启 Tick，所有页面换成新语言
+  PICK['m-lang'] = v => act('lang', true, v);
+  PICK['m-toastlen'] = v => act('toastlen', true, v);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickMenuClose(); });
   // 报布局尺寸（offset*），不受入场动画的缩放影响
   new ResizeObserver(() => {
@@ -1670,6 +1675,7 @@ function renderMenu() {
       ${sw('strip', '贴边收成细条', m.strip, '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
+      <div class="mn-row nohov"><span class="grow">提醒停留</span>${pickHtml('m-toastlen', [{ id: 'short', name: '短（一半）' }, { id: '', name: '标准' }, { id: 'long', name: '长（两倍）' }], m.toastLen || '', '提醒停留')}</div>
       <div class="mn-row nohov"><span class="grow">界面语言</span>${pickHtml('m-lang', [{ id: '', name: '跟随系统' }, { id: 'zh', name: '中文' }, { id: 'en', name: 'English' }], m.lang || '', '界面语言')}</div>
       <div class="mn-row nohov"><span class="grow">主题色</span><span class="mn-cs" role="radiogroup" aria-label="主题色">${(m.themes || []).map(t => { const on = t.id === m.theme?.id; return `<button class="mn-c${on ? ' on' : ''}" data-m="theme" data-v="${esc(t.id)}" style="--c:${esc(t.brand)}" role="radio" aria-checked="${on}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}"></button>`; }).join('')}</span></div>
       ${S.menuErr ? `<div class="mn-err" data-key="mn-err" data-enter="fade">${sicon('blocked')}${esc(S.menuErr.text)}</div>` : ''}
@@ -2717,6 +2723,7 @@ window.tickHostState = st => {
   if ('sound' in st) S.sound = st.sound || '';
   if ('theme' in st) setTheme(st.theme);
   if ('strip' in st) S.strip = !!st.strip;
+  if ('toastLen' in st) S.toastLen = st.toastLen;
   if ('glass' in st) document.documentElement.toggleAttribute('data-glass', !!st.glass);
   if (Array.isArray(st.sounds)) S.sounds = st.sounds;
   schedule();

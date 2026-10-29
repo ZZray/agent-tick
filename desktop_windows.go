@@ -94,6 +94,16 @@ type deskSettings struct {
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
 	Strip            bool      // 贴边收起时缩成一根细条（每个任务一段颜色）；鼠标停上去只露出当前任务的进度卡，点了才展开
+	ToastLen         string    // 右下角提醒卡停留多久："short"（一半）、""（标准）、"long"（两倍）
+}
+
+// toastLens 提醒卡停留时长的可选值（页面按倍数算，存进设置前按这个校验）
+var toastLens = []string{"short", "", "long"}
+
+func (f *floatWin) toastLen() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.set.ToastLen
 }
 
 func (f *floatWin) strip() bool {
@@ -167,11 +177,11 @@ func (f *floatWin) setDnd(on bool) {
 // pushHostState 把宿主侧状态告诉页面：置顶、勿扰、提示音，以及窗口在屏幕哪一半
 // （抽屉往屏幕中间那一侧拉开：窗口变宽时靠右的保持右边缘不动，见 fit）
 func (f *floatWin) pushHostState() {
-	pinned, dnd, sound, strip := f.pinned(), f.dnd(), f.soundState(), f.strip()
+	pinned, dnd, sound, strip, tl := f.pinned(), f.dnd(), f.soundState(), f.strip(), f.toastLen()
 	th, _ := json.Marshal(f.theme())
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,theme:%s,%s})", pinned, dnd, h, v, glassOn, strip, th, sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,toastLen:%q,theme:%s,%s})", pinned, dnd, h, v, glassOn, strip, tl, th, sound))
 	})
 }
 

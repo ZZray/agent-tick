@@ -43,6 +43,7 @@ type trayState struct {
 	Theme      colorTheme   `json:"theme"`
 	Lang       string       `json:"lang"` // 用户选的语言，"" = 跟系统
 	Strip      bool         `json:"strip"`
+	ToastLen   string       `json:"toastLen"`
 	Themes     []colorTheme `json:"themes"`
 	Version    string     `json:"version"`
 	Pending    string     `json:"pending"`
@@ -58,7 +59,7 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip}
+		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Dnd = f.dnd()
@@ -118,6 +119,14 @@ func (t *tray) act(name string, on bool, val string) {
 	case "strip":
 		setFlag(&f.set.Strip, on)
 		f.pushHostState()
+	case "toastlen":
+		if slices.Contains(toastLens, val) {
+			f.mu.Lock()
+			f.set.ToastLen = val
+			f.mu.Unlock()
+			f.saveSettings()
+			f.pushHostState()
+		}
 	case "update":
 		if t.up.pending() != "" {
 			go t.up.restartWhenIdle(true)
