@@ -1,0 +1,45 @@
+# 推送 vX.Y.Z 标签时：测试、编译、算校验值、发布到 GitHub Releases。
+# Tick 的自动更新就从这里取最新版（资产名 tick-windows-amd64.exe + SHA256SUMS）。
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = '0'
+          go vet ./...
+          go test -count=1 ./...
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = '0'
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          $flags = "-H windowsgui -s -w -X main.version=$v -X main.updateRepo=${{ github.repository }}"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          go build -trimpath -ldflags $flags -o dist/tick-windows-amd64.exe .
+          $env:GOARCH = 'arm64'
+          go build -trimpath -ldflags $flags -o dist/tick-windows-arm64.exe .
+          Push-Location dist
+          Get-ChildItem tick-* | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content -Encoding ascii SHA256SUMS
+          Pop-Location
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/tick-windows-amd64.exe
+            dist/tick-windows-arm64.exe
+            dist/SHA256SUMS
+          generate_release_notes: true

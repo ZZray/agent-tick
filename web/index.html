@@ -1,0 +1,2312 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tick</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E5E5E6'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11' fill='none' stroke='%2308090A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style id="tick-css">
+/* ============ Tokens：linear-style-design §2 ============ */
+:root{
+  --font:"Inter Variable",Inter,"Segoe UI Variable Text","Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei UI",sans-serif;
+  --mono:"JetBrains Mono","Cascadia Code",ui-monospace,Consolas,monospace;
+  --bg:#08090A; --bg-2:#0F1011; --bg-3:#161718;
+  --layer-1:rgba(255,255,255,.02); --layer-2:rgba(255,255,255,.04); --layer-3:rgba(255,255,255,.06);
+  --hover:rgba(255,255,255,.05); --active:rgba(255,255,255,.08);
+  --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.05); --line-strong:rgba(255,255,255,.12);
+  --hi:rgba(255,255,255,.04);
+  --text-1:#F7F8F8; --text-2:#D0D6E0; --text-3:#8A8F98; --text-4:#62666D;
+  --accent:#5E6AD2; --accent-soft:rgba(94,106,210,.16);
+  --btn-primary:#E5E5E6; --btn-primary-text:#08090A;
+  --red:#EB5757; --orange:#F2994A; --yellow:#F2C94C; --green:#4CB782; --blue:#4EA7FC;
+  --frost:rgba(15,16,17,.78); --glow:rgba(255,255,255,.05);
+  --edge:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.04) 42%,rgba(255,255,255,.11));
+  --ease:cubic-bezier(.25,.46,.45,.94); --ease-out:cubic-bezier(.23,1,.32,1); --ease-drawer:cubic-bezier(.32,.72,0,1);
+  --t-press:120ms; --t-hover:100ms; --t-pop:180ms; --t-menu:200ms; --t-panel:320ms;
+  --r-sm:4px; --r:6px; --r-lg:8px; --r-xl:12px;
+  --shadow-pop:0 0 0 1px var(--line),0 16px 48px -12px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+[data-theme=light]{
+  --bg:#F7F8F8; --bg-2:#FFFFFF; --bg-3:#FFFFFF;
+  --layer-1:rgba(0,0,0,.015); --layer-2:rgba(0,0,0,.03); --layer-3:rgba(0,0,0,.045);
+  --hover:rgba(0,0,0,.04); --active:rgba(0,0,0,.06);
+  --line:rgba(0,0,0,.08); --line-soft:rgba(0,0,0,.05); --line-strong:rgba(0,0,0,.12);
+  --hi:rgba(255,255,255,.9);
+  --text-1:#08090A; --text-2:#3C3F45; --text-3:#6B6F76; --text-4:#9A9EA6;
+  --btn-primary:#08090A; --btn-primary-text:#F7F8F8;
+  --frost:rgba(255,255,255,.8); --glow:rgba(94,106,210,.06);
+  --edge:linear-gradient(135deg,rgba(94,106,210,.38),rgba(0,0,0,.06) 42%,rgba(94,106,210,.22));
+  --shadow-pop:0 0 0 1px var(--line),0 16px 40px -12px rgba(0,0,0,.18);
+  color-scheme:light;
+}
+
+/* ============ Base ============ */
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text-2);font:400 13px/1.5 var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:inherit}
+a{color:inherit;text-decoration:none}
+svg{display:block;flex-shrink:0}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono);font-size:12px;font-variant-ligatures:none}
+.t3{color:var(--text-3)} .t4{color:var(--text-4)}
+.grow{flex:1;min-width:0}
+.trunc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+::selection{background:var(--accent-soft)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:4px;border:1px solid var(--line);background:var(--layer-3);font:500 11px var(--font);color:var(--text-3)}
+
+/* ============ 按钮 ============ */
+.btn{height:26px;padding:0 9px;border-radius:var(--r);display:inline-flex;align-items:center;gap:6px;font-weight:510;font-size:12px;
+  border:1px solid var(--line);background:var(--layer-2);color:var(--text-2);white-space:nowrap;
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease),border-color var(--t-hover) var(--ease),transform var(--t-press) var(--ease-out)}
+.btn:hover{background:var(--layer-3);color:var(--text-1);border-color:var(--line-strong)}
+.btn.primary{background:var(--btn-primary);color:var(--btn-primary-text);border-color:transparent}
+.btn.primary:hover{filter:brightness(1.06);background:var(--btn-primary);color:var(--btn-primary-text)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:var(--hover)}
+.ib{width:26px;height:26px;display:grid;place-items:center;border-radius:var(--r);color:var(--text-3);flex-shrink:0;
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease),transform var(--t-press) var(--ease-out)}
+.ib:hover{background:var(--hover);color:var(--text-1)}
+.ib.on{color:var(--text-1)}
+/* 图钉：置顶时实心竖直，取消时空心歪 45°，两态之间过渡 */
+.pin-ic{transition:transform var(--t-menu) var(--ease-out)}
+.pin-ic .pin-head{fill:currentColor;fill-opacity:0;transition:fill-opacity 160ms var(--ease)}
+.pin.on .pin-ic .pin-head{fill-opacity:1}
+.pin:not(.on) .pin-ic{transform:rotate(45deg)}
+@media (hover:hover) and (pointer:fine){.pin:hover .pin-ic{transform:translateY(1px)}.pin:not(.on):hover .pin-ic{transform:rotate(45deg) translateY(1px)}}
+.btn:active,.ib:active{transform:scale(.96)}
+
+/* 状态小图标 */
+.ic{flex-shrink:0}
+.tile{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:9px;font-weight:600;letter-spacing:.02em;
+  color:var(--text-2);background:var(--layer-3);border:1px solid var(--line);flex-shrink:0}
+.tile.sm{width:16px;height:16px;font-size:8px;border-radius:4px}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+/* 进度段：每段底色固定，完成时一层填充从左往右铺满；进行中铺到三分之一并有流光 */
+.segs{display:flex;gap:2px;height:3px}
+.segs i{position:relative;flex:1;min-width:2px;border-radius:2px;background:var(--line-strong);overflow:hidden}
+.segs i::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--text-2);transform:scaleX(0);transform-origin:left;
+  transition:transform 380ms var(--ease-out),background-color 200ms var(--ease)}
+.segs i.done::after{transform:none}
+.segs i.doing::after{transform:scaleX(.34);background:var(--text-3)}
+.segs i.doing.live::after{transform:none;background:linear-gradient(90deg,var(--text-4),var(--text-1),var(--text-4)) 0 0/200% 100%;animation:sweepbg 2s linear infinite}
+.segs i.skipped{background:var(--line)}
+.segs i.blocked::after{transform:none;background:var(--red)}
+.ring-v{transition:stroke-dasharray 380ms var(--ease-out)}
+[data-roll]{display:inline-block}
+.sweep{background:linear-gradient(90deg,var(--text-3) 0%,var(--text-1) 45%,var(--text-3) 90%) 0 0/200% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent!important;animation:sweep 2s linear infinite}
+@keyframes sweep{from{background-position:100% 0}to{background-position:-100% 0}}
+@keyframes sweepbg{from{background-position:100% 0}to{background-position:-100% 0}}
+/* 看不见时（收到托盘、全屏让开、浏览器标签在后台、收成标签且没在跑）：所有循环动画暂停 */
+[data-idle] *,[data-idle] *::after{animation-play-state:paused!important}
+/* 进行中的点阵：九个点按对角线（x+y = 0…4）依次点亮，像一道光斜着扫过去。
+   steps 动画只在跳变时重绘，比连续的渐变流光省得多；窗口隐藏时整体暂停（[data-idle]） */
+.dmx circle{opacity:.28;animation:dm 1.4s steps(1,end) infinite}
+.dmx .dm1{animation-delay:.14s}.dmx .dm2{animation-delay:.28s}.dmx .dm3{animation-delay:.42s}.dmx .dm4{animation-delay:.56s}
+@keyframes dm{0%{opacity:.28}12%{opacity:1}24%{opacity:.6}36%{opacity:.28}}
+/* 签名动效：条目勾上时，圆点先鼓一下，对勾再描出来（这是全产品唯一的“表演”） */
+/* 会话做完时只描会话自己的那个状态图标（行首 / 标签里的环），不连带清单里所有已完成条目一起重播 */
+:is(.just,.celebrate>.s-head .s-l1,.mini.celebrate,.row.celebrate) > :is(.ic,svg) .ic-fill,.just .ic-fill{transform-box:fill-box;transform-origin:center;animation:pop 260ms var(--ease-out)}
+:is(.just,.celebrate>.s-head .s-l1,.mini.celebrate,.row.celebrate) > :is(.ic,svg) .ic-chk,.just .ic-chk{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 320ms 90ms var(--ease-out) forwards}
+@keyframes pop{from{transform:scale(.72);opacity:.4}60%{transform:scale(1.06)}to{transform:none;opacity:1}}
+@keyframes draw{to{stroke-dashoffset:0}}
+/* 会话做完：整行亮一下再褪，一次 */
+.s.celebrate,.row.celebrate{animation:glowfade 600ms var(--ease-out)}
+@keyframes glowfade{from{background-color:color-mix(in srgb,var(--green) 12%,transparent)}to{background-color:transparent}}
+.conn{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-4);white-space:nowrap}
+.conn i{width:6px;height:6px;border-radius:50%;background:var(--text-4)}
+.conn.live i{background:var(--green)} .conn.lost i{background:var(--orange)}
+
+/* ======================================================================
+   悬浮窗（原生窗口 / 浏览器小窗 / 置顶小窗共用）
+   ====================================================================== */
+/* 外层 .f 只是一个会变形的盒子（裁切 + 背景）；里面是完整面板 .f-in 或贴边标签 .tb */
+.f{display:flex;align-items:flex-start;width:100%;background:var(--bg-2);position:relative;overflow:hidden}
+.f.native{width:max-content}
+.f-in{flex:none;display:flex;flex-direction:column;width:340px;position:relative}
+.f.pill .f-in{width:300px}
+.f.fill{height:100vh}
+.f.fill .f-in{width:100%;height:100%}
+/* 原生窗口：高度跟内容走，列表最多到 560px 再滚动 */
+.f.native .f-body{max-height:560px}
+.f::before{content:"";position:absolute;inset:-90px 10% auto;height:180px;pointer-events:none;z-index:0;
+  background:radial-gradient(50% 50% at 50% 50%,var(--glow),transparent 70%)}
+/* 标题栏下沿：内容没压在下面时不画分割线，滚动后才浮出一道柔和渐隐（Apple 滚动边缘） */
+.f-top{position:relative;z-index:2;display:flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;flex-shrink:0;user-select:none;
+  background:var(--frost);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%)}
+.f-top::after{content:"";position:absolute;left:0;right:0;top:100%;height:12px;pointer-events:none;
+  background:linear-gradient(var(--bg-2),transparent);opacity:0;transition:opacity 160ms var(--ease)}
+[data-scrolled="1"] .f-top::after{opacity:1}
+.f-top{box-shadow:inset 0 -1px 0 var(--line-soft)}
+[data-scrolled="1"] .f-top{box-shadow:inset 0 -1px 0 transparent}
+.native .f-top{cursor:default}
+.logo{width:18px;height:18px;border-radius:5px;background:var(--btn-primary);color:var(--btn-primary-text);display:grid;place-items:center;flex-shrink:0}
+.f-brand{color:var(--text-1);font-weight:600;letter-spacing:-.01em}
+.f-cnt{font-size:12px;color:var(--text-3);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.f-cnt b{color:var(--text-1);font-weight:510}
+.f-cnt>span{display:inline-flex;align-items:center;gap:4px}
+.f-cnt .w{gap:5px}
+.wdot{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.f-acts{display:flex;gap:0;margin-left:auto}
+.f-body{position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.f-foot{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;flex-shrink:0;border-top:1px solid var(--line-soft);font-size:11.5px;color:var(--text-4)}
+
+/* 通知区：等你的卡片在最上面，每屏只有它用渐变描边。用 margin 而不用 gap，收起时间距一起收 */
+.n-area{padding:2px 8px 4px;display:flex;flex-direction:column}
+.n-area>*{margin-bottom:6px}
+.n-area>:last-child{margin-bottom:0}
+.n-card{position:relative;padding:10px 12px 10px;border-radius:var(--r-lg);border:1px solid transparent;overflow:hidden;
+  background:linear-gradient(var(--bg-3),var(--bg-3)) padding-box,var(--edge) border-box}
+.n-card.blocked{background:linear-gradient(var(--bg-3),var(--bg-3)) padding-box,
+  linear-gradient(135deg,color-mix(in srgb,var(--red) 45%,transparent),rgba(255,255,255,.04) 42%,rgba(255,255,255,.08)) border-box}
+/* 新卡片进场时扫过的一道光，只扫一次（由 enter() 驱动） */
+.n-glow{position:absolute;inset:0;pointer-events:none;opacity:0;border-radius:inherit;
+  background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.07) 50%,transparent 65%) 0 0/250% 100%}
+[data-theme=light] .n-glow{background:linear-gradient(105deg,transparent 35%,rgba(94,106,210,.08) 50%,transparent 65%) 0 0/250% 100%}
+.n-h{display:flex;align-items:center;gap:7px;color:var(--text-1);font-weight:510;font-size:12.5px;padding-right:20px}
+.n-h .when{color:var(--text-4);font-weight:400;font-size:11.5px;margin-left:auto;white-space:nowrap}
+.n-sub{display:flex;align-items:center;gap:6px;width:calc(100% - 21px);margin:2px 0 0 21px;padding:1px 0;color:var(--text-3);font-size:11.5px;
+  border-radius:var(--r-sm);transition:color var(--t-hover) var(--ease)}
+.n-sub .trunc{flex:1;min-width:0}
+.n-sub:hover{color:var(--text-1)}
+.n-sub .chev{color:var(--text-4);transition:transform var(--t-menu) var(--ease-out)}
+.n-sub[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.n-list{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
+.n-list.open{grid-template-rows:1fr}
+.n-list>div{overflow:hidden;min-height:0}
+.n-list .pad{padding:6px 0 2px 21px;opacity:0;transition:opacity 140ms var(--ease)}
+.n-list.open .pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.n-text{margin:6px 0 0 21px;color:var(--text-1);line-height:1.55;font-size:12.5px;white-space:pre-wrap;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.n-acts{display:flex;gap:6px;margin:9px 0 0 21px}
+.n-x{position:absolute;top:6px;right:6px;width:22px;height:22px}
+.n-row{display:flex;align-items:center;gap:8px;height:30px;padding:0 4px 0 10px;border-radius:var(--r);color:var(--text-2);font-size:12px;
+  transition:background-color var(--t-hover) var(--ease)}
+.n-row:hover{background:var(--hover)}
+.n-row .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n-row .tx b{color:var(--text-1);font-weight:510}
+.n-row .when{color:var(--text-4);font-size:11.5px;white-space:nowrap}
+.n-row .ib{width:22px;height:22px;opacity:0}
+.n-row:hover .ib,.n-row:focus-within .ib{opacity:1}
+.n-area.tight{padding-top:2px}
+.g-act{font-size:11.5px;font-weight:400;color:var(--text-4);padding:1px 6px;margin-right:-6px;border-radius:var(--r);
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.g-act:hover{color:var(--text-2);background:var(--hover)}
+
+/* 会话列表 */
+.g-h{display:flex;align-items:center;gap:6px;padding:10px 14px 4px 14px;font-size:11.5px;font-weight:600;color:var(--text-4)}
+.g-h .c{font-weight:400}
+.s-list{padding:0 6px 6px}
+.s{border-radius:var(--r-lg);transition:background-color var(--t-hover) var(--ease)}
+.s:hover{background:var(--hover)}
+.s.open{background:var(--layer-1)}
+.s-head{display:block;width:100%;padding:8px 8px 9px;border-radius:var(--r-lg);transition:transform var(--t-press) var(--ease-out)}
+.s-head:active{transform:scale(.99)}
+.s-l1{display:flex;align-items:center;gap:8px}
+.s-l1 .chev{color:var(--text-4);opacity:0;margin-left:-2px;transition:opacity var(--t-hover) var(--ease),transform var(--t-menu) var(--ease-out)}
+.s:hover .chev,.s.open .chev,.s-head:focus-visible .chev{opacity:1}
+.s.open .s-l1 .chev{transform:rotate(90deg)}
+.segs-wrap{display:block;margin:7px 0 0 22px}
+.tx-wrap{flex:1;min-width:0;display:flex;overflow:hidden}
+.tx-wrap .tx{flex:1;min-width:0}
+.s-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:510}
+.s.ended .s-title{color:var(--text-2)}
+.s-prog{font-size:12px;color:var(--text-3);flex-shrink:0}
+.s-l2{display:flex;align-items:center;gap:6px;margin:3px 0 0 22px;font-size:12px;color:var(--text-3)}
+.s-l2 .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-l2 .tm{color:var(--text-4);flex-shrink:0}
+.s-l2 .stale{color:var(--text-4);flex-shrink:0}
+.s .segs{margin:7px 0 0 22px}
+.s-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
+.s.open .s-items{grid-template-rows:1fr}
+.s-items>div{overflow:hidden;min-height:0}
+.s-items .pad{padding:2px 8px 8px 30px;opacity:0;transition:opacity 140ms var(--ease)}
+.s.open .s-items .pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.it-s.sum .tx{color:var(--text-3)}
+/* 子任务：挂在主会话下，左侧一条细线连起来 */
+.kids{margin:-2px 8px 6px 15px;padding-left:10px;border-left:1px solid var(--line)}
+.kid{border-radius:var(--r);transition:background-color var(--t-hover) var(--ease)}
+.kid:hover{background:var(--hover)}
+.kid-h{display:flex;align-items:center;gap:7px;width:100%;height:26px;padding:0 6px;font-size:12px;border-radius:var(--r)}
+.kid-h .ic{width:12px;height:12px}
+.kid-t{flex:0 1 auto;min-width:0;max-width:52%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2);font-weight:510}
+.kid-s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-4)}
+.kid-p{color:var(--text-4);font-size:11.5px;flex-shrink:0}
+.kid .s-items .pad{padding:0 6px 6px 25px}
+.kid.open .s-items{grid-template-rows:1fr}
+.kid.open .s-items .pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.it-s{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:12px;color:var(--text-2)}
+.it-s .ic{margin-top:2px}
+.it-s .tx{flex:1;min-width:0;line-height:18px;word-break:break-word}
+.it-s .nt{display:block;color:var(--text-4);font-size:11.5px;line-height:16px;margin-top:1px}
+.it-s.done .tx{color:var(--text-3)}
+.it-s.skipped .tx{color:var(--text-4);text-decoration:line-through}
+.it-s .tm{color:var(--text-4);font-size:11.5px;line-height:18px;white-space:nowrap}
+.it-s.doing .tm{color:var(--text-2)}
+.s-more{display:flex;gap:6px;margin-top:6px}
+.f-empty{padding:22px 20px 22px;text-align:center;color:var(--text-3);line-height:1.65}
+.f-empty b{display:block;color:var(--text-1);font-weight:510;margin-bottom:2px}
+/* 空状态小插画：线条先画出来，对勾再一笔一笔描上，只在出现时放一次 */
+.e-art{display:block;margin:0 auto 10px}
+.e-art .e-l{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 520ms 120ms var(--ease-out) forwards}
+.e-art .e-c{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 360ms 480ms var(--ease-out) forwards}
+.f-empty .acts{display:flex;justify-content:center;gap:6px;margin-top:12px}
+
+/* ============ 贴边小标签 ============
+   收起后窗口缩成一个 30px 宽的竖排标签，紧贴屏幕边（鼠标甩到边上就能碰到）。
+   内容：✓ 标志 + 每个活跃会话一个小进度环；有新消息时横向长成气泡。 */
+.f.tucked{background:var(--bg-2)}
+.f.tucked::before{display:none}
+[data-dock=right] .f.native{justify-content:flex-end} /* 变形时内容贴着屏幕边，从边上长出来 */
+.tb{flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;width:30px;padding:7px 0 8px;cursor:pointer;user-select:none}
+[data-dock=top] .tb{flex-direction:row;width:auto;height:30px;padding:0 9px 0 7px}
+.tb .logo{width:16px;height:16px;border-radius:4px}
+.tb-sep{width:12px;height:1px;background:var(--line)}
+[data-dock=top] .tb-sep{width:1px;height:12px}
+.tb-more{font-size:10px;font-weight:600;color:var(--text-3);line-height:1}
+/* 有人等你：标签贴屏幕的那条边亮一道橙线 */
+.f.hot::after{content:"";position:absolute;background:var(--orange);border-radius:2px;pointer-events:none}
+[data-dock=right] .f.hot::after{right:0;top:9px;bottom:9px;width:2px}
+[data-dock=left] .f.hot::after{left:0;top:9px;bottom:9px;width:2px}
+[data-dock=top] .f.hot::after{top:0;left:9px;right:9px;height:2px}
+/* 勿扰中：标题栏一个月亮，点它结束 */
+.ib.dnd-on{color:var(--text-2);margin-left:-2px}
+/* 归档后的撤销条 */
+.undo{display:flex;align-items:center;gap:8px;margin:2px 8px 8px;padding:6px 6px 6px 12px;border-radius:var(--r-lg);
+  background:var(--layer-2);border:1px solid var(--line);font-size:12px;color:var(--text-2)}
+.undo span{flex:1}
+.undo .g-act{margin-right:0;color:var(--text-1)}
+/* 小进度环：可以点，点了打开那个会话 */
+.mini{cursor:pointer;transition:transform var(--t-press) var(--ease-out)}
+.mini:active{transform:scale(.96)}
+@media (hover:hover) and (pointer:fine){.mini:hover .m-track{stroke:var(--text-4)}}
+/* 小进度环 */
+.mini{display:block;width:18px;height:18px;border-radius:50%}
+.mini svg{display:block;overflow:visible}
+.m-track{fill:none;stroke:var(--line-strong);stroke-width:2}
+.mini.planning .m-track{stroke-dasharray:2 2.4}
+.m-arc{fill:none;stroke:var(--text-2);stroke-width:2;stroke-linecap:round;transition:stroke-dasharray 380ms var(--ease-out),stroke 200ms var(--ease)}
+.m-c{fill:var(--text-3)}
+.mini.running .m-c{fill:var(--text-1)}
+.mini.waiting .m-arc,.mini.waiting .m-c{stroke:var(--orange);fill:var(--orange)}
+.mini.waiting .m-arc{fill:none}
+.mini.blocked .m-arc{stroke:var(--red)}
+.mini.blocked .m-c{fill:var(--red)}
+.m-x{stroke:var(--red);stroke-width:1.6;stroke-linecap:round}
+/* 正在跑：环上有一小段高光在转（只有“进行中”才循环，同屏最多 3 处） */
+.m-orbit{fill:none;stroke:var(--text-1);stroke-width:2;stroke-linecap:round;transform-origin:9px 9px;animation:orbit 1.6s linear infinite}
+@keyframes orbit{to{transform:rotate(360deg)}}
+/* 消息气泡：标签横向长出来，图标 + 谁 + 一句话 */
+.tb.speak{flex-direction:row;align-items:flex-start;gap:8px;width:max-content;max-width:256px;padding:9px 12px 10px 10px}
+[data-dock=top] .tb.speak{height:auto}
+.tb.speak .ic{margin-top:2px}
+.tb-tx{display:flex;flex-direction:column;min-width:0;max-width:212px;font-size:12px;line-height:1.45}
+.tb-tx b{color:var(--text-1);font-weight:510;white-space:nowrap}
+.tb-tx span{color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+
+/* 胶囊：收起后只剩一行，显示最要紧的那件事 */
+.f.pill .f-body,.f.pill .f-foot,.f.pill .f-cnt{display:none}
+.f.pill .f-top{border-bottom:0;height:44px;padding-left:10px}
+.f.pill::before{display:none}
+.pill-tx{flex:1;min-width:0;display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2)}
+.pill-tx .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill-tx b{color:var(--text-1);font-weight:510}
+.pill-tx .p{color:var(--text-3);font-size:12px;flex-shrink:0}
+.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--orange);color:#08090A;font-size:11px;font-weight:600}
+
+/* ============ 铃铛 + 通知抽屉 ============
+   抽屉在朝屏幕中间的那一侧拉开：靠右的窗口往左长（右边缘不动），所以内容要贴着右边，
+   变形时主面板不动、抽屉从它背后滑出来；收起时主面板也不跳。 */
+.f.native.side-right{justify-content:flex-end}
+[data-dock=left] .f.native,[data-dock=top] .f.native{justify-content:flex-start}
+.bell{position:relative}
+.bell-ic{transform-origin:50% 15%}
+.bell.on{background:var(--active);color:var(--text-1)}
+.bell.hot{color:var(--text-1)}
+.bell .bdg{position:absolute;top:1px;right:0;min-width:14px;height:14px;padding:0 3px;border-radius:7px;display:grid;place-items:center;
+  background:var(--layer-3);box-shadow:0 0 0 1.5px var(--bg-2);color:var(--text-2);font-size:9px;font-weight:650;line-height:1}
+.bell.hot .bdg{background:var(--orange);color:#08090A}
+.f.drawer{align-items:stretch}
+.f-drawer{flex:none;width:300px;display:flex;flex-direction:column;position:relative;z-index:1;background:var(--bg);
+  animation:drIn 300ms var(--ease-drawer) backwards}
+.side-right .f-drawer{box-shadow:inset -1px 0 0 var(--line-soft)}
+.side-left .f-drawer{box-shadow:inset 1px 0 0 var(--line-soft);animation-name:drInL}
+@keyframes drIn{from{opacity:0;transform:translateX(20px)}}
+@keyframes drInL{from{opacity:0;transform:translateX(-20px)}}
+/* 浏览器小窗宽度定死：抽屉盖在列表上 */
+.f.fill .f-drawer{position:absolute;top:0;bottom:0;left:0;width:min(300px,88%);z-index:6;box-shadow:var(--shadow-pop)}
+.dr-top{display:flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 14px;flex-shrink:0;user-select:none;box-shadow:inset 0 -1px 0 var(--line-soft)}
+.dr-top b{color:var(--text-1);font-weight:600}
+.seg{display:inline-flex;padding:2px;margin-left:2px;border-radius:7px;background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
+.seg button{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:5px;font-size:11.5px;color:var(--text-3);
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.seg button:hover{color:var(--text-1)}
+.seg button.on{background:var(--layer-3);color:var(--text-1);box-shadow:0 0 0 1px var(--line),inset 0 1px 0 var(--hi)}
+.seg button .num{color:var(--text-4);font-size:10.5px}
+.dr-body{flex:1;min-height:0;max-height:560px;overflow-y:auto;overscroll-behavior:contain}
+.dr-body .n-area{padding:8px 8px 2px}
+.dr-list{display:flex;flex-direction:column;padding:6px 6px 8px}
+.n-row.read{color:var(--text-3)}
+.n-row.read .tx b{color:var(--text-2);font-weight:400}
+.n-row.read>.ic{opacity:.5}
+.dr-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:40px 24px;text-align:center;color:var(--text-3);font-size:12px;line-height:1.6}
+.dr-empty svg{color:var(--text-4);margin-bottom:4px}
+.dr-empty b{color:var(--text-1);font-weight:510;font-size:13px}
+.dr-foot{display:flex;align-items:center;gap:2px;height:38px;padding:0 6px 0 12px;flex-shrink:0;box-shadow:inset 0 1px 0 var(--line-soft)}
+.dr-snd{display:flex;align-items:center;gap:7px;color:var(--text-3);font-size:12px}
+.dr-snd select{appearance:none;-webkit-appearance:none;height:24px;padding:0 22px 0 8px;border-radius:var(--r);border:1px solid var(--line);cursor:pointer;
+  font:inherit;font-size:12px;color:var(--text-2);
+  background:var(--layer-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2.5 4l2.5 2.5L7.5 4' fill='none' stroke='%238A8F98' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center;
+  transition:border-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.dr-snd select:hover{border-color:var(--line-strong);color:var(--text-1)}
+.dr-snd option{background:var(--bg-3);color:var(--text-1)}
+
+/* 组头的逆序开关 */
+.g-act.sort{display:inline-flex;align-items:center;gap:4px}
+/* 刚结束：默认收成一行（后面跟几个标题当预览），点开用 grid 0fr → 1fr 撑开 */
+.g-fold{display:inline-flex;align-items:center;gap:5px;margin-left:-5px;padding:1px 5px 1px 3px;border-radius:var(--r);font-weight:600;color:inherit;
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.g-fold:hover{background:var(--hover);color:var(--text-2)}
+.g-fold .chev{transition:transform var(--t-menu) var(--ease-out)}
+.hist.open .g-fold .chev{transform:rotate(90deg)}
+.g-peek{flex:0 1 auto;min-width:0;font-weight:400;color:var(--text-4)}
+.hist:not(.open) .g-h{padding-bottom:10px}
+.g-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-panel) var(--ease-out)}
+.hist.open .g-body{grid-template-rows:1fr}
+.g-body>div{overflow:hidden;min-height:0}
+.g-body .s-list{opacity:0;transition:opacity 140ms var(--ease)}
+.hist.open .g-body .s-list{opacity:1;transition:opacity 220ms 90ms var(--ease)}
+
+/* 底栏右边：最近一条动态 */
+.f-feed{flex:0 1 auto;min-width:0;max-width:78%;display:flex;align-items:center;gap:6px;height:22px;margin-right:-6px;padding:0 6px;border-radius:var(--r);
+  color:var(--text-3);font-size:11.5px;transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.f-feed:hover{background:var(--hover);color:var(--text-2)}
+.f-feed .tx{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-feed .when{color:var(--text-4);flex-shrink:0}
+.f-feed .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px}
+
+/* ============ 胶囊悬停：会话转盘 ============
+   气泡从圆心沿半圆弹出去（依次错开），轨道线同时描出来；停在一个上面它弹性放大，
+   两边邻居跟着放大一点，其余退后变淡。离开时先收回圆心，再缩回胶囊。 */
+.f.native.pill.v-bottom{align-items:flex-end}
+.f.fanning.v-bottom .f-in{flex-direction:column-reverse}
+.fan{--spring:cubic-bezier(.34,1.56,.64,1);position:relative;flex:none;width:300px;height:176px}
+.v-top .fan{box-shadow:inset 0 1px 0 var(--line-soft)}
+.v-bottom .fan{box-shadow:inset 0 -1px 0 var(--line-soft)}
+.fan-rail{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.fan-rail path{fill:none;stroke:var(--line-strong);stroke-width:1;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 560ms 40ms var(--ease-out) forwards}
+.fan-hub{position:absolute;width:52px;height:52px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(255,255,255,.10),transparent);animation:hubIn 420ms var(--ease-out) backwards}
+[data-theme=light] .fan-hub{background:radial-gradient(closest-side,rgba(94,106,210,.16),transparent)}
+@keyframes hubIn{from{opacity:0;transform:scale(.4)}}
+.fb{position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;transform:translate(var(--x),var(--y));
+  animation:fbIn 480ms var(--spring) backwards;animation-delay:calc(var(--i) * 34ms + 40ms);
+  transition:transform 150ms var(--ease-out),opacity 150ms var(--ease)}
+@keyframes fbIn{from{transform:translate(var(--cx),var(--cy)) scale(.2);opacity:0}}
+.fan.closing .fb{transform:translate(var(--cx),var(--cy)) scale(.3);opacity:0;transition-delay:calc((5 - var(--i)) * 12ms)}
+.fan.closing .fan-info,.fan.closing .fan-rail{opacity:0;transition:opacity 120ms var(--ease)}
+.fb-in{position:relative;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;
+  background:color-mix(in srgb,var(--ag,#8A8F98) 15%,var(--bg-3));box-shadow:0 0 0 1px var(--line),0 4px 12px -4px rgba(0,0,0,.55);
+  transition:transform 280ms var(--spring),box-shadow 200ms var(--ease),opacity 200ms var(--ease)}
+.fb-in svg{position:absolute;inset:0;overflow:visible}
+.fb-track{fill:none;stroke:var(--line-strong);stroke-width:1.6}
+.fb-arc{fill:none;stroke:var(--text-2);stroke-width:1.8;stroke-linecap:round;transition:stroke-dasharray 380ms var(--ease-out)}
+.fb.st-running .fb-arc{stroke:var(--text-1)}
+.fb.st-waiting .fb-arc{stroke:var(--orange)}
+.fb.st-blocked .fb-arc,.fb.st-failed .fb-arc{stroke:var(--red)}
+.fb.st-done .fb-arc{stroke:var(--green)}
+.fb-orbit{fill:none;stroke:var(--text-1);stroke-width:1.8;stroke-linecap:round;transform-origin:15px 15px;animation:orbit 1.6s linear infinite}
+.fb-m{position:relative;font-size:9.5px;font-weight:650;letter-spacing:.02em;color:var(--text-1)}
+.fb.more .fb-m{color:var(--text-3)}
+.fb-dot{position:absolute;top:-1px;right:-1px;width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2px var(--bg-2)}
+.fb.on .fb-in{transform:scale(1.14);box-shadow:0 0 0 1px var(--line-strong),0 0 0 4px color-mix(in srgb,var(--ag,#8A8F98) 24%,transparent),0 6px 16px -4px rgba(0,0,0,.55)}
+@media (hover:hover) and (pointer:fine){
+  .fan:has(.fb:hover) .fb .fb-in{transform:scale(.9);opacity:.55}
+  .fan:has(.fb:hover) .fb:hover .fb-in{transform:scale(1.38);opacity:1;
+    box-shadow:0 0 0 1px var(--line-strong),0 0 0 5px color-mix(in srgb,var(--ag,#8A8F98) 28%,transparent),0 8px 20px -4px rgba(0,0,0,.6)}
+  .fan:has(.fb:hover) .fb:hover + .fb .fb-in,.fan:has(.fb:hover) .fb:has(+ .fb:hover) .fb-in{transform:scale(1.1);opacity:.9}
+  /* 贴边标签里的小环也一样：停上去弹一下，邻居跟着动 */
+  .tb .mini{transition:transform 260ms cubic-bezier(.34,1.56,.64,1)}
+  .tb .mini:hover{transform:scale(1.34)}
+  .tb .mini:hover + .mini,.tb .mini:has(+ .mini:hover){transform:scale(1.12)}
+}
+.fan-info{position:absolute;top:18px;bottom:18px;width:180px;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:0 6px;
+  border-radius:var(--r-lg);text-align:left;transition:background-color var(--t-hover) var(--ease)}
+.fan-info:hover{background:var(--hover)}
+.side-right .fan-info{left:10px}
+.side-left .fan-info{right:10px}
+.fi-a{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3)}
+.fi-st{margin-left:auto;display:inline-flex;align-items:center;gap:4px;color:var(--text-4);font-size:11px}
+.fi-st .ic{width:12px;height:12px}
+.fi-st.st-waiting,.fi-st.st-blocked{color:var(--orange)}
+.fi-t{margin-top:2px;color:var(--text-1);font-weight:560;font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fi-s{color:var(--text-3);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fan-info .segs{margin-top:5px}
+.fi-m{margin-top:2px;font-size:11.5px;color:var(--text-4)}
+.fan.empty .fan-info{left:0;right:0;width:auto;align-items:center;text-align:center}
+.fan.empty .fan-info b{color:var(--text-1);font-weight:510}
+@media (prefers-reduced-motion:reduce){.fb,.f-drawer,.fan-hub,.fan-rail path{animation:none}.fan-rail path{stroke-dashoffset:0}.fb-in,.tb .mini{transition:none}}
+
+/* ======================================================================
+   面板（浏览器里看历史与详情）
+   ====================================================================== */
+.app{display:flex;height:100vh}
+.side{width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:10px 8px 10px 10px}
+.brand{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px;color:var(--text-1);font-weight:600}
+.brand .logo{width:20px;height:20px}
+nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top:10px}
+.nav-h{height:28px;display:flex;align-items:center;padding:0 8px;margin-top:12px;font-size:11.5px;font-weight:600;color:var(--text-4)}
+.nav-i{display:flex;align-items:center;gap:10px;width:100%;height:28px;padding:0 8px;border-radius:var(--r);color:var(--text-3);font-weight:510;
+  transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.nav-i:hover{background:var(--hover);color:var(--text-2)}
+.nav-i.on{background:var(--active);color:var(--text-1)}
+.nav-i .cnt{font-size:11.5px;color:var(--text-4);font-weight:400}
+.nav-i .cnt:empty{display:none}
+.nav-i .cnt.hot{display:inline-flex;align-items:center;gap:5px;color:var(--text-1)}
+.nav-i .cnt.hot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.nav-i .dot{margin:0 5px}
+.side-foot{border-top:1px solid var(--line-soft);padding-top:8px;display:flex;flex-direction:column;gap:1px}
+.main{flex:1;min-width:0;display:flex;padding:8px 8px 8px 0}
+.panel{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-xl);
+  background:var(--bg-2);box-shadow:inset 0 1px 0 var(--hi);overflow:hidden}
+.panel::before{content:"";position:absolute;inset:-140px 15% auto;height:280px;pointer-events:none;z-index:0;
+  background:radial-gradient(50% 50% at 50% 50%,var(--glow),transparent 70%)}
+.top{position:relative;z-index:3;display:flex;align-items:center;gap:10px;height:46px;padding:0 10px 0 16px;flex-shrink:0;
+  border-bottom:1px solid var(--line-soft);background:var(--frost);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%)}
+.crumb{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.crumb b{color:var(--text-1);font-weight:510}
+.today{font-size:12px;color:var(--text-4);white-space:nowrap}
+.body{position:relative;z-index:1;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr)}
+.body.split{grid-template-columns:minmax(0,1fr) minmax(420px,46%)}
+.list{overflow:auto;min-width:0}
+.group-h{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;height:32px;padding:0 16px;
+  background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line-soft);color:var(--text-1);font-weight:510;font-size:12.5px}
+.group-h .cnt{color:var(--text-4);font-weight:400}
+.group-h .g-note{margin-left:auto;color:var(--text-4);font-weight:400;font-size:12px}
+.row.dormant .title{color:var(--text-3)}
+/* 顶栏搜索：平时是一个安静的输入框，聚焦时亮起焦点环 */
+.search{display:flex;align-items:center;gap:7px;width:min(320px,40vw);height:28px;margin-left:8px;padding:0 6px 0 9px;border-radius:var(--r);
+  border:1px solid var(--line);background:var(--layer-1);color:var(--text-4);transition:border-color var(--t-hover) var(--ease),background-color var(--t-hover) var(--ease)}
+.search:focus-within{border-color:color-mix(in srgb,var(--accent) 50%,transparent);background:var(--layer-2);box-shadow:0 0 0 3px var(--accent-soft);color:var(--text-2)}
+.search input{flex:1;min-width:0;font:inherit;font-size:12.5px;color:var(--text-1);background:none;border:0;outline:none}
+.search input::placeholder{color:var(--text-4)}
+.search input::-webkit-search-cancel-button{display:none}
+.search:focus-within kbd{display:none}
+.top-r{display:flex;align-items:center;gap:10px}
+/* 原生面板没有系统标题栏：顶栏和侧栏品牌行就是拖动区，右上角是窗口按钮 */
+[data-win] .top,[data-win] .brand{user-select:none;-webkit-user-select:none}
+.wc{display:flex;align-items:center;gap:2px;margin-left:2px;padding-left:8px;border-left:1px solid var(--line-soft);height:20px}
+.wc .ib{width:30px;height:28px}
+.wc .ib svg{transition:transform var(--t-press) var(--ease-out)}
+.wc .ib:active svg{transform:scale(.88)}
+.wc-x:hover{background:#e5484d;color:#fff}
+[data-act="win-max"] svg+svg,[data-max] [data-act="win-max"] svg:first-child{display:none}
+[data-max] [data-act="win-max"] svg+svg{display:block}
+.row{display:flex;align-items:center;gap:10px;height:40px;padding:0 16px;border-bottom:1px solid var(--line-soft);cursor:pointer;
+  transition:background-color var(--t-hover) var(--ease)}
+.row:hover{background:var(--hover)}
+.row.sel{background:var(--active);box-shadow:inset 2px 0 0 var(--accent)}
+.row .title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:510}
+.row .title .sub{color:var(--text-4);font-weight:400;margin-left:8px}
+.row .prog{display:flex;align-items:center;justify-content:flex-end;gap:6px;width:62px;color:var(--text-3);font-size:12px;flex-shrink:0}
+.row .time{width:56px;text-align:right;color:var(--text-4);font-size:12px;flex-shrink:0}
+.detail{min-width:0;overflow:auto;border-left:1px solid var(--line-soft);background:var(--layer-1)}
+.detail.in{animation:drawer var(--t-panel) var(--ease-drawer)}
+@keyframes drawer{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+.d-bar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;height:44px;padding:0 10px 0 20px;
+  background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft)}
+.d-main{padding:20px 28px 48px;max-width:780px}
+.d-status{display:flex;align-items:center;gap:8px;color:var(--text-3);font-size:12px;font-weight:510}
+.d-title{margin:8px 0 6px;font-size:20px;line-height:1.4;font-weight:510;color:var(--text-1);letter-spacing:-.01em}
+.d-goal{color:var(--text-2);line-height:1.65}
+.callout{margin-top:16px;padding:12px 14px;border-radius:var(--r-lg);border:1px solid transparent;
+  background:linear-gradient(var(--bg-3),var(--bg-3)) padding-box,var(--edge) border-box}
+.callout .c-h{display:flex;align-items:center;gap:8px;color:var(--text-1);font-weight:510}
+.callout .c-b{margin:6px 0 10px 22px;color:var(--text-2);line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.callout .c-a{display:flex;gap:8px;margin-left:22px}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);gap:0 16px;margin-top:16px;padding:6px 14px;
+  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-1)}
+.facts dt{color:var(--text-3);font-size:12px;line-height:28px}
+.facts dd{color:var(--text-2);line-height:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-sec{margin-top:24px}
+.d-sec h3{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:510;color:var(--text-3)}
+.d-sec .segs{height:4px;margin-bottom:10px}
+.checklist{list-style:none;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-1);overflow:hidden}
+.it{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line-soft)}
+.it:last-child{border-bottom:0}
+.it .ic{margin-top:3px}
+.it .n{width:16px;text-align:right;color:var(--text-4);font-size:12px;line-height:20px;flex-shrink:0}
+.it-body{flex:1;min-width:0}
+.it-text{color:var(--text-1);line-height:20px;word-break:break-word}
+.it.todo .it-text,.it.done .it-text{color:var(--text-2)}
+.it.skipped .it-text{color:var(--text-4);text-decoration:line-through}
+.it-note{margin-top:2px;color:var(--text-3);font-size:12px;line-height:1.55;word-break:break-word}
+.it-time{color:var(--text-4);font-size:12px;line-height:20px;white-space:nowrap}
+.it.doing{background:var(--layer-2)}
+.it.doing .it-time{color:var(--text-2)}
+/* 增删改 */
+.it-tick{display:grid;place-items:center;width:18px;height:18px;margin:1px -2px 0;border-radius:50%;flex-shrink:0;
+  transition:background-color var(--t-hover) var(--ease),transform var(--t-press) var(--ease-out)}
+.it-tick:hover{background:var(--hover)}
+.it-tick:active{transform:scale(.92)}
+.it .it-tick .ic,.it-s .it-tick .ic{margin:0}
+.it-acts{display:flex;gap:2px;opacity:0;transition:opacity var(--t-hover) var(--ease)}
+.it:hover .it-acts,.it:focus-within .it-acts{opacity:1}
+.ib.sm{width:22px;height:22px}
+.it-in,.d-title-in{width:100%;font:inherit;color:var(--text-1);background:var(--layer-2);border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);
+  border-radius:var(--r);padding:1px 6px;margin:-2px -7px;outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.d-title-in{font-size:20px;font-weight:510;padding:2px 8px;margin:6px -9px 4px;line-height:1.4}
+.d-title{cursor:text}
+.it-add{display:flex;align-items:center;gap:10px;margin-top:6px;padding:0 12px;height:34px;border:1px dashed var(--line);border-radius:var(--r-lg);color:var(--text-4);
+  transition:border-color var(--t-hover) var(--ease),background-color var(--t-hover) var(--ease)}
+.it-add:focus-within{border-style:solid;border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:var(--layer-1);color:var(--text-2)}
+.it-add input{flex:1;min-width:0;font:inherit;color:var(--text-1);background:none;border:0;outline:none}
+.it-add input::placeholder{color:var(--text-4)}
+.ib.del.armed{width:auto;padding:0 8px;color:var(--red);background:color-mix(in srgb,var(--red) 12%,transparent)}
+.del-t{font-size:12px;font-weight:510;white-space:nowrap}
+/* 垃圾桶：悬停时盖子掀一下（ui-delight 图标语义微动，只播一次） */
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .ib:hover .trash .lid{transform-box:fill-box;transform-origin:20% 100%;animation:lid 300ms var(--ease-out)}
+}
+@keyframes lid{40%{transform:translateY(-1px) rotate(-10deg)}to{transform:none}}
+.summary{padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-2);white-space:pre-wrap;line-height:1.65;word-break:break-word}
+.ev{display:flex;align-items:baseline;gap:10px;padding:3px 0;font-size:12.5px;color:var(--text-3)}
+.ev .d{width:6px;height:6px;border-radius:50%;background:var(--text-4);flex-shrink:0;transform:translateY(-1px)}
+.ev .d.ok{background:var(--green)} .ev .d.warn{background:var(--orange)} .ev .d.bad{background:var(--red)}
+.ev .tx{flex:1;min-width:0;word-break:break-word}
+.ev .w{color:var(--text-4);font-size:12px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;min-height:100%;padding:40px 24px;color:var(--text-3)}
+.empty h2{font-size:15px;font-weight:510;color:var(--text-1)}
+.empty p{max-width:360px;line-height:1.65}
+.empty .acts{display:flex;gap:8px;margin-top:6px}
+
+/* Toast 与对话框 */
+.toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;align-items:center;gap:8px;
+  pointer-events:none;width:max-content;max-width:calc(100% - 32px)}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:12px;min-height:36px;padding:6px 14px;border-radius:var(--r-lg);
+  background:var(--frost);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:var(--shadow-pop);
+  color:var(--text-2);font-size:12.5px;opacity:0;transform:translateY(8px);transition:opacity 300ms var(--ease-out),transform 300ms var(--ease-out)}
+.toast:has(.toast-act){padding-right:6px}
+.toast[data-state=show]{opacity:1;transform:none}
+.toast[data-state=leave]{opacity:0;transform:translateY(8px);transition-duration:200ms}
+.toast b{color:var(--text-1);font-weight:510}
+.toast-act{height:24px;padding:0 8px;border-radius:var(--r);background:var(--layer-3);color:var(--text-1);font-weight:510;font-size:12px}
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.35);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh}
+[data-theme=light] .overlay{background:rgba(0,0,0,.12)}
+.dialog{width:min(640px,calc(100% - 32px));border-radius:var(--r-xl);background:var(--frost);backdrop-filter:blur(20px) saturate(140%);
+  -webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:var(--shadow-pop);overflow:hidden;animation:dlg 200ms var(--ease-out)}
+@keyframes dlg{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
+.guide{padding:18px 20px 20px;max-height:78vh;overflow:auto}
+.guide h2{display:flex;align-items:center;font-size:15px;font-weight:510;color:var(--text-1)}
+.guide h4{margin:16px 0 6px;font-size:12px;font-weight:510;color:var(--text-3)}
+.guide p{color:var(--text-3);margin-top:6px;line-height:1.6}
+.code{position:relative;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--layer-1)}
+.code pre{font:12px/1.7 var(--mono);padding:10px 76px 10px 12px;white-space:pre-wrap;word-break:break-all;color:var(--text-2)}
+.code .btn{position:absolute;top:6px;right:6px}
+
+/* ============ 无障碍与窄屏 ============ */
+@media (prefers-reduced-motion:reduce){
+  .sweep{animation:none;background:none;color:var(--text-2)!important}
+  .segs i.doing.live{animation:none;background:var(--text-3)}
+  .detail.in,.dialog,.n-card,.just .ic-fill{animation:none}
+  /* 减少动态：去掉位移、缩放、描绘和循环，保留短的透明度与颜色过渡 */
+  .ic-fill,.ic-chk,.e-art .e-l,.e-art .e-c{animation:none!important;stroke-dashoffset:0!important}
+  .toast{transform:none!important}
+  .btn:active,.ib:active,.s-head:active,.mini:active{transform:none}
+  .s-items,.n-list{transition:none}
+  .segs i::after,.ring-v,.pin-ic,.chev{transition-property:background-color,opacity,fill-opacity!important}
+  .m-orbit{animation:none;display:none}
+  .dmx circle{animation:none;opacity:.8}
+  .dmx .dm2{opacity:1}
+  .m-arc{transition-property:stroke!important}
+}
+@media (prefers-reduced-transparency:reduce){
+  .top,.f-top,.dialog,.toast,.group-h,.d-bar{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg-3)}
+  .panel::before,.f::before{display:none}
+}
+@media (prefers-contrast:more){
+  :root{--line:rgba(255,255,255,.2);--line-soft:rgba(255,255,255,.14);--text-3:#A8ADB6}
+  [data-theme=light]{--line:rgba(0,0,0,.24);--line-soft:rgba(0,0,0,.16);--text-3:#4E525A}
+}
+@media (max-width:900px){
+  .side{display:none} .main{padding:8px}
+  .body.split{grid-template-columns:minmax(0,1fr)} .body.split .list{display:none} .detail{border-left:0}
+}
+@media (max-width:560px){ .row .time,.today{display:none} .facts{grid-template-columns:auto minmax(0,1fr)} .d-main{padding:16px} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="overlay" id="guide" hidden><div class="dialog" role="dialog" aria-label="接入 agent" id="guide-box"></div></div>
+<script>
+(() => {
+'use strict';
+// ============ 环境 ============
+const qs = new URLSearchParams(location.search);
+const VIEW = qs.get('view');                       // float：原生悬浮窗；mini：浏览器小窗；空：面板
+const NATIVE = typeof window.tickDrag === 'function'; // Go 宿主注入的函数
+const FLOAT = VIEW === 'float' || VIEW === 'mini';
+const WIN = qs.get('host') === 'panel' && typeof window.tickWin === 'function'; // 原生面板窗口：无边框，标题栏由页面画
+if (WIN) document.documentElement.dataset.win = '';
+const HTTP = location.protocol.startsWith('http');
+const BASE = HTTP ? location.origin : 'http://127.0.0.1:7357';
+const $ = id => document.getElementById(id);
+const store = {
+  get: (k, d) => { try { return JSON.parse(localStorage.getItem('tick.' + k)) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem('tick.' + k, JSON.stringify(v)); } catch { /* 无痕模式 */ } },
+};
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const S = {
+  sessions: new Map(), notices: [], conn: 'connecting', ready: false, desktop: false,
+  info: { mcp: `${BASE}/mcp`, exe: '' },
+  view: 'active', agent: null, sel: null, detailFresh: false,
+  open: new Set(), justDone: new Set(), celebrate: new Set(), dismissed: new Set(), dragging: false,
+  dock: { edge: '', tucked: false }, speak: null, downAt: null, q: '', editing: null, confirmDel: null,
+  theme: qs.get('theme') || store.get('theme', matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'),
+  compact: false, pinned: true,
+  order: store.get('order', 'new'),           // 同一档里按登记时间：new 最新在前，old 最早在前
+  histOpen: false,                             // 悬浮窗“刚结束”默认收起；窗口藏起来、贴边收起、收成胶囊时自动再收
+  drawer: false, drawerTab: 'unread',          // 通知抽屉
+  side: 'right', vside: 'top',                 // 宿主告诉的：窗口在屏幕哪一半（抽屉 / 转盘往屏幕中间长）
+  sound: '', sounds: [],                       // 提示音（宿主侧播放）
+  fan: false, fanFocus: null,                  // 胶囊悬停时的会话转盘
+};
+// 按登记时间排，方向跟随“逆序”开关
+const byOrder = (a, b) => (S.order === 'old' ? a.createdAt - b.createdAt : b.createdAt - a.createdAt);
+
+// ============ 词汇 ============
+const STATUS = { planning: '写清单', running: '进行中', waiting: '等你', blocked: '受阻', done: '完成', failed: '没做成', cancelled: '已取消' };
+const ITEM = { todo: '待办', doing: '进行中', done: '完成', skipped: '跳过', blocked: '卡住' };
+const VIEWS = { active: '进行中', waiting: '等你', idle: '没动静', history: '历史', all: '全部', archived: '已归档' };
+const AGENTS = {
+  claude: { name: 'Claude', mark: 'Cl', color: '#D97757' }, codex: { name: 'Codex', mark: 'Cx', color: '#4CB782' },
+  cursor: { name: 'Cursor', mark: 'Cu', color: '#4EA7FC' }, kiro: { name: 'Kiro', mark: 'Ki', color: '#9B7BF7' },
+};
+const agentOf = a => AGENTS[a] || { name: a ? a.charAt(0).toUpperCase() + a.slice(1) : 'Agent', mark: (a || 'ag').slice(0, 2).replace(/^./, c => c.toUpperCase()), color: '#8A8F98' };
+
+// ============ 时间 ============
+const now = () => Date.now();
+const MIN = 60e3;
+function dur(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+function short(ms) {
+  const m = Math.floor(ms / MIN);
+  if (m < 1) return '<1m';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h ${String(m % 60).padStart(2, '0')}m` : `${Math.floor(h / 24)}d`;
+}
+function clock(ts) {
+  const d = new Date(ts);
+  const hm = d.toTimeString().slice(0, 5);
+  return d.toDateString() === new Date().toDateString() ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+}
+const ago = ts => (now() - ts < MIN ? '刚刚' : now() - ts < 3600e3 ? `${Math.floor((now() - ts) / MIN)} 分钟前` : clock(ts));
+const spent = it => it.spentMs + (it.startedAt ? now() - it.startedAt : 0);
+const elapsed = s => (s.endedAt || now()) - s.createdAt - (s.idleMs || 0);
+const waited = s => s.waitMs + (s.waitSince ? now() - s.waitSince : 0);
+const finished = it => it.status === 'done' || it.status === 'skipped';
+const progress = s => ({ done: s.items.filter(finished).length, total: s.items.length });
+const isEnded = s => s.status === 'done' || s.status === 'failed' || s.status === 'cancelled';
+const isWaiting = s => s.status === 'waiting' || s.status === 'blocked';
+const current = s => s.items.find(it => it.status === 'doing') || null;
+const isStale = s => s.status === 'running' && now() - s.updatedAt > 10 * MIN;
+// 不活跃：说是在跑 / 在写清单，但 30 分钟没有任何更新。多半是 agent 被关了或忘了收尾，单独收起来，不和真在跑的混在一起
+const isDormant = s => (s.status === 'running' || s.status === 'planning') && now() - s.updatedAt > 30 * MIN;
+const workMs = s => elapsed(s) - waited(s);
+// 搜索：标题、目标、总结、问题、目录、agent、条目和备注都算
+function matches(s, q) {
+  const hay = [s.title, s.goal, s.summary, s.statusNote, s.workspace, s.agent, agentOf(s.agent).name, s.id, ...s.items.flatMap(it => [it.text, it.note])].join('\n').toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+// 搜索命中在条目里时，把命中的那一条当副标题，一眼看出为什么搜到它
+function hitLine(s, q) {
+  const w = q.split(/\s+/).filter(Boolean);
+  const it = s.items.find(x => w.every(k => `${x.text}\n${x.note}`.toLowerCase().includes(k)));
+  return it ? `#${s.items.indexOf(it) + 1} ${it.text}` : '';
+}
+const dayLabel = ts => {
+  const d = new Date(ts).setHours(0, 0, 0, 0);
+  const diff = Math.round((today0() - d) / 864e5);
+  if (diff === 0) return '今天';
+  if (diff === 1) return '昨天';
+  const x = new Date(d);
+  return `${x.getMonth() + 1}月${x.getDate()}日 周${'日一二三四五六'[x.getDay()]}`;
+};
+const firstLine = t => String(t || '').split('\n')[0];
+const visible = () => [...S.sessions.values()].filter(s => !s.archived);
+// 子任务：父会话还在（没归档）时，跟着父会话显示
+const isChild = s => !!s.parentId && !!S.sessions.get(s.parentId) && !S.sessions.get(s.parentId).archived;
+const childrenOf = s => [...S.sessions.values()].filter(c => c.parentId === s.id && !c.archived).sort((a, b) => a.createdAt - b.createdAt);
+const byUpdated = (a, b) => b.updatedAt - a.updatedAt;
+const sweeper = (n = 3) => () => n-- > 0; // 流光同屏最多 3 处，只表示“正在进行”
+// agent 没报 doing 就直接勾选时，用上一条完成时间估算，界面标 ≈
+function itemMs(s, it) {
+  const ms = spent(it);
+  if (ms > 0 || it.status !== 'done' || !it.doneAt) return { ms, approx: false };
+  const prev = Math.max(s.createdAt, ...s.items.filter(x => x !== it && x.doneAt && x.doneAt < it.doneAt).map(x => x.doneAt));
+  return { ms: it.doneAt - prev, approx: true };
+}
+function subline(s) {
+  const p = progress(s);
+  const cur = current(s);
+  if (isWaiting(s)) return s.statusNote || (s.status === 'waiting' ? '等你回复' : '卡住了');
+  if (s.status === 'planning') return '正在写清单';
+  if (isEnded(s)) return s.summary || STATUS[s.status];
+  if (cur) return cur.text;
+  if (p.total && p.done === p.total) return '清单都勾完了，等它收尾';
+  const next = s.items.find(it => it.status === 'todo');
+  if (next) return `下一条：${next.text}`;
+  return STATUS[s.status];
+}
+const today0 = () => new Date().setHours(0, 0, 0, 0);
+const itemsToday = () => visible().reduce((n, s) => n + s.items.filter(it => it.status === 'done' && it.doneAt >= today0()).length, 0);
+
+// ============ 图标 ============
+const SI = {
+  planning: '<circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="1.8 2"/>',
+  todo: '<circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--text-3)" stroke-width="1.5"/>',
+  // 进行中：Linear 式 3×3 点阵，沿对角线一格一格点亮（步进动画，每秒只重绘几次）
+  running: [0, 1, 2].flatMap(y => [0, 1, 2].map(x => `<circle class="dm${x + y}" cx="${3 + x * 4}" cy="${3 + y * 4}" r="1.15" fill="var(--yellow)"/>`)).join(''),
+  waiting: '<circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--orange)" stroke-width="1.5"/><rect x="5" y="4.6" width="1.4" height="4.8" rx=".6" fill="var(--orange)"/><rect x="7.6" y="4.6" width="1.4" height="4.8" rx=".6" fill="var(--orange)"/>',
+  blocked: '<circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--red)" stroke-width="1.5"/><rect x="4.2" y="6.3" width="5.6" height="1.4" rx=".6" fill="var(--red)"/>',
+  done: '<circle class="ic-fill" cx="7" cy="7" r="6" fill="var(--green)"/><path class="ic-chk" d="M4.3 7.2l1.9 1.9 3.5-3.7" fill="none" stroke="var(--bg)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>',
+  failed: '<circle cx="7" cy="7" r="6" fill="var(--red)"/><path d="M5 5l4 4M9 5l-4 4" stroke="var(--bg)" stroke-width="1.5" stroke-linecap="round"/>',
+  cancelled: '<circle cx="7" cy="7" r="6" fill="var(--text-4)"/><path d="M5 5l4 4M9 5l-4 4" stroke="var(--bg)" stroke-width="1.5" stroke-linecap="round"/>',
+  // 没动静：点阵还在，但全灰、不动，表示“说在跑，其实很久没消息了”
+  dormant: [0, 1, 2].flatMap(y => [0, 1, 2].map(x => `<circle cx="${3 + x * 4}" cy="${3 + y * 4}" r="1.15" fill="var(--text-4)" opacity="${(x + y) % 2 ? '.45' : '.9'}"/>`)).join(''),
+  skipped: '<circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--text-4)" stroke-width="1.5"/><path d="M4.8 9.2l4.4-4.4" stroke="var(--text-4)" stroke-width="1.5" stroke-linecap="round"/>',
+  success: '<circle cx="7" cy="7" r="3" fill="var(--green)"/>',
+  warning: '<circle cx="7" cy="7" r="3" fill="var(--yellow)"/>',
+  info: '<circle cx="7" cy="7" r="3" fill="var(--blue)"/>',
+};
+SI.doing = SI.running;
+const sicon = (k, label = STATUS[k] || ITEM[k] || k) => `<svg class="ic${k === 'running' || k === 'doing' ? ' dmx' : ''}" width="14" height="14" viewBox="0 0 14 14" role="img" aria-label="${esc(label)}">${SI[k] || SI.info}</svg>`;
+const ring = p => {
+  const c = 2 * Math.PI * 5.5;
+  return `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--line-strong)" stroke-width="1.5"/><circle class="ring-v" cx="7" cy="7" r="5.5" fill="none" stroke="var(--text-2)" stroke-width="1.5" stroke-dasharray="${(p * c).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 7 7)"/></svg>`;
+};
+const L = (d, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const IC = {
+  logo: '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5.1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  pin: L('<path d="M6 2.5h4l-.7 3.6 2.2 2.6h-7l2.2-2.6zM8 8.7v4.8"/>', 15),
+  pinOn: L('<path d="M6 2.5h4l-.7 3.6 2.2 2.6h-7l2.2-2.6z" fill="currentColor"/><path d="M8 8.7v4.8"/>', 15),
+  // 图钉：一个图标，置顶时实心竖直，取消时空心歪 45°，用过渡在两种状态间变形
+  pinMorph: '<svg class="pin-ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="pin-head" d="M6 2.5h4l-.7 3.6 2.2 2.6h-7l2.2-2.6z"/><path d="M8 8.7v4.8"/></svg>',
+  chev: '<svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 3l3 3-3 3"/></svg>',
+  collapse: L('<path d="M3.5 6.5h9M3.5 9.5h9"/>', 15),
+  toTray: L('<path d="M8 3v6.5M5.2 6.8L8 9.6l2.8-2.8M3.5 12.5h9"/>', 15), // 往下收：箭头落到一条横线上
+  pencil: L('<path d="M10.8 3.2l2 2L6 12l-2.6.6L4 10z"/>', 13),
+  trash: `<svg class="trash" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="lid" d="M3 4.5h10M6.5 4.5V3h3v1.5"/><path d="M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>`,
+  plus: L('<path d="M8 3.5v9M3.5 8h9"/>', 14),
+  search: L('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>', 14),
+  expand: L('<rect x="3" y="3.5" width="10" height="9" rx="1.5"/><path d="M3 6.5h10"/>', 15),
+  panel: L('<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>', 15),
+  x: L('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', 14),
+  wMin: L('<path d="M4 8.5h8"/>', 14),
+  wMax: L('<rect x="4" y="4" width="8" height="8" rx="1.2"/>', 14),
+  wRes: L('<rect x="3.5" y="5.5" width="7" height="7" rx="1.2"/><path d="M6 5.5V4.7c0-.7.5-1.2 1.2-1.2h4.1c.7 0 1.2.5 1.2 1.2v4.1c0 .7-.5 1.2-1.2 1.2h-.8"/>', 14),
+  xs: L('<path d="M5 5l6 6M11 5l-6 6"/>', 12),
+  active: L('<circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/>'),
+  waiting: L('<path d="M3 4.5A1.5 1.5 0 0 1 4.5 3h7A1.5 1.5 0 0 1 13 4.5v5a1.5 1.5 0 0 1-1.5 1.5H7.2L4.5 13.2V11A1.5 1.5 0 0 1 3 9.5z"/>'),
+  done: L('<circle cx="8" cy="8" r="5.5"/><path d="M5.6 8.1l1.7 1.7 3.1-3.3"/>'),
+  idle: L('<path d="M3 8h2l1.5-3 3 6L11 8h2"/>'), // 心电图拉平的那一段：掉线了
+  all: L('<path d="M3 4.5h10M3 8h10M3 11.5h10"/>'),
+  archive: L('<rect x="2.5" y="3" width="11" height="3" rx="1"/><path d="M3.5 6v6a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6M6.5 8.5h3"/>'),
+  pip: L('<rect x="2" y="3" width="12" height="10" rx="1.5"/><rect x="8" y="8" width="4.5" height="3.5" rx=".8" fill="currentColor" stroke="none"/>'),
+  plug: L('<path d="M6 2.5v3M10 2.5v3M4.5 5.5h7v2a3.5 3.5 0 0 1-7 0zM8 11v2.5"/>'),
+  sun: L('<circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/>'),
+  moon: L('<path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/>'),
+  link: L('<path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5v7A1.5 1.5 0 0 0 4.5 13h7a1.5 1.5 0 0 0 1.5-1.5V9M9.5 2.5h4v4M13.5 2.5l-6 6"/>', 14),
+  copy: L('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>', 14),
+  // 铃铛：有新通知时轻轻摆一下（.bell.ring），铃舌单独一笔跟着晃
+  bell: '<svg class="bell-ic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="bell-body" d="M4 11V7.2a4 4 0 0 1 8 0V11l1 1.2H3z"/><path class="bell-clap" d="M6.6 13.6a1.5 1.5 0 0 0 2.8 0"/></svg>',
+  bellOff: L('<path d="M4 11V7.2a4 4 0 0 1 6.6-3M12 7.2V11l1 1.2H5.5M6.6 13.6a1.5 1.5 0 0 0 2.8 0M2.5 2.5l11 11"/>', 22),
+  sortDown: L('<path d="M5 3.5v9M2.8 10.3L5 12.5l2.2-2.2M9 4.5h4.5M9 8h3.2M9 11.5h1.8"/>', 13),
+  sortUp: L('<path d="M5 12.5v-9M2.8 5.7L5 3.5l2.2 2.2M9 4.5h1.8M9 8h3.2M9 11.5h4.5"/>', 13),
+  sound: L('<path d="M3 6.2h2.2L8.5 3.5v9L5.2 9.8H3zM11 5.8a3 3 0 0 1 0 4.4M12.8 4.2a5.4 5.4 0 0 1 0 7.6"/>', 14),
+  play: L('<path d="M5.5 3.8v8.4L12 8z" fill="currentColor"/>', 12),
+  folder: L('<path d="M2.5 4.5A1 1 0 0 1 3.5 3.5h3l1.5 1.5h4.5a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/>', 14),
+  chevL: L('<path d="M9.5 4l-4 4 4 4"/>', 14),
+  chevR: L('<path d="M6.5 4l4 4-4 4"/>', 14),
+};
+const segs = (s, live) => `<span class="segs" aria-hidden="true">${s.items.map(it => `<i class="${it.status}${live && it.status === 'doing' && it.startedAt ? ' live' : ''}"></i>`).join('')}</span>`;
+function connChip() {
+  const [cls, text] = { live: ['live', '已连接'], lost: ['lost', '重连中…'], demo: ['', '演示数据'], connecting: ['', '连接中…'] }[S.conn];
+  return `<span class="conn ${cls}" title="${esc(S.conn === 'demo' ? '没连上本机 Tick 服务，下面是模拟数据' : BASE)}"><i></i>${text}</span>`;
+}
+
+// ============ 数据 ============
+function ingest(s) {
+  const prev = S.sessions.get(s.id);
+  S.sessions.set(s.id, s);
+  if (!prev || !S.ready) return;
+  for (const it of s.items) {
+    const old = prev.items.find(x => x.id === it.id);
+    if (old && old.status !== 'done' && it.status === 'done') {
+      const k = `${s.id}:${it.id}`;
+      S.justDone.add(k);
+      setTimeout(() => S.justDone.delete(k), 1500);
+    }
+  }
+  // 会话做完：状态图标描勾、整行亮一下，只在真正做完的那一刻
+  if (prev.status !== 'done' && s.status === 'done') {
+    S.celebrate.add(s.id);
+    setTimeout(() => { S.celebrate.delete(s.id); schedule(); }, 1600);
+  }
+}
+function ingestNotice(n) {
+  const k = S.notices.findIndex(x => x.id === n.id);
+  if (k >= 0) { S.notices[k] = n; return; }
+  S.notices.unshift(n);
+  if (!n.read && S.ready) {
+    announce(n);
+    if (NATIVE && S.dock.tucked) speakFor(n);
+    if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) S.drawerWant = true;
+    // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
+    if (FLOAT && !RM.matches) {
+      setTimeout(() => {
+        const ic = (pip.root || root).querySelector('.bell .bell-ic');
+        ic?.animate([{ transform: 'rotate(0)' }, { transform: 'rotate(16deg)' }, { transform: 'rotate(-12deg)' }, { transform: 'rotate(7deg)' }, { transform: 'rotate(-3deg)' }, { transform: 'rotate(0)' }],
+          { duration: 620, easing: 'ease-out' });
+        ic?.querySelector('.bell-clap')?.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-1.2px)' }, { transform: 'translateX(1px)' }, { transform: 'translateX(0)' }], { duration: 520, delay: 60 });
+      }, 30);
+    }
+  }
+}
+async function connect() {
+  if (qs.has('demo') || !HTTP) return startDemo();
+  try {
+    const h = await (await fetch('/api/health')).json();
+    S.desktop = !!h.desktop;
+    S.info = h;
+  } catch {
+    return startDemo();
+  }
+  await reload();
+  const es = new EventSource('/api/stream');
+  es.addEventListener('hello', () => { if (S.conn === 'lost') reload(); S.conn = 'live'; schedule(); });
+  es.addEventListener('session', e => { ingest(JSON.parse(e.data)); schedule(); });
+  es.addEventListener('notice', e => { ingestNotice(JSON.parse(e.data)); schedule(); });
+  es.addEventListener('deleted', e => {
+    const gone = new Set(JSON.parse(e.data).ids);
+    for (const id of gone) S.sessions.delete(id);
+    S.notices = S.notices.filter(n => !gone.has(n.sessionId));
+    if (gone.has(S.sel)) S.sel = null;
+    schedule();
+  });
+  es.onerror = () => { S.conn = 'lost'; schedule(); };
+}
+async function reload() {
+  try {
+    const [ss, ns] = await Promise.all([fetch('/api/sessions?archived=1').then(r => r.json()), fetch('/api/notices').then(r => r.json())]);
+    S.sessions = new Map(ss.map(s => [s.id, s]));
+    S.notices = ns;
+    S.conn = 'live';
+  } catch {
+    S.conn = 'lost';
+  }
+  S.ready = true;
+  schedule();
+}
+async function post(path, body, method = 'POST') {
+  if (S.conn === 'demo') return;
+  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+}
+async function markRead(ids) {
+  const before = S.notices.map(n => n.read);
+  for (const n of S.notices) if (ids.includes(n.id)) n.read = true; // 乐观更新，失败回滚
+  schedule();
+  try {
+    await post('/api/notices/read', { ids });
+  } catch (err) {
+    S.notices.forEach((n, i) => { n.read = before[i]; });
+    schedule();
+    toast(`没能标记已读：${esc(err.message)}`);
+  }
+}
+
+// 新通知：没有桌面端时由网页自己弹系统通知；面板里再给一个 toast
+function announce(n) {
+  const a = agentOf(n.agent).name;
+  const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' }[n.kind] || '';
+  if (!S.desktop && 'Notification' in window && Notification.permission === 'granted' && (document.hidden || FLOAT)) {
+    const note = new Notification(`${a} ${verb}${n.title ? ` · ${n.title}` : ''}`, { body: n.text, tag: n.id });
+    note.onclick = () => { window.focus(); if (n.sessionId) focusSession(n.sessionId); };
+  }
+  if (!FLOAT) toast(`<b>${esc(a)}</b> ${verb} · ${esc(firstLine(n.text))}`, n.sessionId ? { action: '查看', onAction: () => openSession(n.sessionId, true) } : {});
+}
+
+// ============ 演示数据 ============
+function demoSession(id, agent, title, startedAgo, rows, extra = {}) {
+  const created = now() - startedAgo * MIN;
+  let cur = created + 2 * MIN;
+  const events = [{ at: created, type: 'created', text: '登记会话' }];
+  const items = rows.map(([text, status, mins = 0, note = ''], i) => {
+    const it = { id: `i${i + 1}`, text, status, note, spentMs: 0, startedAt: 0, doneAt: 0 };
+    if (status === 'done' || status === 'skipped') {
+      cur += mins * MIN;
+      it.doneAt = cur;
+      if (status === 'done') it.spentMs = mins * MIN;
+      events.push({ at: cur, type: `item-${status}`, text: `勾选 #${i + 1} ${text}` });
+    }
+    if (status === 'doing') it.startedAt = cur;
+    return it;
+  });
+  const s = { id, key: '', agent, externalId: '', title, goal: '', workspace: '', link: '', status: 'running', statusNote: '', summary: '',
+    archived: false, createdAt: created, updatedAt: Math.min(now(), cur + MIN), endedAt: 0, waitMs: 0, waitSince: 0, idleMs: 0,
+    nextItem: rows.length + 1, items, events, ...extra };
+  if (isWaiting(s)) {
+    s.waitSince = now() - (extra.waitAgo || 5) * MIN;
+    for (const it of s.items) if (it.startedAt) { it.spentMs = s.waitSince - it.startedAt; it.startedAt = 0; }
+  }
+  if (isEnded(s)) { s.endedAt = cur + MIN; s.updatedAt = s.endedAt; }
+  return s;
+}
+function startDemo() {
+  S.conn = 'demo';
+  const list = [
+    demoSession('s_demo01', 'codex', '断网重连后登录状态没刷新', 26, [
+      ['复现：断网 10 秒再恢复，顶栏还显示已登录', 'done', 6, '本地复现，日志里 session.refresh 没有触发'],
+      ['定位重连后为什么没有重新拉取会话', 'done', 9, 'ws/client.ts 重连只恢复了消息订阅'],
+      ['重连成功后补一次会话刷新', 'done', 7, '改 ws/client.ts、auth/store.ts 两处'],
+      ['补单测：重连后状态会刷新', 'doing'], ['跑一遍 e2e', 'todo'], ['手动拔网线验证两次', 'todo'], ['写变更说明', 'todo'],
+    ], { workspace: '~/code/web-app', link: 'codex://threads/demo' }),
+    demoSession('s_demo02', 'claude', '配置非法时服务启动直接报错', 52, [
+      ['读配置加载与校验链路', 'done', 8, 'config/load.rs 只在第一次请求时校验'],
+      ['启动阶段提前校验并给出字段级错误', 'done', 14, '新增 Config::validate'],
+      ['补集成测试：非法端口、缺证书', 'done', 11, '6 条新用例通过'], ['默认端口要不要改成 8443', 'doing'], ['更新部署文档', 'todo'],
+    ], { status: 'waiting', statusNote: '默认端口要不要从 443 改成 8443？改了的话，部署机的防火墙规则也要同步。', waitAgo: 9, link: 'claude://resume/demo' }),
+    demoSession('s_demo03', 'kiro', '设计 Tick 本地清单看板', 28, [
+      ['梳理会话与清单的数据模型', 'done', 5], ['定接口：REST + SSE + MCP', 'done', 6], ['Go 服务与测试', 'done', 9, 'go test 通过'],
+      ['悬浮窗界面', 'doing'], ['截图自查亮暗主题', 'todo'], ['独立复审', 'todo'],
+    ]),
+    demoSession('s_demo04', 'cursor', '代码审查流水线漏审排查', 2, [], { status: 'planning' }),
+    demoSession('s_demo05', 'codex', '打包 v2.3 安装包', 31, [['核对发布配置', 'done', 4], ['编译 Release', 'done', 12], ['生成安装包', 'done', 6]],
+      { status: 'done', summary: '安装包已生成，还没上传。' }),
+  ];
+  S.sessions = new Map(list.map(s => [s.id, s]));
+  S.notices = [
+    { id: 'n_d1', at: now() - 9 * MIN, sessionId: 's_demo02', agent: 'claude', kind: 'waiting', title: '配置非法时服务启动直接报错', text: list[1].statusNote, read: false },
+    { id: 'n_d2', at: now() - 4 * MIN, sessionId: 's_demo05', agent: 'codex', kind: 'done', title: '打包 v2.3 安装包', text: '安装包已生成，还没上传。', read: false },
+    { id: 'n_d3', at: now() - 2 * MIN, sessionId: 's_demo01', agent: 'codex', kind: 'success', title: '断网重连后登录状态没刷新', text: '已确认根因在重连路径', read: false },
+  ];
+  S.ready = true;
+  schedule();
+  let n = 0;
+  setInterval(() => {
+    const runners = visible().filter(s => s.status === 'running');
+    const s = runners[n++ % Math.max(runners.length, 1)];
+    if (!s) return;
+    const x = structuredClone(s);
+    const t = now();
+    const cur = current(x);
+    if (cur) { cur.spentMs += t - cur.startedAt; cur.startedAt = 0; cur.status = 'done'; cur.doneAt = t; }
+    const next = x.items.find(it => it.status === 'todo');
+    if (next) { next.status = 'doing'; next.startedAt = t; }
+    else { x.status = 'done'; x.endedAt = t; x.summary = '清单全部完成。'; ingestNotice({ id: `n_${t}`, at: t, sessionId: x.id, agent: x.agent, kind: 'done', title: x.title, text: x.summary, read: false }); }
+    x.updatedAt = t;
+    ingest(x);
+    schedule();
+  }, 6000);
+}
+
+// ============ 渲染调度（不依赖 rAF：主页面隐藏时小窗也要更新） ============
+let queued = false;
+function schedule() {
+  if (queued) return;
+  queued = true;
+  queueMicrotask(() => { queued = false; render(); });
+}
+const root = $('root');
+function render() {
+  if (S.dragging) return; // 拖动结束后会补一次
+  document.documentElement.dataset.theme = S.theme;
+  if (FLOAT) renderFloat(root, NATIVE ? 'native' : 'page');
+  else renderPanel();
+  if (pip.root) { pip.root.ownerDocument.documentElement.dataset.theme = S.theme; renderFloat(pip.root, 'pip'); }
+}
+
+// ======================================================================
+// 悬浮窗
+// ======================================================================
+function floatData() {
+  const t = now();
+  const unread = S.notices.filter(n => !n.read);
+  // 等你 / 受阻做成卡片，按会话状态判断：会话转为等你和那条通知是分两帧推来的，
+  // 只看通知的话，中间那一帧会话会先在列表里跳一下再变成卡片。
+  // 通知还没到时先用会话里的问题顶上；用户点过“知道了”（通知已读）就回到列表里
+  const cards = [];
+  for (const s of visible().filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince)) {
+    const n = S.notices.find(x => x.sessionId === s.id && (x.kind === 'waiting' || x.kind === 'blocked') && x.at >= s.waitSince - 2000);
+    if (n?.read || S.dismissed.has(`${s.id}:${s.waitSince}`)) continue;
+    cards.push(n || { id: '', at: s.waitSince || s.updatedAt, sessionId: s.id, agent: s.agent, kind: s.status, title: s.title, text: s.statusNote || STATUS[s.status], read: false });
+  }
+  // 正在跑的排最上面，其次等你 / 受阻，再是写清单，很久没动静的垫底。
+  // 同一档按登记时间排（方向看逆序开关），不按最近更新排，否则 agent 每勾一条整列就跳一次
+  const rank = s => (s.status === 'running' && !isDormant(s) ? 0 : isWaiting(s) ? 1 : s.status === 'planning' ? 2 : 3);
+  const live = visible();
+  // 子 agent 的会话显示在主会话下面，不单独占一行（主会话不在了才单独显示）
+  const top = live.filter(s => !isChild(s));
+  const active = top.filter(s => !isEnded(s)).sort((a, b) => rank(a) - rank(b) || byOrder(a, b));
+  const recent = top.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN)
+    .sort((a, b) => (S.order === 'old' ? a.endedAt - b.endedAt : b.endedAt - a.endedAt));
+  const nW = live.filter(isWaiting).length;
+  const nR = live.filter(s => s.status === 'running' || s.status === 'planning').length;
+  return { unread, cards: cards.slice(0, 3), active, recent, nW, nR };
+}
+
+// 底栏：全局最近一条动态（谁、做了什么、多久前），点一下定位到那个会话
+function lastEvent() {
+  let best = null;
+  for (const s of visible()) {
+    const e = s.events?.[s.events.length - 1];
+    if (e && (!best || e.at > best.e.at)) best = { s, e };
+  }
+  return best;
+}
+function feedHtml() {
+  const x = lastEvent();
+  if (!x) return '';
+  const a = agentOf(x.s.agent);
+  // “勾选 #3 复现：…” 这类事件文字本身就写清楚了；登记 / 关联类补上会话标题
+  const text = /^(登记会话|重新关联)/.test(x.e.text) ? `${x.e.text}「${x.s.title}」` : x.e.text;
+  return `<button class="f-feed" data-act="feed" data-sid="${esc(x.s.id)}" title="${esc(`${a.name} · ${x.s.title}\n${x.e.text}`)}">
+    <span class="tile sm">${esc(a.mark)}</span><span class="tx" data-key="feed-${x.e.at}-${esc(x.s.id)}" data-enter="fade">${esc(firstLine(text))}</span>
+    <span class="when num" data-clock="ago" data-at="${x.e.at}">${ago(x.e.at)}</span></button>`;
+}
+
+// ============ 增量更新：按 data-key 复用节点，过渡和动画才有地方挂 ============
+// 整块 innerHTML 会让每帧 SSE 都重播入场动画、打断进度过渡、让流光从头开始。
+// 这里把新 HTML 和现有 DOM 对齐：同 key 复用、新的入场、走的退场、移动的用 FLIP 平移过去。
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const EASE_OUT = 'cubic-bezier(.23,1,.32,1)';
+const EASE_IN_OUT = 'cubic-bezier(.77,0,.175,1)';
+const keyOf = n => (n.nodeType === 1 ? n.getAttribute('data-key') : null);
+const isLeaving = n => n.nodeType === 1 && n.hasAttribute('data-leaving');
+
+function morph(parent, html) {
+  const t = parent.ownerDocument.createElement('template');
+  t.innerHTML = html;
+  const entered = [];
+  patchChildren(parent, t.content, entered);
+  return entered;
+}
+
+function patchChildren(parent, next, entered) {
+  // 正在退场的节点又出现了（比如退场 180ms 内同一条又来了）：取消退场，原地复用，不要出现两份
+  for (const n of [...parent.childNodes]) {
+    if (!isLeaving(n)) continue;
+    const k = keyOf(n);
+    if (k && [...next.childNodes].some(x => keyOf(x) === k)) {
+      n.getAnimations().forEach(a => a.cancel());
+      n.removeAttribute('data-leaving');
+      n.style.pointerEvents = '';
+      n.style.overflow = '';
+    }
+  }
+  const old = [...parent.childNodes].filter(n => !isLeaving(n));
+  const flip = parent.nodeType === 1 && parent.hasAttribute('data-flip');
+  // FLIP 只量条目相对父容器的位置：父容器自己被别的分组推下去不算“移动”，否则会和撑开动画叠在一起
+  const rel = el => el.getBoundingClientRect().top - parent.getBoundingClientRect().top;
+  const first = new Map();
+  const byKey = new Map();
+  for (const o of old) {
+    const k = keyOf(o);
+    if (!k) continue;
+    byKey.set(k, o);
+    if (flip) first.set(o, rel(o));
+  }
+  const used = new Set();
+  const finals = [];
+  let u = 0;
+  for (const nn of [...next.childNodes]) {
+    const k = keyOf(nn);
+    let m = k ? byKey.get(k) : null;
+    if (!k) {
+      while (u < old.length && (used.has(old[u]) || keyOf(old[u]))) u++;
+      if (old[u] && old[u].nodeName === nn.nodeName) m = old[u++];
+    }
+    if (m && m.nodeName === nn.nodeName) {
+      used.add(m);
+      patchNode(m, nn, entered);
+      finals.push(m);
+    } else {
+      finals.push(nn);
+      if (k) entered.push(nn);
+    }
+  }
+  for (const o of old) {
+    if (used.has(o)) continue;
+    if (keyOf(o) && o.hasAttribute('data-exit')) leave(o);
+    else o.remove();
+  }
+  let ref = parent.firstChild;
+  for (const n of finals) {
+    while (ref && ref !== n && isLeaving(ref)) ref = ref.nextSibling;
+    if (ref === n) { ref = ref.nextSibling; continue; }
+    parent.insertBefore(n, ref);
+  }
+  // FLIP：位置变了的条目从旧位置平移过来。要等新条目的撑开动画先把它压到 0 高度再量，
+  // 否则会把“被新条目推下去”误当成移动，两种动画叠在一起
+  if (flip && !RM.matches) flips.push(() => {
+    for (const [el, top] of first) {
+      if (!el.isConnected || isLeaving(el)) continue;
+      const dy = top - rel(el);
+      if (Math.abs(dy) > 1) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 260, easing: EASE_IN_OUT });
+    }
+  });
+}
+let flips = [];
+function settle(entered, opts) {
+  if (entered) enter(entered, opts);
+  const run = flips;
+  flips = [];
+  for (const f of run) f();
+}
+
+function patchNode(o, n, entered) {
+  if (o.nodeType !== 1) {
+    if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue;
+    return;
+  }
+  // style 归运行时（动画期间的裁切等），模板里不写 style，这里也不去删它
+  for (const a of [...o.attributes]) if (a.name !== 'style' && !n.hasAttribute(a.name)) o.removeAttribute(a.name);
+  for (const a of [...n.attributes]) if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
+  const roll = o.hasAttribute('data-roll') ? o.textContent : null;
+  patchChildren(o, n, entered);
+  if (roll !== null && roll !== o.textContent) rollIn(o, Number(o.textContent) < Number(roll) ? -1 : 1);
+}
+
+// 数字变化：新值从下往上滚进来（变小时从上往下）
+function rollIn(el, dir) {
+  if (RM.matches) return;
+  el.animate([{ transform: `translateY(${dir * 45}%)`, opacity: 0, filter: 'blur(1px)' }, { transform: 'none', opacity: 1, filter: 'blur(0)' }], { duration: 200, easing: EASE_OUT });
+}
+
+// 入场：grow 撑开高度（窗口跟着长），fade 只淡入。stagger 让一批新条目依次到达
+function enter(all, { stagger = 40, fadeOnly = false } = {}) {
+  // 只动最外层的新节点：新行里面的子节点跟着父节点一起出现，不再各自排队
+  const list = all.filter(el => !all.some(o => o !== el && o.contains(el)));
+  list.forEach((el, i) => {
+    const delay = Math.min(i, 7) * stagger;
+    const mode = fadeOnly ? 'fade' : el.dataset.enter || 'fade';
+    if (RM.matches) { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, delay, fill: 'backwards' }); return; }
+    if (mode === 'grow') {
+      const h = el.getBoundingClientRect().height;
+      const cs = getComputedStyle(el);
+      el.style.overflow = 'hidden';
+      const a = el.animate([
+        { height: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0, transform: 'translateY(-4px)' },
+        { height: `${h}px`, marginTop: cs.marginTop, marginBottom: cs.marginBottom, opacity: 1, transform: 'none' },
+      ], { duration: 240, easing: EASE_OUT, delay, fill: 'backwards' });
+      a.onfinish = a.oncancel = () => { el.style.overflow = ''; };
+    } else {
+      el.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT, delay, fill: 'backwards' });
+    }
+    // 新的“等你”卡片：边沿扫过一道光，只扫一次（只给真正新来的卡片，面板整块重建时不扫）
+    if (!fadeOnly && el.matches?.('.n-card')) {
+      el.querySelector('.n-glow')?.animate([{ backgroundPosition: '120% 0', opacity: 1 }, { backgroundPosition: '-20% 0', opacity: 0 }], { duration: 600, delay: delay + 100, easing: 'linear', fill: 'backwards' });
+    }
+  });
+}
+
+// 退场比入场快（约 0.75×），先让出位置再删掉
+function leave(el) {
+  el.setAttribute('data-leaving', '');
+  el.style.pointerEvents = 'none';
+  // 从当前样子开始退：入场还没播完就要走时，不先跳回完全不透明
+  const h = el.getBoundingClientRect().height;
+  const cs = getComputedStyle(el);
+  const op = cs.opacity;
+  el.getAnimations().forEach(a => a.cancel());
+  // 只在动画真正播完时删除；被取消（又回来了）时留着
+  const done = a => { if (a.target.playState === 'finished' && el.hasAttribute('data-leaving')) el.remove(); };
+  const run = (frames, opts) => { el.animate(frames, opts).addEventListener('finish', done); };
+  if (RM.matches) { run([{ opacity: op }, { opacity: 0 }], { duration: 120, fill: 'forwards' }); return; }
+  if (el.dataset.exit === 'fade') { run([{ opacity: op }, { opacity: 0 }], { duration: 140, easing: EASE_OUT, fill: 'forwards' }); return; }
+  el.style.overflow = 'hidden';
+  run([
+    { height: `${h}px`, marginTop: cs.marginTop, marginBottom: cs.marginBottom, opacity: op },
+    { height: '0px', marginTop: '0px', marginBottom: '0px', opacity: 0 },
+  ], { duration: 180, easing: EASE_OUT, fill: 'forwards' });
+}
+
+// 外部触发的一次性提示：标题栏橙点外扩一圈
+function ping(el) {
+  if (!el || RM.matches) return;
+  el.animate([{ boxShadow: '0 0 0 0 rgba(242,153,74,.55)' }, { boxShadow: '0 0 0 7px rgba(242,153,74,0)' }], { duration: 560, easing: EASE_OUT });
+}
+
+function renderFloat(el, mode) {
+  const d = floatData();
+  const live = sweeper();
+  const first = !el.firstElementChild;
+  const nUnread = d.unread.length;
+  const bell = S.compact ? '' : `<button class="ib bell${S.drawer ? ' on' : ''}${d.cards.length ? ' hot' : ''}" data-key="a-bell" data-act="drawer"
+      title="${S.drawer ? '收起通知' : nUnread ? `${nUnread} 条未读通知` : '通知'}" aria-pressed="${S.drawer}">${IC.bell}${nUnread ? `<span class="bdg num" data-roll>${nUnread > 99 ? '99+' : nUnread}</span>` : ''}</button>`;
+  const acts = `<div class="f-acts">
+    ${bell}
+    ${mode === 'native' && !S.compact ? `<button class="ib pin${S.pinned ? ' on' : ''}" data-key="a-pin" data-act="pin" title="${S.pinned ? '取消置顶' : '置顶'}" aria-pressed="${S.pinned}">${IC.pinMorph}</button>` : ''}
+    <button class="ib" data-key="a-compact" data-act="compact" title="${S.compact ? '展开（双击标题栏也行）' : '收起成一行（双击标题栏也行）'}">${S.compact ? IC.expand : IC.collapse}</button>
+    ${mode !== 'pip' && !S.compact ? `<button class="ib" data-key="a-panel" data-act="panel" title="打开面板">${IC.panel}</button>` : ''}
+    ${mode === 'native' ? `<button class="ib" data-key="a-hide" data-act="hide" title="收到托盘（点托盘图标叫回来）">${IC.toTray}</button>` : ''}
+  </div>`;
+  const counts = d.nR || d.nW
+    ? `${d.nR ? `<span data-key="c-r"><b data-roll>${d.nR}</b> 进行中</span>` : ''}${d.nW ? `<span class="w" data-key="c-w"><i class="wdot"></i><b data-roll>${d.nW}</b> 等你</span>` : ''}`
+    : '<span data-key="c-q">都安静着</span>';
+  const group = (key, title, count, body, act = '') => `<section class="grp" data-key="${key}" data-enter="grow" data-exit>
+    <div class="g-h">${title} <span class="c num" data-roll>${count}</span><span class="grow"></span>${act}</div>${body}</section>`;
+  const sortBtn = `<button class="g-act sort" data-act="order" title="${S.order === 'old' ? '现在最早登记的在前，点一下换成最新在前' : '现在最新登记的在前，点一下倒过来'}">${S.order === 'old' ? IC.sortUp : IC.sortDown}${S.order === 'old' ? '最早在前' : '最新在前'}</button>`;
+  // 刚结束：默认收起成一行，点组头展开；高度用 grid 0fr ↔ 1fr 过渡
+  const hist = d.recent.length ? `<section class="grp hist${S.histOpen ? ' open' : ''}" data-key="g-d" data-enter="grow" data-exit>
+      <div class="g-h"><button class="g-fold" data-act="hist" aria-expanded="${S.histOpen}">${IC.chev}刚结束 <span class="c num" data-roll>${d.recent.length}</span></button>
+        ${S.histOpen ? '' : `<span class="g-peek trunc" data-key="peek">${esc(d.recent.slice(0, 3).map(s => s.title).join(' · '))}</span>`}<span class="grow"></span>
+        <button class="g-act" data-act="archive-ended" title="归档后到面板的“已归档”里能找回">清掉</button></div>
+      <div class="g-body"><div><div class="s-list" data-flip>${d.recent.map(s => sessionRow(s, live)).join('')}</div></div></div></section>` : '';
+  // 贴边收起时整块换成小标签（或消息气泡）；外层 .f 的尺寸在两种形态之间平滑变形，原生窗口跟着长
+  const tucked = mode === 'native' && S.dock.tucked;
+  // 新的“等你 / 受阻”到了：下次以完整面板出现时自动拉开抽屉（收着、胶囊时先不撑大窗口）
+  if (S.drawerWant && !tucked && !S.compact) { S.drawer = true; S.drawerTab = 'unread'; S.drawerWant = false; }
+  const drawer = S.drawer && !tucked && !S.compact;
+  const fan = S.fan && mode === 'native' && S.compact && !tucked;
+  const main = `<div class="f-in" data-key="full" data-enter="fade">
+    <header class="f-top" data-drag>
+      <span class="logo">${IC.logo}</span>
+      ${S.compact ? pillHtml(d, live) : `<span class="f-brand">Tick</span><span class="f-cnt num">${counts}</span>`}
+      ${mode === 'native' && S.dnd && !S.compact ? `<button class="ib dnd-on" data-key="a-dnd" data-act="dnd" title="勿扰中：不弹通知和气泡。点一下结束">${IC.moon}</button>` : ''}
+      ${acts}
+    </header>
+    ${fan ? fanHtml(d, live) : ''}
+    <div class="f-body">
+      ${d.active.length ? group('g-a', '进行中', d.active.length, `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
+      ${hist}
+      ${S.undo && now() < S.undo.until ? `<div class="undo" data-key="undo" data-enter="grow" data-exit><span>${esc(S.undo.text)}</span><button class="g-act" data-act="undo">撤销</button></div>` : ''}
+      ${!d.active.length && !d.recent.length ? floatEmpty() : ''}
+    </div>
+    <footer class="f-foot">${connChip()}<span class="grow"></span>${feedHtml()}</footer>
+  </div>`;
+  // 抽屉放在朝屏幕中间的那一侧：靠右的窗口往左拉开（右边缘不动），靠左的往右
+  const inner = tucked ? tabHtml(d, live) : drawer && S.side === 'right' ? drawerHtml(d) + main : drawer ? main + drawerHtml(d) : main;
+  const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
+  // 只在形态变化（面板 ↔ 标签 ↔ 气泡 ↔ 胶囊 ↔ 抽屉 ↔ 转盘）时做盒子变形；内容变高由条目自己的撑开动画负责
+  const shape = `${tucked}|${tucked && !!S.speak}|${S.compact}|${drawer}|${fan}`;
+  const box = el.firstElementChild;
+  let from = null;
+  if (mode === 'native' && box && el._shape !== shape) {
+    box._box?.cancel(); // 先停掉上一个变形再量：量到的才是现在真正的尺寸
+    from = box.getBoundingClientRect();
+  }
+  el._shape = shape;
+  const entered = morph(el, html);
+  boxMorph(el.firstElementChild, from);
+  // morph 只改属性；用户在下拉里选过之后 option 的 selected 属性不再决定显示，托盘里改了要手动同步
+  const snd = el.querySelector('[data-change="sound"]');
+  if (snd && snd.value !== S.sound) snd.value = S.sound;
+  // 第一次画：整组依次淡入，不撑高度；之后：新条目撑开进场
+  if (first) settle([...el.querySelectorAll('.grp, .f-empty, .tb')], { stagger: 50, fadeOnly: true });
+  else settle(entered);
+  if (d.nW > (el._nW ?? d.nW)) ping(el.querySelector('.wdot') || el.querySelector('.mini.waiting'));
+  el._nW = d.nW;
+  if (!el._wired) wireFloat(el, mode);
+}
+
+// 外层盒子从旧尺寸变到新尺寸：标签 ↔ 面板 ↔ 气泡之间的“长出来 / 缩回去”。
+// 只在尺寸确实变了时做；再次触发会从当前尺寸接着变（先量的是动画中的尺寸）
+function boxMorph(f, from) {
+  if (!f || !from || RM.matches) return;
+  const to = f.getBoundingClientRect();
+  if (Math.abs(from.width - to.width) < 1 && Math.abs(from.height - to.height) < 1) return;
+  const grow = to.width * to.height > from.width * from.height;
+  f._box = f.animate([{ width: `${from.width}px`, height: `${from.height}px` }, { width: `${to.width}px`, height: `${to.height}px` }],
+    { duration: grow ? 240 : 180, easing: EASE_OUT });
+}
+
+// 通知抽屉：铃铛拉开，在朝屏幕中间的那一侧。最上面是“等你 / 受阻”卡片（能回到对话、复制接力提示），
+// 下面是通知列表：点一行标为已读并在主面板里定位会话；底部选提示音
+function drawerHtml(d) {
+  const unread = d.unread.length;
+  const inCard = new Set(d.cards.map(n => n.id).filter(Boolean));
+  const list = S.notices.filter(n => !inCard.has(n.id) && (S.drawerTab === 'all' || !n.read)).slice(0, 60);
+  const tab = (k, label, n) => `<button class="${S.drawerTab === k ? 'on' : ''}" data-act="dtab" data-tab="${k}" aria-pressed="${S.drawerTab === k}">${label}${n ? `<span class="num">${n}</span>` : ''}</button>`;
+  const allRead = S.drawerTab === 'unread' && S.notices.length > 0;
+  const empty = !d.cards.length && !list.length
+    ? `<div class="dr-empty" data-key="dr-empty-${S.drawerTab}" data-enter="fade">${IC.bellOff}<b>${allRead ? '都看过了' : '还没有通知'}</b>
+        ${allRead ? '<button class="g-act" data-act="dtab" data-tab="all">看全部通知</button>' : '<span>agent 需要你拍板、卡住或做完时，会在这里留一条。</span>'}</div>`
+    : '';
+  const sound = NATIVE && S.sounds.length ? `<footer class="dr-foot">
+      <label class="dr-snd" title="新通知时响的提示音">${IC.sound}<select data-change="sound" aria-label="提示音">
+        ${[{ id: '', name: '不响' }, ...S.sounds].map(o => `<option value="${esc(o.id)}"${o.id === S.sound ? ' selected' : ''}>${esc(o.name)}</option>`).join('')}</select></label>
+      <span class="grow"></span>
+      ${S.sound ? `<button class="ib" data-act="sound-test" title="试听">${IC.play}</button>` : ''}
+      <button class="ib" data-act="sound-dir" title="打开声音文件夹：放进自己的 .wav 就能选">${IC.folder}</button></footer>` : '';
+  return `<aside class="f-drawer" data-key="drawer">
+    <header class="dr-top" data-drag><b>通知</b><span class="seg">${tab('unread', '未读', unread)}${tab('all', '全部', 0)}</span><span class="grow"></span>
+      ${unread ? '<button class="g-act" data-act="read-all">全部已读</button>' : ''}
+      <button class="ib" data-act="drawer" title="收起抽屉">${S.side === 'right' ? IC.chevR : IC.chevL}</button></header>
+    <div class="dr-body">
+      ${d.cards.length ? `<div class="n-area" data-flip>${d.cards.map(cardHtml).join('')}</div>` : ''}
+      ${list.length ? `<div class="dr-list" data-flip>${list.map(noticeRow).join('')}</div>` : ''}
+      ${empty}
+    </div>
+    ${sound}
+  </aside>`;
+}
+
+// 胶囊悬停：会话沿半圆排开（贴着屏幕边那一侧），像一个转盘；鼠标停在哪个上，哪个弹性放大、
+// 两边的邻居跟着稍微放大，左边的信息区换成它的标题、当前一步和进度。点一下展开悬浮窗并打开它
+const FAN = { w: 300, h: 176, r: 64, max: 6 };
+function fanHtml(d, live) {
+  const list = [...d.active, ...d.recent];
+  if (!list.length) {
+    return `<div class="fan empty" data-key="fan" data-enter="fade"><div class="fan-info"><b>都安静着</b><span class="t4">agent 一开工，这里就会排出一圈。</span></div></div>`;
+  }
+  const shown = list.slice(0, list.length > FAN.max ? FAN.max - 1 : FAN.max);
+  const more = list.length - shown.length;
+  const focus = shown.find(s => s.id === S.fanFocus) || shown[0];
+  const dir = S.side === 'right' ? 1 : -1;
+  const cx = S.side === 'right' ? FAN.w - 22 : 22;
+  const cy = FAN.h / 2;
+  const n = shown.length + (more > 0 ? 1 : 0);
+  const pos = i => {
+    const phi = Math.PI * (i + 0.5) / n; // 从上到下扫半圈
+    return [cx - dir * FAN.r * Math.sin(phi) - 15, cy - FAN.r * Math.cos(phi) - 15];
+  };
+  const C = 2 * Math.PI * 13;
+  const bubble = (s, i) => {
+    const [x, y] = pos(i);
+    const p = progress(s);
+    const a = agentOf(s.agent);
+    const ticking = s.status === 'running' && !!current(s)?.startedAt && live();
+    return `<button class="fb st-${s.status}${s.id === focus.id ? ' on' : ''}" data-act="fan-open" data-sid="${esc(s.id)}" data-key="fb-${esc(s.id)}"
+        style="--x:${x.toFixed(1)}px;--y:${y.toFixed(1)}px;--i:${i};--ag:${a.color}" aria-label="${esc(`${a.name} · ${s.title}`)}">
+      <span class="fb-in"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle class="fb-track" cx="15" cy="15" r="13"/>
+        <circle class="fb-arc" cx="15" cy="15" r="13" stroke-dasharray="${((p.total ? p.done / p.total : s.status === 'done' ? 1 : 0) * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 15 15)"/>
+        ${ticking ? '<circle class="fb-orbit" cx="15" cy="15" r="13" stroke-dasharray="5 77"/>' : ''}</svg>
+        <span class="fb-m">${esc(a.mark)}</span>${isWaiting(s) ? '<i class="fb-dot"></i>' : ''}</span></button>`;
+  };
+  const p = progress(focus);
+  const a = agentOf(focus.agent);
+  const ticking = (focus.status === 'planning' || !!current(focus)?.startedAt) && live();
+  // 轨道线：只连第一个到最后一个气泡（两端不伸出去），开场时描出来；只有一个气泡时不画
+  const r = FAN.r;
+  const pt = phi => `${(cx - dir * r * Math.sin(phi)).toFixed(1)} ${(cy - r * Math.cos(phi)).toFixed(1)}`;
+  const arc = n > 1 ? `M ${pt(Math.PI * 0.5 / n)} A ${r} ${r} 0 0 ${dir > 0 ? 0 : 1} ${pt(Math.PI * (n - 0.5) / n)}` : '';
+  return `<div class="fan" data-key="fan" style="--cx:${cx - 15}px;--cy:${cy - 15}px">
+    ${arc ? `<svg class="fan-rail" width="${FAN.w}" height="${FAN.h}" aria-hidden="true"><path d="${arc}" pathLength="1"/></svg>` : ''}
+    <i class="fan-hub" style="left:${cx - 26}px;top:${cy - 26}px" aria-hidden="true"></i>
+    ${shown.map(bubble).join('')}
+    ${more > 0 ? `<button class="fb more" data-act="fan-more" data-key="fb-more" style="--x:${pos(shown.length)[0].toFixed(1)}px;--y:${pos(shown.length)[1].toFixed(1)}px;--i:${shown.length}" title="展开看全部"><span class="fb-in"><span class="fb-m num">+${more}</span></span></button>` : ''}
+    <button class="fan-info" data-act="fan-open" data-sid="${esc(focus.id)}" data-key="fi-${esc(focus.id)}" data-enter="fade">
+      <span class="fi-a"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span>${esc(a.name)}<span class="fi-st st-${focus.status}">${sicon(focus.status)}${STATUS[focus.status]}</span></span>
+      <span class="fi-t">${esc(focus.title)}</span>
+      <span class="fi-s${ticking ? ' sweep' : ''}">${esc(firstLine(subline(focus)))}</span>
+      ${p.total ? segs(focus, ticking) : ''}
+      <span class="fi-m num">${p.total ? `${p.done}/${p.total} · ` : ''}<span data-clock="short" data-sid="${esc(focus.id)}">${short(elapsed(focus))}</span></span>
+    </button>
+  </div>`;
+}
+
+// 贴边小标签：✓ 标志 + 每个活跃会话一个小进度环（最多 4 个）。有新消息时变成气泡（像灵动岛）
+function tabHtml(d, live) {
+  const t = now();
+  const rank = s => (isWaiting(s) ? 0 : s.status === 'running' ? 1 : s.status === 'planning' ? 2 : 3);
+  const list = visible().filter(s => !isChild(s) && (!isEnded(s) || t - s.endedAt < 30 * MIN)).sort((a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt);
+  const sp = S.speak;
+  if (sp) {
+    const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' }[sp.kind] || '';
+    const text = sp.kind === 'done' || sp.kind === 'failed' ? sp.title || sp.text : sp.text;
+    return `<div class="tb speak k-${esc(sp.kind)}" data-key="tab-speak-${esc(sp.id || sp.sessionId)}" data-enter="fade" data-drag data-act="untuck">
+      ${sicon(sp.kind)}<div class="tb-tx"><b>${esc(agentOf(sp.agent).name)} ${verb}</b><span>${esc(firstLine(text))}</span></div></div>`;
+  }
+  const shown = list.slice(0, 4);
+  const more = list.length - shown.length;
+  return `<div class="tb" data-key="tab" data-enter="fade" data-drag data-act="untuck" title="${esc(list.length ? `${d.nR} 进行中${d.nW ? ` · ${d.nW} 等你` : ''}` : '都安静着')}">
+    <span class="logo">${IC.logo}</span>
+    ${shown.length ? '<i class="tb-sep"></i>' : ''}
+    ${shown.map(s => mini(s, live)).join('')}
+    ${more > 0 ? `<span class="tb-more num">+${more}</span>` : ''}
+  </div>`;
+}
+
+// 一个会话的小进度环：弧长 = 完成比例；中间的符号表示状态（等你 = 暂停、卡住 = 横杠、做完 = 对勾）
+function mini(s, live) {
+  const p = progress(s);
+  const C = 2 * Math.PI * 7;
+  const ticking = s.status === 'running' && !!current(s)?.startedAt && live();
+  const center = {
+    waiting: '<rect x="6.4" y="6" width="1.6" height="6" rx=".7" class="m-c"/><rect x="10" y="6" width="1.6" height="6" rx=".7" class="m-c"/>',
+    blocked: '<rect x="5.8" y="8.2" width="6.4" height="1.6" rx=".7" class="m-c"/>',
+    done: '<g transform="translate(2 2)"><circle class="ic-fill" cx="7" cy="7" r="6" fill="var(--green)"/><path class="ic-chk" d="M4.3 7.2l1.9 1.9 3.5-3.7" fill="none" stroke="var(--bg)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/></g>',
+    failed: '<path d="M6.5 6.5l5 5M11.5 6.5l-5 5" class="m-x"/>',
+  }[s.status] || '<circle cx="9" cy="9" r="1.6" class="m-c"/>';
+  // 悬停提示：标题、进度、当前在做什么（系统提示框可以超出这个 30px 宽的小窗口）
+  const step = current(s);
+  const tip = `${agentOf(s.agent).name} · ${s.title}\n${STATUS[s.status]}${p.total ? ` · ${p.done}/${p.total}` : ''}${isWaiting(s) && s.statusNote ? `\n${firstLine(s.statusNote)}` : step ? `\n正在：${step.text}` : ''}`;
+  return `<span class="mini ${s.status}${S.celebrate.has(s.id) ? ' celebrate' : ''}" data-key="m-${esc(s.id)}" data-sid="${esc(s.id)}" title="${esc(tip)}" data-enter="fade" data-exit="fade">
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <circle class="m-track" cx="9" cy="9" r="7"/>
+      ${s.status === 'done' ? '' : `<circle class="m-arc" cx="9" cy="9" r="7" stroke-dasharray="${((p.total ? p.done / p.total : 0) * C).toFixed(2)} ${C.toFixed(2)}" transform="rotate(-90 9 9)"/>`}
+      ${ticking ? '<circle class="m-orbit" cx="9" cy="9" r="7" stroke-dasharray="3.5 40.5"/>' : ''}
+      ${center}
+    </svg></span>`;
+}
+
+// 收着时来了新消息：标签变成气泡。等你类一直显示到展开为止；其他类 6 秒后缩回
+let speakTimer = 0;
+function speakFor(n) {
+  if (S.dnd) return; // 勿扰：只在环和橙线上体现，不弹气泡
+  S.speak = n;
+  clearTimeout(speakTimer);
+  if (n.kind !== 'waiting' && n.kind !== 'blocked') speakTimer = setTimeout(() => { S.speak = null; schedule(); }, 6000);
+}
+
+// 一次性的事件挂载：滚动边缘、双击收起、原生窗口跟内容调尺寸
+function wireFloat(el, mode) {
+  el._wired = true;
+  // 面板和标签来回换时 .f-body 会被换掉，滚动监听挂在根上用捕获拿
+  el.addEventListener('scroll', e => {
+    if (e.target.classList?.contains('f-body')) el.dataset.scrolled = e.target.scrollTop > 2 ? '1' : '';
+  }, { passive: true, capture: true });
+  el.addEventListener('dblclick', e => {
+    if (!e.target.closest('[data-drag]') || e.target.closest('button,a')) return;
+    toggleCompact();
+  });
+  if (mode === 'native') {
+    // 胶囊悬停 160ms 才拉开转盘（一扫而过不打扰）；离开 280ms 后先把气泡收回圆心，再缩回胶囊
+    let fanT = 0;
+    el.addEventListener('pointerenter', () => {
+      clearTimeout(fanT);
+      el.querySelector('.fan.closing')?.classList.remove('closing');
+      if (!S.compact || S.dock.tucked || S.fan || S.dragging) return;
+      fanT = setTimeout(() => { S.fan = true; S.fanFocus = null; render(); }, 160);
+    });
+    el.addEventListener('pointerleave', () => {
+      clearTimeout(fanT);
+      if (!S.fan) return;
+      fanT = setTimeout(() => {
+        const fan = el.querySelector('.fan');
+        const close = () => { S.fan = false; render(); };
+        if (!fan || RM.matches) return close();
+        fan.classList.add('closing');
+        fanT = setTimeout(close, 150);
+      }, 280);
+    });
+    // 停在哪个气泡上，信息区就换成哪个会话
+    el.addEventListener('pointerover', e => {
+      const b = e.target.closest?.('.fb[data-sid]');
+      if (b && b.dataset.sid !== S.fanFocus) { S.fanFocus = b.dataset.sid; schedule(); }
+    });
+    let last = '';
+    // 窗口尺寸 = 外层盒子的实际尺寸（标签、胶囊、面板宽度各不相同，变形动画中逐帧报告）
+    new ResizeObserver(() => {
+      const r = el.firstElementChild.getBoundingClientRect();
+      const w = Math.ceil(r.width);
+      const h = Math.ceil(r.height);
+      if (`${w}x${h}` !== last) { last = `${w}x${h}`; window.tickFit(w, h); }
+    }).observe(el.firstElementChild);
+  }
+}
+
+// 收起 / 展开：窗口尺寸会跳，用一层很轻的模糊交叉淡入把跳变盖住
+function toggleCompact() {
+  S.compact = !S.compact;
+  S.histOpen = false;
+  S.fan = false;
+  if (NATIVE) window.tickCompact(S.compact); else store.set('compact', S.compact);
+  render();
+  const host = pip.root && document.hidden ? pip.root : root;
+  const f = host.firstElementChild;
+  if (f && !RM.matches) f.animate([{ opacity: 0.35, filter: 'blur(2px)' }, { opacity: 1, filter: 'blur(0)' }], { duration: 180, easing: EASE_OUT });
+}
+
+// 胶囊里放最要紧的一件事：先等你，其次正在做的那一步
+function pillHtml(d, live) {
+  const waiting = visible().filter(isWaiting).sort(byUpdated)[0];
+  if (waiting) {
+    return `<span class="pill-tx" data-key="pill-w">${sicon(waiting.status)}<span class="tx"><b>${esc(agentOf(waiting.agent).name)}</b> ${esc(firstLine(waiting.statusNote || '等你回复'))}</span>${d.nW > 1 ? `<span class="badge num" data-roll>${d.nW}</span>` : ''}</span>`;
+  }
+  const running = visible().filter(s => s.status === 'running' && current(s)).sort(byUpdated)[0];
+  if (running) {
+    const p = progress(running);
+    return `<span class="pill-tx" data-key="pill-r">${sicon('running')}<span class="tx${live() ? ' sweep' : ''}" data-key="pill-step-${esc(current(running).id)}-${esc(running.id)}" data-enter="fade">${esc(current(running).text)}</span><span class="p num"><span data-roll>${p.done}</span>/${p.total}</span></span>`;
+  }
+  return `<span class="pill-tx" data-key="pill-q"><span class="tx t3">${d.nR ? `${d.nR} 个会话在跑` : '都安静着'}</span></span>`;
+}
+
+function itemsHtml(s) {
+  return s.items.map(it => {
+    const { ms, approx } = itemMs(s, it);
+    const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
+    return `<div class="it-s ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-key="${esc(it.id)}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"><button class="it-tick" data-act="item-cycle" title="${it.status === 'done' ? '取消勾选' : '手动勾上（agent 忘了勾时用）'}">${sicon(it.status)}</button><span class="tx">${esc(it.text)}${it.note ? `<span class="nt">${esc(it.note)}</span>` : ''}</span>
+      <span class="tm num"${it.status === 'doing' && it.startedAt ? ` data-clock="item" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"` : ''}>${tm}</span></div>`;
+  }).join('') || `<div class="it-s"><span class="tx t3">${s.status === 'planning' ? '正在写清单…' : '没有清单'}</span></div>`;
+}
+
+function cardHtml(n) {
+  const s = S.sessions.get(n.sessionId);
+  const p = s ? progress(s) : null;
+  const open = s && S.open.has(`card:${s.id}`);
+  return `<div class="n-card${n.kind === 'blocked' ? ' blocked' : ''}" data-key="card-${esc(n.sessionId)}" data-enter="grow" data-exit data-nid="${esc(n.id)}">
+    <i class="n-glow" aria-hidden="true"></i>
+    <div class="n-h">${sicon(n.kind)}<span>${esc(agentOf(n.agent).name)} ${n.kind === 'waiting' ? '在等你' : '卡住了'}</span><span class="when num" data-clock="ago" data-at="${n.at}">${ago(n.at)}</span></div>
+    ${n.title ? `<button class="n-sub" data-act="card-toggle" data-sid="${esc(n.sessionId)}" aria-expanded="${!!open}"><span class="trunc">${esc(n.title)}</span>${p?.total ? `<span class="num">${p.done}/${p.total}</span>${IC.chev}` : ''}</button>` : ''}
+    ${s && p.total ? `<div class="n-list${open ? ' open' : ''}"><div><div class="pad">${itemsHtml(s)}</div></div></div>` : ''}
+    <div class="n-text">${esc(n.text)}</div>
+    <div class="n-acts">
+      ${s?.link ? `<button class="btn primary" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
+      ${s ? `<button class="btn" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}接力提示</button>` : ''}
+    </div>
+    <button class="ib n-x" data-act="read" data-nid="${esc(n.id)}" data-sid="${esc(n.sessionId)}" title="知道了" aria-label="知道了">${IC.xs}</button>
+  </div>`;
+}
+
+function noticeRow(n) {
+  const a = `<b>${esc(agentOf(n.agent).name)}</b>`;
+  const t = n.title ? `「${esc(n.title)}」` : '';
+  const text = n.kind === 'done' ? `${a} 做完了${t}` : n.kind === 'failed' ? `${a} 没做成${t}` : `${a} ${esc(firstLine(n.text))}`;
+  return `<div class="n-row${n.read ? ' read' : ''}" data-key="${esc(n.id)}" data-enter="grow" data-exit data-nid="${esc(n.id)}" data-sid="${esc(n.sessionId || '')}" title="${esc(n.text)}">
+    ${sicon(n.kind)}<span class="tx">${text}</span><span class="when num" data-clock="ago" data-at="${n.at}">${ago(n.at)}</span>
+    ${n.read ? '' : `<button class="ib" data-act="read" data-nid="${esc(n.id)}" title="知道了" aria-label="知道了">${IC.xs}</button>`}
+  </div>`;
+}
+
+// 子任务：主会话下面一行一个，左边一条竖线把它们和主会话连在一起。
+// 平时只显示一行（状态 + 标题 + 当前步骤 + 进度），点开看它自己的清单
+function kidsHtml(s, live) {
+  const kids = childrenOf(s);
+  if (!kids.length) return '';
+  return `<div class="kids" data-flip>${kids.map(k => {
+    const p = progress(k);
+    const open = S.open.has(k.id);
+    const ticking = !!current(k)?.startedAt && live();
+    return `<div class="kid${open ? ' open' : ''}" data-key="kid-${esc(k.id)}" data-enter="grow" data-exit data-sid="${esc(k.id)}">
+      <button class="kid-h" data-act="toggle" aria-expanded="${open}" title="${esc(`${agentOf(k.agent).name} · ${k.title}`)}">
+        ${sicon(k.status)}<span class="kid-t">${esc(k.title)}</span>
+        <span class="kid-s${ticking ? ' sweep' : ''}" data-key="ks-${esc(current(k)?.id || k.status)}" data-enter="fade">${esc(firstLine(isEnded(k) ? STATUS[k.status] : subline(k)))}</span>
+        <span class="kid-p num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>
+      </button>
+      <div class="s-items"><div><div class="pad">${itemsHtml(k)}</div></div></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function sessionRow(s, live) {
+  const a = agentOf(s.agent);
+  const p = progress(s);
+  const open = S.open.has(s.id);
+  const ticking = (s.status === 'planning' || !!current(s)?.startedAt) && live();
+  const step = current(s);
+  return `<div class="s${open ? ' open' : ''}${isEnded(s) ? ' ended' : ''}${S.celebrate.has(s.id) ? ' celebrate' : ''}" data-key="${esc(s.id)}" data-enter="grow" data-exit data-sid="${esc(s.id)}">
+    <button class="s-head" data-act="toggle" aria-expanded="${open}">
+      <span class="s-l1">${sicon(s.status)}<span class="s-title">${esc(s.title)}</span><span class="s-prog num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>${IC.chev}</span>
+      <span class="s-l2"><span class="tile sm" title="${esc(a.name)}">${esc(a.mark)}</span><span class="tx-wrap"><span class="tx${ticking ? ' sweep' : ''}" data-key="sub-${esc(step?.id || s.status)}" data-enter="fade">${esc(firstLine(subline(s)))}</span></span>
+        ${isStale(s) ? `<span class="stale">${short(now() - s.updatedAt)} 没动静 ·</span>` : ''}<span class="tm num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span>
+      ${p.total && !isEnded(s) ? `<span class="segs-wrap">${segs(s, ticking)}</span>` : ''}
+    </button>
+    ${kidsHtml(s, live)}
+    <div class="s-items"><div><div class="pad">
+      ${itemsHtml(s)}
+      <div class="s-more">
+        ${s.link ? `<button class="btn" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
+        <button class="btn ghost" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}接力提示</button>
+        <button class="btn ghost" data-act="open-panel-session" data-sid="${esc(s.id)}" title="在面板里看完整清单、动态，可以编辑">${IC.panel}详情</button>
+      </div>
+    </div></div></div>
+  </div>`;
+}
+
+function floatEmpty() {
+  const art = `<svg class="e-art" width="64" height="48" viewBox="0 0 64 48" fill="none" aria-hidden="true">
+    <rect x="8" y="4" width="48" height="40" rx="8" stroke="var(--line-strong)" stroke-width="1.5"/>
+    <path class="e-l" d="M28 17h18M28 26h14M28 35h10" stroke="var(--text-4)" stroke-width="1.5" stroke-linecap="round" pathLength="1"/>
+    <path class="e-c" d="M17 17l2.4 2.4 4-4.4M17 26l2.4 2.4 4-4.4" stroke="var(--green)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
+    <circle cx="20" cy="35" r="3" stroke="var(--text-4)" stroke-width="1.5"/></svg>`;
+  if (S.sessions.size) return `<div class="f-empty" data-key="empty-quiet" data-enter="fade">${art}<b>都忙完了</b>手上没有进行中的会话。<br>agent 一开工，这里就会知道。</div>`;
+  return `<div class="f-empty" data-key="empty-new" data-enter="fade">${art}<b>还没有 agent 来报到</b>把 Tick 加进 agent 的 MCP 配置，<br>它写下第一份清单，这里就会亮起来。
+    <div class="acts"><button class="btn primary" data-act="copy-mcp">${IC.copy}复制 MCP 地址</button><button class="btn" data-act="guide">接入说明</button></div></div>`;
+}
+
+// ======================================================================
+// 面板
+// ======================================================================
+function groups() {
+  // 有搜索词时：在全部会话里找（含已归档），不受当前视图限制
+  const q = S.q.trim().toLowerCase();
+  if (q) {
+    const hits = [...S.sessions.values()].filter(s => matches(s, q)).sort(byUpdated);
+    return [['搜索结果', hits.filter(s => !s.archived)], ['已归档里', hits.filter(s => s.archived)]];
+  }
+  const pool = [...S.sessions.values()].filter(s => (S.view === 'archived') === !!s.archived).filter(s => !S.agent || s.agent === S.agent);
+  const by = f => pool.filter(f).sort(byUpdated);
+  if (S.view === 'history') {
+    // 历史：已结束的会话按结束那天分组，组头写当天做完几个、勾了几项、干活多久
+    const ended = pool.filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
+    const days = new Map();
+    for (const s of ended) {
+      const k = dayLabel(s.endedAt);
+      if (!days.has(k)) days.set(k, []);
+      days.get(k).push(s);
+    }
+    return [...days].map(([day, arr]) => {
+      const ticked = arr.reduce((n, s) => n + s.items.filter(it => it.status === 'done').length, 0);
+      const work = arr.reduce((n, s) => n + workMs(s), 0);
+      const failed = arr.filter(s => s.status === 'failed').length;
+      return [day, arr, `勾了 ${ticked} 项 · 干活 ${short(work)}${failed ? ` · ${failed} 个没做成` : ''}`];
+    });
+  }
+  if (S.agent) return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' || s.status === 'planning')], ['已结束', by(isEnded)]];
+  switch (S.view) {
+    case 'waiting': return [['等你', by(isWaiting)]];
+    case 'idle': return [['30 分钟没有更新', by(isDormant)]];
+    case 'all': return [['全部', by(() => true)]];
+    case 'archived': return [['已归档', by(() => true)]];
+    default: return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' && !isDormant(s))], ['写清单', by(s => s.status === 'planning' && !isDormant(s))],
+      ['刚结束', by(s => isEnded(s) && now() - s.endedAt < 3 * 3600e3)], ['没动静', by(isDormant)]];
+  }
+}
+
+function renderPanel() {
+  if (!root.querySelector('.app')) {
+    root.innerHTML = `<div class="app"><aside class="side" id="side"></aside><main class="main"><section class="panel">
+      <header class="top" id="top" data-drag></header><div class="body" id="body"><div class="list" id="list"></div><div class="detail" id="detail" hidden></div></div>
+    </section></main></div>`;
+  }
+  const live = visible();
+  const archived = S.sessions.size - live.length;
+  const n = { active: live.filter(s => !isEnded(s) && !isDormant(s)).length, waiting: live.filter(isWaiting).length, idle: live.filter(isDormant).length,
+    history: live.filter(isEnded).length, all: live.length, archived };
+  const nav = (v, icon) => `<button class="nav-i${S.view === v && !S.agent ? ' on' : ''}" data-view="${v}">${icon}<span class="grow">${VIEWS[v]}</span><span class="cnt num${v === 'waiting' && n.waiting ? ' hot' : ''}">${n[v] || ''}</span></button>`;
+  const agents = [...new Set(live.map(s => s.agent))].sort();
+  morph($('side'), `
+    <div class="brand" data-drag><span class="logo">${IC.logo}</span><span class="grow">Tick</span>${connChip()}</div>
+    <nav>
+      ${nav('active', IC.active)}${nav('waiting', IC.waiting)}${n.idle ? nav('idle', IC.idle) : ''}${nav('history', IC.done)}${nav('all', IC.all)}${archived ? nav('archived', IC.archive) : ''}
+      ${agents.length ? '<div class="nav-h">Agent</div>' : ''}
+      ${agents.map(a => { const ag = agentOf(a); const c = live.filter(s => s.agent === a && !isEnded(s)).length;
+        return `<button class="nav-i${S.agent === a ? ' on' : ''}" data-agent="${esc(a)}"><span class="dot" style="background:${ag.color}"></span><span class="grow">${esc(ag.name)}</span><span class="cnt num">${c || ''}</span></button>`; }).join('')}
+    </nav>
+    <div class="side-foot">
+      <button class="nav-i" data-act="pip">${IC.pip}<span class="grow">打开小窗</span></button>
+      <button class="nav-i" data-act="guide">${IC.plug}<span class="grow">接入 agent</span></button>
+      <button class="nav-i" data-act="theme">${S.theme === 'dark' ? IC.sun : IC.moon}<span class="grow">${S.theme === 'dark' ? '浅色' : '深色'}主题</span></button>
+    </div>`);
+  // 逆序：每组里的顺序倒过来；历史视图连“哪天在前”也倒过来
+  const gs0 = groups().filter(g => g[1].length);
+  const gs = S.order === 'old' ? (S.view === 'history' && !S.q.trim() ? gs0.reverse() : gs0).map(([h, arr, note]) => [h, [...arr].reverse(), note]) : gs0;
+  const rows = gs.reduce((k, g) => k + g[1].length, 0);
+  const t = itemsToday();
+  const q = S.q.trim();
+  // 搜索框只在第一次画出来，之后不再经过 morph，免得打字时光标被打断
+  if (!$('top').querySelector('.search')) {
+    $('top').innerHTML = `<div class="crumb"></div><label class="search">${IC.search}<input id="q" type="search" placeholder="搜索标题、条目、备注、agent" autocomplete="off" spellcheck="false" aria-label="搜索"><kbd>/</kbd></label><span class="grow"></span><span class="top-r"></span>${WIN ? `<span class="wc"><button class="ib" data-act="win-min" title="最小化">${IC.wMin}</button><button class="ib" data-act="win-max" title="${document.documentElement.hasAttribute('data-max') ? '还原' : '最大化'}">${IC.wMax}${IC.wRes}</button><button class="ib wc-x" data-act="win-close" title="关闭">${IC.x}</button></span>` : ''}`;
+    $('q').addEventListener('input', e => { S.q = e.target.value; S.sel = null; schedule(); });
+    $('q').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; S.q = ''; e.target.blur(); schedule(); } });
+  }
+  morph($('top').querySelector('.crumb'), q
+    ? `<b>搜索</b><span class="t4 num" data-roll>${rows}</span>`
+    : `<b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num" data-roll>${rows}</span>`);
+  morph($('top').querySelector('.top-r'), `${t ? `<span class="today num">今天勾了 ${t} 项</span>` : ''}
+    <button class="btn ghost" data-act="order" title="${S.order === 'old' ? '现在最早的在前，点一下换成最新在前' : '现在最新的在前，点一下倒过来'}">${S.order === 'old' ? IC.sortUp : IC.sortDown}${S.order === 'old' ? '最早在前' : '最新在前'}</button>
+    ${typeof window.tickFloat === 'function'
+      ? `<button class="btn" data-act="float" title="把桌面悬浮窗叫出来（Ctrl+Alt+T）">${IC.pip}悬浮窗</button>`
+      : `<button class="btn" data-act="pip" title="置顶小窗（Chrome / Edge 116+）">${IC.pip}打开小窗</button>`}`);
+  const list = $('list');
+  const keep = list.scrollTop;
+  const viewKey = `${S.view}|${S.agent}|${q}`;
+  if (viewKey !== list._view) list.replaceChildren(); // 换视图 / 换搜索词：瞬时替换，不播退场、不滚数字
+  const ql = q.toLowerCase();
+  const entered = morph(list, gs.length ? gs.map(([name, arr, note]) => `<div class="group-h" data-key="g-${esc(name)}" data-exit="fade"><span>${esc(name)}</span><span class="cnt num" data-roll>${arr.length}</span>${note ? `<span class="g-note num">${esc(note)}</span>` : ''}</div>${arr.map(s => {
+    const a = agentOf(s.agent);
+    const p = progress(s);
+    const parent = s.parentId && S.sessions.get(s.parentId);
+    // 副标题：搜索时显示命中的那一条；子任务标出属于哪个主会话；不活跃的写多久没动静
+    const sub = (ql && hitLine(s, ql)) || (parent ? `↳ ${parent.title}` : isDormant(s) ? `${short(now() - s.updatedAt)} 没有更新 · ${firstLine(subline(s))}` : firstLine(subline(s)));
+    return `<div class="row${S.sel === s.id ? ' sel' : ''}${S.celebrate.has(s.id) ? ' celebrate' : ''}${isDormant(s) ? ' dormant' : ''}" data-key="${esc(s.id)}" data-enter="fade" data-exit="fade" data-sid="${esc(s.id)}" data-act="select">${sicon(isDormant(s) ? 'dormant' : s.status)}<span class="tile" title="${esc(a.name)}">${esc(a.mark)}</span>
+      <span class="title">${esc(s.title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</span>
+      <span class="prog num">${p.total ? `${ring(p.done / p.total)}${p.done}/${p.total}` : ''}</span><span class="time num" data-clock="short" data-sid="${esc(s.id)}" title="${isEnded(s) ? `干活 ${dur(workMs(s))}` : '总耗时'}">${short(elapsed(s))}</span></div>`;
+  }).join('')}`).join('') : panelEmpty());
+  // 切换视图时整列换掉，瞬时完成；同一视图里新来的会话才淡入
+  settle(viewKey === list._view ? entered : null);
+  list._view = viewKey;
+  list.scrollTop = keep;
+  renderDetail();
+}
+
+function panelEmpty() {
+  if (S.q.trim()) return `<div class="empty"><h2>没找到「${esc(S.q.trim())}」</h2><p>标题、条目、备注、总结、目录和 agent 名都搜过了，已归档的也算上了。换个词试试？</p></div>`;
+  if (S.view === 'history') return '<div class="empty"><h2>还没有做完的会话</h2><p>agent 收尾之后会按天记在这里。</p></div>';
+  if (S.view === 'idle') return '<div class="empty"><h2>没有掉线的会话</h2><p>说在跑、但 30 分钟没有更新的会话会放到这里，多半是 agent 被关了或者忘了收尾。</p></div>';
+  if (S.view === 'waiting') return '<div class="empty"><h2>没有谁在等你</h2><p>agent 需要你拍板或动手时，会出现在这里，悬浮窗也会提醒。</p></div>';
+  if (S.sessions.size) return '<div class="empty"><h2>这里是空的</h2><p>换个视图看看。</p></div>';
+  return `<div class="empty"><h2>还没有 agent 来报到</h2><p>把 Tick 加进 agent 的 MCP 配置。它写下第一份清单，这里就会出现。</p>
+    <div class="acts"><button class="btn primary" data-act="guide">${IC.plug}接入说明</button></div></div>`;
+}
+
+function renderDetail() {
+  const s = S.sessions.get(S.sel);
+  const detail = $('detail');
+  $('body').classList.toggle('split', !!s);
+  detail.hidden = !s;
+  if (!s) return;
+  const a = agentOf(s.agent);
+  const p = progress(s);
+  const live = sweeper();
+  const keep = detail.dataset.sid === s.id ? detail.scrollTop : 0;
+  const ws = s.workspace ? s.workspace.split(/[\\/]/).filter(Boolean).pop() : '';
+  const evClass = t => (t === 'done' || t === 'item-done' ? 'ok' : t === 'waiting' ? 'warn' : /blocked|failed/.test(t) ? 'bad' : '');
+  const same = detail.dataset.sid === s.id;
+  if (!same) detail.replaceChildren(); // 换会话（含 J/K）：瞬时替换。各会话的条目 id 都是 i1、i2…，不清掉会被当成同一行复用并播过渡
+  detail.dataset.sid = s.id;
+  const entered = morph(detail, `
+    <div class="d-bar"><span class="tile">${esc(a.mark)}</span><span class="t3">${esc(a.name)}</span>
+      ${ws ? `<span class="t4">/</span><span class="t3 trunc" title="${esc(s.workspace)}">${esc(ws)}</span>` : ''}<span class="grow"></span>
+      ${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
+      <button class="btn ghost" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}接力提示</button>
+      <button class="ib" data-act="archive" title="${s.archived ? '取消归档' : '归档'}">${IC.archive}</button>
+      <button class="ib del${S.confirmDel === s.id ? ' armed' : ''}" data-act="del-session" title="${S.confirmDel === s.id ? '再点一次永久删除（连同子任务）' : '永久删除'}">${S.confirmDel === s.id ? '<span class="del-t">再点删除</span>' : IC.trash}</button>
+      <button class="ib" data-act="close" title="关闭（Esc）">${IC.x}</button></div>
+    <div class="d-main">
+      <div class="d-status">${sicon(s.status)}<span>${STATUS[s.status]}</span>${isStale(s) ? `<span class="t4">· ${short(now() - s.updatedAt)} 没有更新</span>` : ''}</div>
+      ${S.editing === `title:${s.id}`
+        ? `<input class="d-title-in" data-key="title-edit" data-edit="title" data-sid="${esc(s.id)}" value="${esc(s.title)}" maxlength="200" aria-label="会话标题">`
+        : `<h1 class="d-title" data-key="title" data-act="edit-title" title="双击改标题">${esc(s.title)}</h1>`}${s.goal ? `<p class="d-goal">${esc(s.goal)}</p>` : ''}
+      ${isWaiting(s) ? `<div class="callout" data-key="callout" data-enter="grow" data-exit><div class="c-h">${sicon(s.status)}<span>${esc(a.name)} ${s.status === 'waiting' ? '在等你' : '卡住了'}</span><span class="t4 num" data-clock="waitnow" data-sid="${esc(s.id)}">${s.waitSince ? short(now() - s.waitSince) : ''}</span></div>
+        <p class="c-b">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>
+        <div class="c-a">${s.link ? `<button class="btn primary" data-act="open-link" data-sid="${esc(s.id)}">回到对话</button>` : ''}<button class="btn" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}复制接力提示</button></div></div>` : ''}
+      <dl class="facts">
+        <dt>总耗时</dt><dd class="num" data-clock="elapsed" data-sid="${esc(s.id)}">${dur(elapsed(s))}</dd>
+        <dt>开始</dt><dd class="num">${clock(s.createdAt)}${s.endedAt ? ` → ${clock(s.endedAt)}` : ''}</dd>
+        <dt>干活</dt><dd class="num" data-clock="work" data-sid="${esc(s.id)}">${dur(elapsed(s) - waited(s))}</dd>
+        <dt>等你</dt><dd class="num" data-clock="wait" data-sid="${esc(s.id)}">${dur(waited(s))}</dd>
+        <dt>会话</dt><dd class="mono" title="${esc(s.externalId)}">${esc(s.id)}${s.externalId ? ` · ${esc(s.externalId)}` : ''}</dd>
+        <dt>更新</dt><dd class="num">${clock(s.updatedAt)}</dd>
+      </dl>
+      <section class="d-sec"><h3>清单 <span class="num t4"><span data-roll>${p.done}</span>/${p.total}</span></h3>
+        ${p.total ? segs(s, true) : ''}
+        ${p.total ? `<ol class="checklist">${s.items.map((it, i) => {
+          const { ms, approx } = itemMs(s, it);
+          const ticking = it.status === 'doing' && it.startedAt;
+          const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
+          const editing = S.editing === `item:${s.id}:${it.id}`;
+          return `<li data-key="${esc(it.id)}" data-enter="grow" data-exit class="it ${it.status}${S.justDone.has(`${s.id}:${it.id}`) ? ' just' : ''}" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}">
+            <button class="it-tick" data-act="item-cycle" title="${it.status === 'done' ? '取消勾选' : '手动勾上'}" aria-label="${it.status === 'done' ? '取消勾选' : '勾上'}">${sicon(it.status)}</button><span class="n num">${i + 1}</span>
+            <div class="it-body">${editing
+              ? `<input class="it-in" data-edit="item" value="${esc(it.text)}" maxlength="300" aria-label="条目内容">`
+              : `<div class="it-text${ticking && live() ? ' sweep' : ''}" data-act="edit-item" title="双击修改">${esc(it.text)}</div>`}${it.note ? `<div class="it-note">${esc(it.note)}</div>` : ''}</div>
+            <span class="it-time num"${ticking ? ` data-clock="item" data-sid="${esc(s.id)}" data-iid="${esc(it.id)}"` : ''}${approx ? ' title="agent 没报开始时间，按上一条完成到这条完成估算"' : ''}>${tm}</span>
+            <span class="it-acts"><button class="ib sm" data-act="edit-item" title="修改">${IC.pencil}</button><button class="ib sm" data-act="del-item" title="删掉这一条（可撤销）">${IC.trash}</button></span></li>`;
+        }).join('')}</ol>` : `<p class="t3">${s.status === 'planning' ? '正在写清单…' : '这个会话没有清单。'}</p>`}
+        <div class="it-add">${IC.plus}<input data-edit="add-item" data-sid="${esc(s.id)}" placeholder="添加一项，回车保存" maxlength="300" aria-label="添加条目"></div>
+      </section>
+      ${s.summary ? `<section class="d-sec"><h3>总结</h3><div class="summary">${esc(s.summary)}</div></section>` : ''}
+      <section class="d-sec"><h3>动态</h3>${s.events.slice(-40).reverse().map(e => `<div class="ev" data-key="ev-${e.at}-${esc(e.type)}" data-enter="fade"><span class="d ${evClass(e.type)}"></span><span class="tx">${esc(e.text)}</span><span class="w num">${clock(e.at)}</span></div>`).join('')}</section>
+    </div>`);
+  // 同一个会话里新出现的条目、动态才动；换会话（含 J/K）瞬时替换
+  settle(same && !S.detailFresh ? entered : null);
+  if (S.detailFresh) { detail.classList.remove('in'); void detail.offsetWidth; detail.classList.add('in'); S.detailFresh = false; }
+  detail.scrollTop = keep;
+}
+
+function openSession(id, byMouse) {
+  const s = S.sessions.get(id);
+  if (!s) return;
+  if (FLOAT) { focusSession(id); return; }
+  S.detailFresh = byMouse && !S.sel;
+  S.sel = id;
+  if (s.archived) S.view = 'archived';
+  else if (S.view === 'archived' || !groups().some(g => g[1].includes(s))) { S.view = 'all'; S.agent = null; }
+  history.replaceState(null, '', `${location.pathname}${location.search}#${id}`);
+  schedule();
+}
+// 悬浮窗里：展开那个会话并滚过去
+function focusSession(id) {
+  // 收着时先展开，展开后再定位（tickDock 回调里接着做）
+  if (NATIVE && S.dock.tucked) { S.focusAfter = id; window.tickUntuck(); return; }
+  const s = S.sessions.get(id);
+  S.open.add(id);
+  if (s && isEnded(s)) S.histOpen = true; // 收起的“刚结束”里的会话：先把分组打开
+  if (s && isWaiting(s)) S.open.add(`card:${id}`); // 抽屉里的卡片也展开清单
+  render();
+  const host = pip.root || root;
+  // 先找主列表里的行（等你的会话也在列表里），找不到再找抽屉里的卡片
+  const el = host.querySelector(`.f-body .kid[data-sid="${CSS.escape(id)}"], .f-body .s[data-sid="${CSS.escape(id)}"]`) || host.querySelector(`.n-card[data-key="card-${CSS.escape(id)}"]`);
+  el?.scrollIntoView({ block: 'nearest' });
+  // 轻轻提示一下是哪一行
+  if (el && !RM.matches) el.animate([{ backgroundColor: 'color-mix(in srgb, var(--accent) 14%, transparent)' }, { backgroundColor: 'transparent' }], { duration: 900, easing: EASE_OUT });
+}
+window.tickFocus = focusSession;
+// 宿主告诉页面停靠状态：贴着哪条边、是否收起。收起时露在外面的窄边由 CSS 画
+window.tickDock = (edge, tucked) => {
+  S.dock = { edge: edge || '', tucked: !!tucked };
+  root.dataset.dock = S.dock.edge;
+  root.dataset.scrolled = ''; // 面板会重建，新的列表在顶部
+  if (!tucked) S.speak = null; // 展开了就是看到了，气泡不用再说
+  if (tucked) { S.histOpen = false; S.drawer = false; S.fan = false; } // 收起来时顺手把临时展开的都收回去
+  setIdle();
+  render();
+  if (!tucked && S.focusAfter) {
+    const id = S.focusAfter;
+    S.focusAfter = null;
+    setTimeout(() => focusSession(id), 260); // 等面板长出来再定位
+  }
+};
+// 收到托盘：先缩一点、淡出、往托盘方向沉一点，再让宿主隐藏。退场比进场快
+window.tickLeave = () => {
+  const f = root.firstElementChild;
+  if (!f || RM.matches) { window.tickHide(); return; }
+  f.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(6px) scale(.97)' }],
+    { duration: 150, easing: EASE_OUT, fill: 'forwards' }).onfinish = a => {
+    window.tickHide();
+    a.target.cancel(); // 下次显示时回到正常样子
+  };
+};
+// 从托盘叫回来：轻轻浮上来
+window.tickAppear = () => {
+  const f = root.firstElementChild;
+  if (!f || RM.matches) return;
+  f.animate([{ opacity: 0, transform: 'translateY(6px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: EASE_OUT });
+};
+window.tickHostState = st => {
+  if ('pinned' in st) S.pinned = st.pinned;
+  if ('dnd' in st) S.dnd = st.dnd;
+  if ('side' in st) S.side = st.side === 'left' ? 'left' : 'right';
+  if ('vside' in st) S.vside = st.vside === 'bottom' ? 'bottom' : 'top';
+  if ('sound' in st) S.sound = st.sound || '';
+  if (Array.isArray(st.sounds)) S.sounds = st.sounds;
+  schedule();
+};
+// 提示音下拉：选了就交给宿主保存并试听一次
+document.addEventListener('change', e => {
+  if (e.target.matches?.('[data-change="sound"]') && typeof window.tickSound === 'function') {
+    S.sound = e.target.value;
+    window.tickSound(S.sound);
+  }
+});
+
+// ============ 置顶小窗（浏览器 Document PiP） ============
+const pip = { win: null, root: null };
+async function openPip() {
+  if (pip.win) { pip.win.focus(); return; }
+  if (!('documentPictureInPicture' in window)) {
+    window.open(`${location.pathname}?view=mini`, 'tick-mini', 'popup,width=340,height=520');
+    toast('这个浏览器不支持置顶小窗，先用普通小窗口打开了。Chrome / Edge 116 以上可以置顶。');
+    return;
+  }
+  try {
+    const win = await documentPictureInPicture.requestWindow({ width: 340, height: 520 });
+    // 用新文档里创建的 style 元素承载样式，跨文档克隆的节点在 PiP 里可能不生效
+    const style = win.document.createElement('style');
+    style.textContent = $('tick-css').textContent;
+    win.document.head.append(style);
+    win.document.title = 'Tick';
+    win.document.body.style.margin = '0';
+    const el = win.document.createElement('div');
+    win.document.body.append(el);
+    el.addEventListener('click', onClick);
+    win.setInterval(() => tickClocks(el), 1000); // 小窗自己的计时器，主标签页隐藏时也准
+    win.addEventListener('pagehide', () => { pip.win = null; pip.root = null; });
+    pip.win = win;
+    pip.root = el;
+    render();
+  } catch (err) {
+    toast(`小窗没打开：${esc(err.message)}`);
+  }
+}
+
+// ============ 提示、复制、接入说明 ============
+function toast(html, opt = {}) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${html}</span>${opt.action ? `<button class="toast-act">${esc(opt.action)}</button>` : ''}`;
+  const close = () => { el.dataset.state = 'leave'; setTimeout(() => el.remove(), 220); };
+  if (opt.action) el.querySelector('button').addEventListener('click', () => { opt.onAction(); close(); });
+  $('toasts').append(el);
+  while ($('toasts').children.length > 3) $('toasts').firstElementChild.remove();
+  requestAnimationFrame(() => requestAnimationFrame(() => { el.dataset.state = 'show'; }));
+  setTimeout(close, opt.ms || 4200);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+}
+function relayText(s) {
+  const p = progress(s);
+  const step = current(s) || s.items.find(it => it.status === 'todo');
+  return `继续 Tick 会话 ${s.id}（${s.title}）。现在${STATUS[s.status]}，清单 ${p.done}/${p.total}` +
+    `${step ? `，下一步 #${s.items.indexOf(step) + 1} ${step.text}` : ''}${isWaiting(s) && s.statusNote ? `。上次停在：${s.statusNote}` : ''}。` +
+    `先用 tick_show（session_id=${s.id}）看清单，再按 Tick 的要求接着勾选。`;
+}
+function guideConfigs() {
+  const mcp = S.info.mcp || `${BASE}/mcp`;
+  const exe = S.info.exe || 'C:\\path\\to\\tick.exe';
+  return [
+    ['Claude Code', `claude mcp add --transport http tick ${mcp}`],
+    ['Cursor / Kiro / 其他支持 HTTP 的客户端（mcp.json）', JSON.stringify({ mcpServers: { tick: { url: mcp } } }, null, 2)],
+    ['Codex（~/.codex/config.toml）', `[mcp_servers.tick]\nurl = "${mcp}"`],
+    ['只支持 stdio 的客户端', JSON.stringify({ mcpServers: { tick: { command: exe, args: ['mcp'] } } }, null, 2)],
+  ];
+}
+function openGuide() {
+  if (FLOAT) { NATIVE ? window.tickPanel('#guide') : window.open(`${BASE}/#guide`, 'tick-main'); return; }
+  const cfgs = guideConfigs();
+  $('guide-box').innerHTML = `<div class="guide">
+    <h2><span class="grow">接入 agent</span><button class="ib" data-act="close-guide" aria-label="关闭">${IC.x}</button></h2>
+    <p>Tick 自带 MCP 服务。加进 agent 的配置后，它会自己读到用法：开工写清单、逐条勾选、需要你时发通知、做完写总结。</p>
+    ${cfgs.map(([name, code], i) => `<h4>${esc(name)}</h4><div class="code"><pre>${esc(code)}</pre><button class="btn" data-act="copy-cfg" data-i="${i}">${IC.copy}复制</button></div>`).join('')}
+    <p>不用 MCP 也行：协议和 HTTP 接口见 <a class="t3" href="${BASE}/protocol" target="_blank" rel="noopener" style="text-decoration:underline">${BASE}/protocol</a>。</p>
+  </div>`;
+  $('guide').hidden = false;
+}
+
+// ============ 交互 ============
+async function onClick(e) {
+  const el = e.target.closest('[data-act],[data-view],[data-agent],.n-row');
+  if (!el) return;
+  const act = el.dataset.act;
+  const sid = el.dataset.sid || el.closest('[data-sid]')?.dataset.sid;
+  const s = S.sessions.get(sid) || S.sessions.get(S.sel);
+  if (!act && el.dataset.view) { S.view = el.dataset.view; S.agent = null; return schedule(); }
+  if (!act && el.dataset.agent !== undefined) { S.agent = S.agent === el.dataset.agent ? null : el.dataset.agent; return schedule(); }
+  switch (act) {
+    case undefined: // 通知行：标已读并展开对应会话
+      markRead([el.dataset.nid]);
+      if (sid) focusSession(sid);
+      break;
+    case 'select': openSession(sid, true); break;
+    case 'close': S.sel = null; history.replaceState(null, '', location.pathname + location.search); schedule(); break;
+    case 'toggle': {
+      const row = el.closest('.kid, .s'); // 子任务行和会话行都能就地展开
+      const open = !S.open.has(sid);
+      if (open) S.open.add(sid); else S.open.delete(sid);
+      row.classList.toggle('open', open); // 就地切换，保留展开过渡
+      el.setAttribute('aria-expanded', String(open));
+      break;
+    }
+    case 'read':
+      e.stopPropagation();
+      if (el.dataset.nid) markRead([el.dataset.nid]);
+      else if (s) { S.dismissed.add(`${s.id}:${s.waitSince}`); schedule(); } // 通知还没到的卡片：只在本地收起
+      break;
+    case 'read-all': markRead(S.notices.filter(n => !n.read).map(n => n.id)); break;
+    // ---------- 悬浮窗：抽屉、排序、刚结束、底栏动态、转盘、提示音 ----------
+    case 'drawer':
+      S.drawer = !S.drawer;
+      if (S.drawer && !S.notices.some(n => !n.read)) S.drawerTab = 'all'; // 没有未读就直接看全部
+      schedule();
+      break;
+    case 'dtab': S.drawerTab = el.dataset.tab; schedule(); break;
+    case 'order': S.order = S.order === 'old' ? 'new' : 'old'; store.set('order', S.order); schedule(); break;
+    case 'hist': S.histOpen = !S.histOpen; schedule(); break;
+    case 'feed': if (sid) focusSession(sid); break;
+    case 'fan-open': case 'fan-more':
+      S.fan = false;
+      toggleCompact();
+      if (sid) setTimeout(() => focusSession(sid), 220); // 等面板长出来再定位
+      break;
+    case 'sound-test': window.tickSound(S.sound); break;
+    case 'sound-dir': window.tickSoundDir(); break;
+    case 'open-link':
+      // 本地面板窗口里也有 tickOpen（交给系统默认程序打开）
+      if (s?.link) typeof window.tickOpen === 'function' ? window.tickOpen(s.link).catch(err => toast(esc(String(err)))) : (location.href = s.link);
+      break;
+    case 'relay': if (s) toast(await copy(relayText(s)) ? '接力提示已复制，粘给任何 agent 都能接着做' : '复制没成功'); break;
+    case 'copy-mcp': toast(await copy(S.info.mcp || `${BASE}/mcp`) ? 'MCP 地址已复制' : '复制没成功'); break;
+    case 'copy-cfg': toast(await copy(guideConfigs()[Number(el.dataset.i)][1]) ? '已复制' : '复制没成功'); break;
+    case 'guide': openGuide(); break;
+    case 'close-guide': $('guide').hidden = true; break;
+    case 'pip': typeof window.tickFloat === 'function' ? window.tickFloat() : openPip(); break;
+    case 'float': window.tickFloat(); break;
+    case 'win-min': window.tickWin('min'); break;
+    case 'win-max': window.tickWin('max'); break;
+    case 'win-close': window.tickWin('close'); break;
+    case 'panel': NATIVE ? window.tickPanel('') : window.open(`${BASE}/`, 'tick-main'); break;
+    case 'open-panel-session': NATIVE ? window.tickPanel(`#${sid}`) : window.open(`${BASE}/#${sid}`, 'tick-main'); break;
+    case 'hide': window.tickLeave(); break;
+    case 'untuck': {
+      // 拖过的不算点击（按下和松开距离超过 4px）
+      const moved = S.downAt && Math.hypot(e.screenX - S.downAt[0], e.screenY - S.downAt[1]) > 4;
+      if (moved) break;
+      // 点在某个会话的环上：展开并直接打开那个会话；点在别处：只展开
+      const ring = e.target.closest('.mini[data-sid]');
+      if (ring) focusSession(ring.dataset.sid);
+      else if (S.speak?.sessionId) focusSession(S.speak.sessionId);
+      else window.tickUntuck();
+      break;
+    }
+    case 'dnd': S.dnd = await window.tickDnd(!S.dnd); schedule(); break;
+    // ---------- 增删改 ----------
+    case 'item-cycle': {
+      e.stopPropagation();
+      const iid = el.closest('[data-iid]')?.dataset.iid;
+      const it = s?.items.find(x => x.id === iid);
+      if (!it) break;
+      const to = it.status === 'done' || it.status === 'skipped' ? 'todo' : 'done';
+      try { await post(`/api/sessions/${s.id}/items/${iid}`, { status: to }, 'PATCH'); }
+      catch (err) { toast(`没改成：${esc(err.message)}`); }
+      break;
+    }
+    case 'edit-title': if (e.detail >= 2 || el.tagName === 'BUTTON') startEdit(`title:${s.id}`); break;
+    case 'edit-item': {
+      const iid = el.closest('[data-iid]')?.dataset.iid;
+      if (iid && (e.detail >= 2 || el.tagName === 'BUTTON')) startEdit(`item:${s.id}:${iid}`);
+      break;
+    }
+    case 'del-item': {
+      const iid = el.closest('[data-iid]')?.dataset.iid;
+      const it = s?.items.find(x => x.id === iid);
+      if (!it) break;
+      const before = s.items.map(x => ({ text: x.text, status: x.status, note: x.note || '' }));
+      try {
+        await post(`/api/sessions/${s.id}/items/${iid}`, {}, 'DELETE');
+        // 撤销：把原清单按原顺序重发一遍；文字相同的条目保留现状，被删的那条按原状态补回
+        toast(`删掉了「${esc(it.text)}」`, { action: '撤销', onAction: () => post(`/api/sessions/${s.id}/items`, { items: before }, 'PUT').catch(err => toast(esc(err.message))), ms: 6000 });
+      } catch (err) { toast(`没删成：${esc(err.message)}`); }
+      break;
+    }
+    case 'del-session': {
+      // 永久删除不能撤销：第一次点只是“上膛”，3 秒内再点一次才删
+      if (S.confirmDel !== s.id) {
+        S.confirmDel = s.id;
+        schedule();
+        setTimeout(() => { if (S.confirmDel === s.id) { S.confirmDel = null; schedule(); } }, 3000);
+        break;
+      }
+      S.confirmDel = null;
+      try {
+        const title = s.title;
+        await post(`/api/sessions/${s.id}`, {}, 'DELETE');
+        S.sel = null;
+        toast(`已删除「${esc(title)}」`);
+      } catch (err) { toast(`没删成：${esc(err.message)}`); }
+      schedule();
+      break;
+    }
+    case 'archive-ended': {
+      // 只清“刚结束”里那些主会话，连同它们的子任务；还在跑的主会话下面已结束的子任务不动
+      const tops = visible().filter(s => isEnded(s) && !isChild(s));
+      const ids = [...tops, ...tops.flatMap(childrenOf)].map(s => s.id);
+      const set = async v => {
+        for (const id of ids) { const s = S.sessions.get(id); if (s) s.archived = v; }
+        schedule();
+        try { await Promise.all(ids.map(id => post(`/api/sessions/${id}`, { archived: v }, 'PATCH'))); }
+        catch (err) { toast(`归档没全部成功：${esc(err.message)}`); reload(); }
+      };
+      set(true);
+      if (!FLOAT) toast(`已归档 ${ids.length} 个结束的会话`, { action: '撤销', onAction: () => set(false), ms: 6000 });
+      else S.undo = { text: `已归档 ${ids.length} 个`, run: () => set(false), until: now() + 6000 };
+      setTimeout(schedule, 6100);
+      break;
+    }
+    case 'undo': S.undo?.run(); S.undo = null; schedule(); break;
+    case 'pin': S.pinned = await window.tickPin(!S.pinned); schedule(); break;
+    case 'compact': toggleCompact(); break;
+    case 'card-toggle': {
+      const k = `card:${sid}`;
+      const open = !S.open.has(k);
+      if (open) S.open.add(k); else S.open.delete(k);
+      const list = el.closest('.n-card')?.querySelector('.n-list');
+      list?.classList.toggle('open', open); // 就地切换，保留展开过渡
+      el.setAttribute('aria-expanded', String(open));
+      break;
+    }
+    case 'theme': S.theme = S.theme === 'dark' ? 'light' : 'dark'; store.set('theme', S.theme); schedule(); break;
+    case 'archive':
+      if (s) {
+        const id = s.id;
+        const to = !s.archived;
+        const set = async v => {
+          const cur = S.sessions.get(id);
+          const before = cur.archived;
+          cur.archived = v;
+          if (v && S.sel === id) S.sel = null;
+          schedule();
+          try { await post(`/api/sessions/${id}`, { archived: v }, 'PATCH'); } catch (err) { S.sessions.get(id).archived = before; schedule(); toast(`归档没成功：${esc(err.message)}`); }
+        };
+        set(to);
+        toast(`${to ? '已归档' : '已放回'}「${esc(s.title)}」`, { action: '撤销', onAction: () => set(!to), ms: 6000 });
+      }
+      break;
+  }
+}
+document.addEventListener('click', onClick);
+
+// ---------- 就地编辑：双击标题 / 条目进入；回车保存，Esc 放弃，失焦保存 ----------
+function startEdit(key) {
+  S.editing = key;
+  render();
+  const input = (pip.root || root).querySelector('[data-edit="title"], [data-edit="item"]');
+  input?.focus();
+  input?.select();
+}
+async function commitEdit(input, save) {
+  const key = S.editing;
+  if (!key) return;
+  S.editing = null;
+  const v = input.value.trim();
+  const [kind, sid, iid] = key.split(':');
+  const s = S.sessions.get(sid);
+  if (save && s && v) {
+    try {
+      if (kind === 'title' && v !== s.title) await post(`/api/sessions/${sid}`, { title: v }, 'PATCH');
+      if (kind === 'item' && v !== s.items.find(x => x.id === iid)?.text) await post(`/api/sessions/${sid}/items/${iid}`, { text: v }, 'PATCH');
+    } catch (err) { toast(`没存上：${esc(err.message)}`); }
+  }
+  schedule();
+}
+document.addEventListener('keydown', async e => {
+  const input = e.target.closest?.('[data-edit]');
+  if (!input) return;
+  e.stopPropagation(); // 别让 Esc 关掉详情、J/K 切会话
+  if (input.dataset.edit === 'add-item') {
+    if (e.key === 'Escape') { input.value = ''; input.blur(); return; }
+    if (e.key !== 'Enter' || !input.value.trim()) return;
+    const text = input.value.trim();
+    input.value = '';
+    try { await post(`/api/sessions/${input.dataset.sid}/items`, { text }); }
+    catch (err) { input.value = text; toast(`没加上：${esc(err.message)}`); }
+    return;
+  }
+  if (e.key === 'Enter') { e.preventDefault(); commitEdit(input, true); }
+  if (e.key === 'Escape') { e.preventDefault(); commitEdit(input, false); }
+}, true);
+document.addEventListener('focusout', e => {
+  const input = e.target.closest?.('[data-edit="title"], [data-edit="item"]');
+  if (input && S.editing) commitEdit(input, true);
+});
+// 原生窗口：按住标题栏空白处拖动（宿主按真实光标挪窗口）。
+// 悬浮窗用 tickDrag；无边框面板用 tickWin，面板四周的留白也能拖
+const dragZone = t => t.closest('[data-drag]') || (WIN && t.matches('.app,.side,.main') ? t : null);
+document.addEventListener('pointerdown', e => {
+  if (!(NATIVE || WIN) || e.button !== 0 || e.target.closest('button,a,input,label')) return;
+  const zone = dragZone(e.target);
+  if (!zone) return;
+  // 标题栏会随数据重绘被替换，松开事件挂在 document 上，并在拖动期间暂停重绘
+  zone.setPointerCapture(e.pointerId);
+  S.downAt = [e.screenX, e.screenY]; // 松开时用来区分点击和拖动
+  S.dragging = true;
+  const end = () => {
+    for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) document.removeEventListener(t, end, true);
+    S.dragging = false;
+    NATIVE ? window.tickDragEnd() : window.tickWin('dragEnd');
+    schedule();
+  };
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) document.addEventListener(t, end, true);
+  NATIVE ? window.tickDrag() : window.tickWin('drag');
+});
+// 面板：双击标题栏最大化 / 还原，和系统标题栏一样
+document.addEventListener('dblclick', e => {
+  if (WIN && !e.target.closest('button,a,input,label') && dragZone(e.target)) window.tickWin('max');
+});
+window.tickWinState = st => {
+  document.documentElement.toggleAttribute('data-max', !!st.max);
+  const b = document.querySelector('[data-act="win-max"]');
+  if (b) b.title = st.max ? '还原' : '最大化';
+};
+if (WIN) window.tickWin('state');
+$('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) $('guide').hidden = true; });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (!$('guide').hidden) $('guide').hidden = true;
+    else if (S.sel) { S.sel = null; schedule(); }
+    return;
+  }
+  if (FLOAT || e.target.matches('input,textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
+  const ids = groups().flatMap(g => g[1].map(s => s.id));
+  if (e.key === '/' && $('q')) { e.preventDefault(); $('q').focus(); $('q').select(); return; }
+  if ((e.key === 'j' || e.key === 'k') && ids.length) {
+    const at = ids.indexOf(S.sel);
+    openSession(ids[Math.min(Math.max(at + (e.key === 'j' ? 1 : -1), 0), ids.length - 1)], false); // 键盘切换不做动画
+  }
+});
+
+// ============ 计时 ============
+function tickClocks(host) {
+  host.querySelectorAll('[data-clock]').forEach(el => {
+    const k = el.dataset.clock;
+    let v = '';
+    if (k === 'ago') v = ago(Number(el.dataset.at));
+    else {
+      const s = S.sessions.get(el.dataset.sid);
+      if (!s) return;
+      if (k === 'short') v = short(elapsed(s));
+      else if (k === 'elapsed') v = dur(elapsed(s));
+      else if (k === 'work') v = dur(elapsed(s) - waited(s));
+      else if (k === 'wait') v = dur(waited(s));
+      else if (k === 'waitnow') v = s.waitSince ? short(now() - s.waitSince) : '';
+      else if (k === 'item') { const it = s.items.find(x => x.id === el.dataset.iid); v = it ? dur(spent(it)) : ''; }
+    }
+    if (el.textContent !== v) el.textContent = v;
+  });
+}
+// 省电：看不见的时候（窗口隐藏 / 收到托盘 / 收成标签且没有会话在跑 / 浏览器标签页在后台）
+// 停掉每秒的计时刷新和所有循环动画；回来时先补画一次
+let clockTimer = 0;
+let slowTimer = 0;
+S.hostHidden = false;
+function setIdle() {
+  const idle = S.hostHidden || (document.hidden && !pip.win) || (S.dock.tucked && !visible().some(s => s.status === 'running'));
+  if (idle === S.idle) return;
+  S.idle = idle;
+  document.documentElement.toggleAttribute('data-idle', idle);
+  clearInterval(clockTimer);
+  clearInterval(slowTimer);
+  if (!idle) {
+    tickClocks(document);
+    clockTimer = setInterval(() => tickClocks(document), 1000);
+    slowTimer = setInterval(schedule, 30e3); // “没动静”“刚结束”这类随时间变化的分组
+    schedule();
+  }
+}
+S.idle = null;
+setIdle();
+document.addEventListener('visibilitychange', setIdle);
+// 宿主在显示 / 隐藏窗口时调用。藏起来时把“刚结束”和转盘收回去，下次出来是干净的
+window.tickVisible = on => {
+  S.hostHidden = !on;
+  if (!on) { S.histOpen = false; S.fan = false; schedule(); }
+  setIdle();
+};
+
+// ============ 启动 ============
+(async () => {
+  if (FLOAT) document.title = 'Tick 小窗';
+  if (NATIVE) {
+    try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }
+  } else if (FLOAT) {
+    S.compact = qs.has('pill') || store.get('compact', false);
+  }
+  await connect();
+  if (NATIVE) window.tickReady();
+  const hash = location.hash.slice(1);
+  if (hash === 'guide') openGuide();
+  else if (hash && S.sessions.has(hash)) openSession(hash, false);
+  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h === 'guide') openGuide(); else if (S.sessions.has(h)) openSession(h, false); });
+})();
+})();
+</script>
+</body>
+</html>
