@@ -450,6 +450,24 @@ func TestParentSession(t *testing.T) {
 	}
 }
 
+// 登记新会话时：同一 agent 还有没收尾的主会话，就在返回里提醒（子任务、别的 agent、已结束的不算；拿回原会话时不提醒）
+func TestStartHintsUnfinished(t *testing.T) {
+	h := newHarness(t, t.TempDir())
+	old := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "上一件事", "externalId": "conv-a", "items": []string{"一"}})["id"].(string)
+	h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "子任务", "parentId": old})
+	h.ok("POST", "/api/sessions", map[string]any{"agent": "claude", "title": "别的 agent"})
+	done := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "早做完了"})["id"].(string)
+	h.ok("PATCH", "/api/sessions/"+done, map[string]any{"status": "done", "summary": "好"})
+	m := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "新的一件事"})
+	hint, _ := m["hint"].(string)
+	if !strings.Contains(hint, old) || !strings.Contains(hint, "1 个会话没收尾") || strings.Contains(hint, done) || strings.Contains(hint, "子任务") || strings.Contains(hint, "别的 agent") {
+		t.Fatalf("提醒内容不对：%q", hint)
+	}
+	if again := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "上一件事", "externalId": "conv-a"}); again["hint"] != nil {
+		t.Fatalf("拿回原会话时不该提醒：%v", again["hint"])
+	}
+}
+
 // 同一会话先报“做完了”紧接着又问“接下来？”：只留最新那条状态通知没读；agent 主动发的提醒不受影响
 func TestStatusNoticeSupersedes(t *testing.T) {
 	h := newHarness(t, t.TempDir())

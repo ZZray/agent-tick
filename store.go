@@ -73,6 +73,7 @@ type Session struct {
 	StatusNote string  `json:"statusNote"`
 	Summary    string  `json:"summary"`
 	Archived   bool    `json:"archived"`
+	Hint       string  `json:"-"` // 只在命令行解析登记结果时用（服务端的 hint 字段），不存盘
 	CreatedAt  int64   `json:"createdAt"`
 	UpdatedAt  int64   `json:"updatedAt"`
 	EndedAt    int64   `json:"endedAt"`
@@ -695,6 +696,37 @@ type StartInput struct {
 	Agent, Title, ExternalID, Goal, Workspace, Link *string
 	ParentID                                        *string `json:"parentId"` // 子 agent 的会话挂在主会话下
 	Items                                           []json.RawMessage
+}
+
+// Unfinished 同一 agent 还没收尾的其他主会话（不含子任务、不含已归档），最近动过的在前。
+// 新登记会话时提醒 agent：其中有本对话之前开的，就先收尾，或者改用它追加条目，不要一个对话开好几个
+func (st *Store) Unfinished(agent, except string) []*Session {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	var out []*Session
+	for _, s := range st.sessions {
+		if s.ID != except && s.Agent == agent && s.ParentID == "" && !s.Archived && !isEnded(s.Status) {
+			out = append(out, &Session{ID: s.ID, Title: s.Title, Status: s.Status, UpdatedAt: s.UpdatedAt, ExternalID: s.ExternalID})
+		}
+	}
+	slices.SortFunc(out, func(a, b *Session) int { return int(b.UpdatedAt - a.UpdatedAt) })
+	if len(out) > 8 {
+		out = out[:8]
+	}
+	return out
+}
+
+// unfinishedHint 给 agent 看的提醒文字（命令行和 MCP 共用）；没有就返回空
+func unfinishedHint(list []*Session) string {
+	if len(list) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "注意：你还有 %d 个会话没收尾。其中有本对话之前开的，先 tick finish 收尾（或改用它 tick plan / tick add 追加，不要一个对话开多个会话）；别的对话的不用管：", len(list))
+	for _, s := range list {
+		fmt.Fprintf(&b, "\n  %s  %s（%s）", s.ID, s.Title, statusLabel[s.Status])
+	}
+	return b.String()
 }
 
 // Start 登记会话。同 agent + externalId 拿回原会话（attached=true），只追加文字不同的新条目

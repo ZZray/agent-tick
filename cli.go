@@ -127,6 +127,9 @@ func runCLI(port int, args []string) int {
 		}
 		var s Session
 		_ = json.Unmarshal(raw, &s)
+		var h struct{ Hint string }
+		_ = json.Unmarshal(raw, &h)
+		s.Hint = h.Hint
 		return &s, nil
 	}
 	opt := func(k string) *string {
@@ -165,7 +168,10 @@ func runCLI(port int, args []string) int {
 		}
 		s, err = call("POST", "/api/sessions", body)
 		if err == nil {
-			fmt.Println(s.ID)
+			fmt.Println(s.ID) // 第一行永远是会话 ID（agent 靠它取 ID）
+			if s.Hint != "" {
+				fmt.Println(s.Hint)
+			}
 		}
 	case "plan", "add":
 		if !need(2, "会话 ID 和条目") {

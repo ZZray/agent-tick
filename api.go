@@ -175,10 +175,15 @@ func (srv *Server) Handler() http.Handler {
 		if attached {
 			status = 200
 		}
+		var hint string
+		if !attached && s.ParentID == "" {
+			hint = unfinishedHint(st.Unfinished(s.Agent, s.ID))
+		}
 		return status, struct {
 			*Session
-			Attached bool `json:"attached"`
-		}{s, attached}, nil
+			Attached bool   `json:"attached"`
+			Hint     string `json:"hint,omitempty"` // 同一 agent 还有没收尾的会话时，提醒先收尾
+		}{s, attached, hint}, nil
 	})
 	handle("GET /api/sessions/{id}", func(r *http.Request) (int, any, error) {
 		s, err := st.Session(r.PathValue("id"))
