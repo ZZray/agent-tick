@@ -217,22 +217,43 @@ func applyUpdateTo(r *release, exe string) error {
 		os.Remove(tmp)
 		return fmt.Errorf("校验不通过（期望 %s，实际 %s），没有替换", want[:12], got[:12])
 	}
-	_ = os.Remove(exe + ".old")
-	if err := os.Rename(exe, exe+".old"); err != nil {
+	old, err := moveAside(exe)
+	if err != nil {
 		os.Remove(tmp)
 		return fmt.Errorf("挪开旧程序失败：%w", err)
 	}
 	if err := os.Rename(tmp, exe); err != nil {
-		_ = os.Rename(exe+".old", exe) // 放回去
+		_ = os.Rename(old, exe) // 放回去
 		return fmt.Errorf("换上新程序失败：%w", err)
 	}
 	return nil
 }
 
-// cleanupOld 启动时删掉上次更新留下的 .old（那时旧进程已经退出）
+// moveAside 把程序挪开给新版腾位置（正在运行的 exe 不能覆盖，但能改名），返回挪到了哪。
+// 上次留下的 .old 可能还被旧进程占着删不掉（比如 agent 开着的旧版 tick mcp），
+// 这时改用 .old1、.old2…，不然 .old 一直占着，安装和自动更新都会失败
+func moveAside(exe string) (string, error) {
+	old := exe + ".old"
+	for i := 1; ; i++ {
+		_ = os.Remove(old)
+		err := os.Rename(exe, old)
+		if err == nil {
+			return old, nil
+		}
+		if _, statErr := os.Stat(old); statErr != nil || i > 9 { // 不是 .old 挡着，换名字也没用
+			return "", err
+		}
+		old = fmt.Sprintf("%s.old%d", exe, i)
+	}
+}
+
+// cleanupOld 启动时删掉上次更新留下的 .old*（还被占着的删不掉，下次再删）
 func cleanupOld() {
 	if exe, err := os.Executable(); err == nil {
-		_ = os.Remove(exe + ".old")
+		olds, _ := filepath.Glob(exe + ".old*")
+		for _, f := range olds {
+			_ = os.Remove(f)
+		}
 		_ = os.Remove(exe + ".new")
 	}
 }

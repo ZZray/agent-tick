@@ -319,8 +319,7 @@ func copyFile(src, dst string) error {
 	}
 	// 目标正在运行时 Windows 不让覆盖，但允许改名：先把旧的挪开
 	if _, err := os.Stat(dst); err == nil {
-		_ = os.Remove(dst + ".old")
-		if err := os.Rename(dst, dst+".old"); err != nil {
+		if _, err := moveAside(dst); err != nil {
 			return err
 		}
 	}

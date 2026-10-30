@@ -688,6 +688,22 @@ func TestApplyUpdate(t *testing.T) {
 	if err := applyUpdateTo(&release{Tag: "v9.0.0", Assets: rel.Assets[1:]}, exe); err == nil || read(exe) != "old" {
 		t.Fatalf("缺资产应该报错且不动原文件：%v", err)
 	}
+	// 上次的 .old 还被旧进程占着（Windows 上打开的文件删不掉）：照样能更新，旧程序挪到 .old1
+	write()
+	_ = os.WriteFile(exe+".old", []byte("older"), 0o755)
+	held, err := os.Open(exe + ".old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body = good
+	if err := applyUpdateTo(rel, exe); err != nil {
+		t.Fatalf(".old 被占着时更新失败：%v", err)
+	}
+	if read(exe) != string(good) || (read(exe+".old") != "old" && read(exe+".old1") != "old") {
+		t.Fatalf(".old 被占着时替换结果不对：exe=%q old=%q old1=%q", read(exe), read(exe+".old"), read(exe+".old1"))
+	}
+	held.Close()
+	_ = os.Remove(exe + ".old1")
 	// 版本比较：开发版永远比正式版旧，发布版之间按数字比
 	for _, c := range [][3]string{{"v0.5.0", "0.4.1", "1"}, {"v0.4.1", "0.4.1", "0"}, {"v0.4.1", "0.4.1-dev", "1"}, {"v0.4.10", "0.4.9", "1"}, {"v0.4.0", "0.5.0", "0"}} {
 		if got := newer(c[0], c[1]); got != (c[2] == "1") {
