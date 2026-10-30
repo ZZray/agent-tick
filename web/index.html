@@ -146,6 +146,17 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .dmx circle{opacity:.3}
 .dmx[data-ph="0"] .dm0,.dmx[data-ph="1"] .dm1,.dmx[data-ph="2"] .dm2,.dmx[data-ph="3"] .dm3,.dmx[data-ph="4"] .dm4{opacity:1}
 .dmx[data-ph="1"] .dm0,.dmx[data-ph="2"] .dm1,.dmx[data-ph="3"] .dm2,.dmx[data-ph="4"] .dm3,.dmx[data-ph="5"] .dm4{opacity:.6}
+/* 光环：还在等人的图标（等你 / 受阻）和没看的通知，图标本身不动，外面一圈细光从轮廓往外扩散、淡掉，
+   停一会儿再来一次，像在轻轻叫你。和“进行中”的点阵区分开：点阵是在干活，光环是在等人。
+   steps 每秒只更新约 10 次，扩散完的后半段完全透明；看不见时随 [data-idle] 暂停 */
+.ic .rp{opacity:0;transform-box:fill-box;transform-origin:center;pointer-events:none}
+.ic.br,.n-row:not(.read)>.ic,.pv-row>.ic{overflow:visible}
+.ic.br .rp,.n-row:not(.read)>.ic .rp,.pv-row>.ic .rp{animation:ripple 2.8s steps(28) infinite}
+@keyframes ripple{0%{transform:scale(1);opacity:.75}45%{transform:scale(1.75);opacity:0}100%{transform:scale(1.75);opacity:0}}
+/* 托盘预览里一排都是未读：依次错开，不一起闪 */
+.pv-row:nth-child(2)>.ic .rp{animation-delay:.35s} .pv-row:nth-child(3)>.ic .rp{animation-delay:.7s}
+.pv-row:nth-child(4)>.ic .rp{animation-delay:1.05s} .pv-row:nth-child(n+5)>.ic .rp{animation-delay:1.4s}
+@media (prefers-reduced-motion:reduce){.ic .rp{animation:none!important}}
 /* 签名动效：条目勾上时，圆点先鼓一下，对勾再描出来（这是全产品唯一的“表演”） */
 /* 会话做完时只描会话自己的那个状态图标（行首 / 标签里的环），不连带清单里所有已完成条目一起重播 */
 :is(.just,.celebrate>.s-head .s-l1,.mini.celebrate,.row.celebrate) > :is(.ic,svg) .ic-fill,.just .ic-fill{transform-box:fill-box;transform-origin:center;animation:pop 260ms var(--ease-out)}
@@ -671,7 +682,6 @@ html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body{bac
 .pv-h b{color:var(--text-1);font-weight:600;font-size:13px}
 .pv-n{min-width:18px;height:16px;padding:0 5px;border-radius:8px;display:grid;place-items:center;font-size:10.5px;font-weight:650;
   background:color-mix(in srgb,var(--brand) 22%,transparent);color:var(--brand-hi)}
-.pv-hint{font-size:11px;color:var(--text-4);white-space:nowrap}
 .pv-list{display:flex;flex-direction:column;padding:4px}
 .pv-row{display:flex;align-items:flex-start;gap:9px;width:100%;padding:7px 8px;border-radius:var(--r);text-align:left;
   transition:background-color var(--t-hover) var(--ease)}
@@ -1199,7 +1209,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '点一条打开，全部算已读': 'Click one to open; all marked read', '永久删除…': 'Delete…', '再点一次：连同子任务一起删，不能撤销': 'Click again to delete with sub-tasks. This cannot be undone.', '再点一次：删掉，不能撤销': 'Click again to delete. This cannot be undone.', '没报进度 ·': 'no report ·', '：多半已经停了或窗口关了': ': it has probably stopped or the window was closed', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '永久删除…': 'Delete…', '再点一次：连同子任务一起删，不能撤销': 'Click again to delete with sub-tasks. This cannot be undone.', '再点一次：删掉，不能撤销': 'Click again to delete. This cannot be undone.', '没报进度 ·': 'no report ·', '：多半已经停了或窗口关了': ': it has probably stopped or the window was closed', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1376,7 +1386,12 @@ const SI = {
   info: '<circle cx="7" cy="7" r="3" fill="var(--blue)"/>',
 };
 SI.doing = SI.running;
-const sicon = (k, label = STATUS[k] || ITEM[k] || k) => `<svg class="ic${k === 'running' || k === 'doing' ? ' dmx' : ''}" width="14" height="14" viewBox="0 0 14 14" role="img" aria-label="${esc(label)}">${SI[k] || SI.info}</svg>`;
+// 光环（.rp）：等你 / 受阻（br）一直有；通知类图标的光环只在未读的通知行、托盘预览里出现（见 CSS）。
+// 半径贴着图标的轮廓，颜色跟图标走
+const RP = { waiting: [5.5, 'var(--orange)'], blocked: [5.5, 'var(--red)'], done: [6, 'var(--green)'], failed: [6, 'var(--red)'],
+  success: [3.2, 'var(--green)'], warning: [3.2, 'var(--yellow)'], info: [3.2, 'var(--blue)'] };
+const rpHtml = k => RP[k] ? `<circle class="rp" cx="7" cy="7" r="${RP[k][0]}" fill="none" stroke="${RP[k][1]}" stroke-width="1.2"/>` : '';
+const sicon = (k, label = STATUS[k] || ITEM[k] || k) => `<svg class="ic${k === 'running' || k === 'doing' ? ' dmx' : k === 'waiting' || k === 'blocked' ? ' br' : ''}" width="14" height="14" viewBox="0 0 14 14" role="img" aria-label="${esc(label)}">${rpHtml(k)}${SI[k] || SI.info}</svg>`;
 const ring = p => {
   const c = 2 * Math.PI * 5.5;
   return `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="none" stroke="var(--line-strong)" stroke-width="1.5"/><circle class="ring-v" cx="7" cy="7" r="5.5" fill="none" stroke="var(--text-2)" stroke-width="1.5" stroke-dasharray="${(p * c).toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 7 7)"/></svg>`;
@@ -1781,6 +1796,7 @@ function startPeek() {
   window.tickPeekGlass?.().then(on => document.documentElement.toggleAttribute('data-glass', !!on));
   window.tickPeekShow = d => {
     S.peek = d;
+    document.documentElement.removeAttribute('data-idle');
     render();
     const box = root.querySelector('.pk-box');
     if (box && !RM.matches) {
@@ -1790,7 +1806,8 @@ function startPeek() {
     }
     requestAnimationFrame(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickPeekFit(el.offsetWidth, el.offsetHeight); });
   };
-  window.tickPeekHidden = () => tipHide();
+  // 藏起来时停掉呼吸：隐藏的窗口不一定会让 document.hidden 变真
+  window.tickPeekHidden = () => { tipHide(); document.documentElement.setAttribute('data-idle', ''); };
   root.addEventListener('click', async e => {
     const b = e.target.closest('[data-p]');
     if (!b) return;
@@ -1815,7 +1832,7 @@ function renderPeek() {
   const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' };
   morph(root, `<div class="pk-box">
     <header class="pv-h"><span class="logo">${IC.logo}</span><b>未读</b><span class="pv-n num">${d.total}</span><span class="grow"></span>
-      <span class="pv-hint">点一条打开，全部算已读</span></header>
+</header>
     <div class="pv-list">${d.items.map(n => `<button class="pv-row" data-p="open" data-id="${esc(n.ID)}" data-key="pv-${esc(n.ID)}">${sicon(n.Kind)}
       <span class="pv-tx"><span class="pv-t"><b>${esc(agentOf(n.Agent).name)}</b> ${verb[n.Kind] || ''}${n.Title ? `<em>${esc(n.Title)}</em>` : ''}</span>
       <span class="pv-s">${esc(firstLine(n.Text))}</span></span><span class="when num">${ago(n.At)}</span></button>`).join('')}</div>
