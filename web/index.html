@@ -466,6 +466,10 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .pill-tx .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill-tx b{color:var(--text-1);font-weight:510}
 .pill-tx .p{color:var(--text-3);font-size:12px;flex-shrink:0}
+/* 轮换位置：几个点，当前这个亮一点（最多 6 个） */
+.pill-dots{display:flex;gap:3px;flex-shrink:0}
+.pill-dots i{width:4px;height:4px;border-radius:50%;background:var(--text-4);opacity:.6}
+.pill-dots i.on{background:var(--text-2);opacity:1}
 .badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--orange);color:#08090A;font-size:11px;font-weight:600}
 
 /* ============ 铃铛 + 通知抽屉 ============
@@ -836,6 +840,12 @@ html:not([data-glass]) .f.fanning{background:var(--bg-2)}
 .fan.closing .fs{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0;transition:transform 200ms ease-in,opacity 180ms var(--ease);transition-delay:calc((8 - var(--i)) * 10ms)}
 .fan.closing .fg-l{scale:0 1;transition:scale 160ms ease-in}
 .fan.closing .fh>*{opacity:0;transition:opacity 120ms var(--ease)}
+/* 窗口换尺寸前的一瞬：只露出扮成横条的圆心按钮，其余的入场动画先停着，窗口到位后一起开始 */
+.fan.hold>:not(.fh){visibility:hidden}
+.fan.hold *{animation-play-state:paused!important}
+/* 横条和圆心互变时：按钮裁掉横条上的文字，悬停放大先关掉（不然横条一出来就大一圈） */
+.fh.morph{overflow:hidden;scale:none!important;transition:none}
+.fh>.fh-ghost{position:absolute;left:0;top:0;animation:none;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.fs,.fc,.fg-l,.fh>*,.f-drawer{animation:none}.fs,.fc,.tb .mini{transition:opacity 120ms linear}}
 
 /* ======================================================================
@@ -1497,7 +1507,7 @@ function ingestNotice(n) {
     sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
     noticeGlow(n.kind);
     if (NATIVE && S.dock.tucked) speakFor(n);
-    if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) S.drawerWant = true;
+    if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) { S.drawerWant = true; S.pillSid = n.sessionId; } // 胶囊先换到提问的那个
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
     if (FLOAT && !RM.matches) {
       setTimeout(() => {
@@ -1980,8 +1990,12 @@ function floatData() {
   const stale = open.filter(isDormant);
   const recent = top.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN)
     .sort((a, b) => (S.order === 'old' ? a.endedAt - b.endedAt : b.endedAt - a.endedAt));
-  const nW = live.filter(isWaiting).length;
-  const nR = live.filter(isRunning).length;
+  // 标题上的数字按列表里的行数（一个任务一行，子 agent 算在主任务里）：
+  // 自己或手下的子 agent 在等你的算“等你”，其余算“进行中”，两个数加起来就是“进行中”分组的行数
+  const needsYou = s => isWaiting(s) || childrenOf(s).some(isWaiting);
+  // （主任务掉线了、子 agent 还在等你的也要数上，不能把等你的漏掉）
+  const nW = [...active, ...stale].filter(needsYou).length;
+  const nR = active.filter(s => !needsYou(s)).length;
   return { unread, cards: cards.slice(0, 3), active, stale, recent, nW, nR };
 }
 
@@ -2252,7 +2266,7 @@ function renderFloat(el, mode) {
       ${acts}
     </header>
     <div class="f-body">
-      ${d.active.length ? group('g-a', '进行中', d.active.reduce((n, s) => n + 1 + childrenOf(s).filter(c => isRunning(c) || isWaiting(c)).length, 0), `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
+      ${d.active.length ? group('g-a', '进行中', d.active.length, `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
       ${staleG}
       ${hist}
       ${S.undo && now() < S.undo.until ? `<div class="undo" data-key="undo" data-enter="grow" data-exit><span>${esc(tr(S.undo.text))}</span><button class="g-act" data-act="undo">撤销</button></div>` : ''}
@@ -2517,28 +2531,44 @@ function wireFloat(el, mode) {
     toggleCompact();
   });
   if (mode === 'native') {
-    // 胶囊悬停 160ms 才拉开（一扫而过不打扰）。圆心钉在鼠标下面：先让宿主记住这一点在屏幕上的位置，
-    // 之后每次报尺寸都带上圆心在页面里的位置，宿主把窗口摆到圆心正好落在那一点（fitAt）。
-    // 打开：横条缩成鼠标下的圆，面板围着它长出来，任务再从圆心弹出去；离开 280ms 后倒着来
-    let fanT = 0, mx = 150, fanFx = [];
+    // 胶囊悬停 480ms 才拉开：一扫而过不打扰，也给双击留出时间（双击是展开成完整面板）；
+    // 按下过鼠标（单击、双击、开始拖）就不拉开，松手后重新计时。
+    // 圆心钉在鼠标下面：先让宿主记住这一点在屏幕上的位置，之后报尺寸时带上圆心在页面里的位置，
+    // 宿主把窗口摆到圆心正好落在那一点（fitAt）。
+    // 窗口只改一次尺寸：先把窗口一步换到环形列表的大小，等它到位后再在页面里做动画。
+    // 动画中途每帧改窗口尺寸会卡（窗口跟不上内容，实测一次卡 150ms 以上，圆圈几乎没有中间帧）
+    let fanT = 0, mx = 150, fanFx = [], pressed = false;
     const box = () => el.firstElementChild;
+    const FAN_DELAY = 480, FAN_MS = 380;
     el.addEventListener('pointermove', e => { if (!S.fan) mx = e.clientX; }, { passive: true });
+    // 横条在页面里的矩形，换成圆心按钮（.fh）的 left/top/width/height 关键帧
+    const pillKey = (f, fanBox) => ({ left: `${f.px - fanBox.left}px`, top: `${f.py - fanBox.top}px`, width: `${f.w}px`, height: `${f.h}px`, borderRadius: `${f.h / 2}px` });
+    const hubKey = g => ({ left: `${g.hx - FAN.hub}px`, top: `${g.hy - FAN.hub}px`, width: `${FAN.hub * 2}px`, height: `${FAN.hub * 2}px`, borderRadius: `${FAN.hub}px` });
+    // 横条缩成圆心 / 圆心变回横条：两头同时往鼠标那一点收（或从那一点往两头长），
+    // 横条上的文字留在原处被收窄的边裁掉，前 40% 淡出（变回去时后 40% 淡入）
     const morphFan = open => {
       const f = S.fanFrom, g = S.fanGeo, fan = el.querySelector('.fan'), hub = fan?.querySelector('.fh');
       fanFx.forEach(a => a.cancel());
       fanFx = [];
-      if (!f || !g || !fan || RM.matches) return null;
-      const opt = { duration: open ? 420 : 300, easing: open ? 'cubic-bezier(.2,.8,.2,1)' : 'cubic-bezier(.4,0,.6,1)', fill: open ? 'none' : 'forwards' };
-      const dir = k => (open ? k : [...k].reverse());
-      // 面板从横条的大小长到完整大小；里层同时平移，让圆心始终在鼠标那一点
-      fanFx.push(box().animate(dir([{ width: `${f.w}px`, height: `${f.h}px` }, { width: `${g.W}px`, height: `${g.H}px` }]), opt));
-      fanFx.push(fan.animate(dir([{ transform: `translate(${f.mx - g.hx}px,${f.my - g.hy}px)` }, { transform: 'none' }]), opt));
-      // 横条本身缩成圆心：先变成鼠标下的小圆，再长成圆心
-      const r0 = { left: `${g.hx - f.mx}px`, top: `${g.hy - f.my}px`, width: `${f.w}px`, height: `${f.h}px`, borderRadius: `${f.h / 2}px` };
-      const r1 = { left: `${g.hx - 16}px`, top: `${g.hy - 16}px`, width: '32px', height: '32px', borderRadius: '16px', offset: 0.45 };
-      const r2 = { left: `${g.hx - FAN.hub}px`, top: `${g.hy - FAN.hub}px`, width: `${FAN.hub * 2}px`, height: `${FAN.hub * 2}px`, borderRadius: `${FAN.hub}px` };
-      if (hub) fanFx.push(hub.animate(dir([r0, r1, r2]).map((k, i) => ({ ...k, offset: i === 1 ? (open ? 0.45 : 0.55) : i ? 1 : 0 })), opt));
-      return fanFx[0];
+      if (!f || !g || !fan || !hub || RM.matches) return null;
+      const fanBox = fan.getBoundingClientRect();
+      const a = pillKey(f, fanBox), b = hubKey(g);
+      const opt = { duration: open ? FAN_MS : 300, easing: open ? 'cubic-bezier(.2,.8,.2,1)' : 'cubic-bezier(.4,0,.2,1)', fill: open ? 'none' : 'forwards' };
+      hub.classList.add('morph');
+      const ghost = f.ghost;
+      if (ghost) {
+        hub.prepend(ghost);
+        // 文字钉在横条的原位置：按钮挪多少，文字就反方向挪多少（同一条缓动曲线，所以逐帧对得上）
+        const dx = parseFloat(a.left) - parseFloat(b.left), dy = parseFloat(a.top) - parseFloat(b.top);
+        const at = p => `translate(${(dx * p).toFixed(1)}px,${(dy * p).toFixed(1)}px)`;
+        fanFx.push(ghost.animate(open
+          ? [{ transform: at(0), opacity: 1 }, { transform: at(0.4), opacity: 0, offset: 0.4 }, { transform: at(1), opacity: 0 }]
+          : [{ transform: at(1), opacity: 0 }, { transform: at(0.4), opacity: 0, offset: 0.6 }, { transform: at(0), opacity: 1 }], opt));
+      }
+      const main = hub.animate(open ? [a, b] : [b, a], opt);
+      fanFx.push(main);
+      main.finished.then(() => { if (open) { hub.classList.remove('morph'); ghost?.remove(); } }, () => {});
+      return main;
     };
     // 回到横条：窗口先回原位，再取消钉住（顺序很重要：宿主按调用顺序执行）
     const fanRestore = () => {
@@ -2554,31 +2584,87 @@ function wireFloat(el, mode) {
       clearTimeout(fanT);
       mx = e.clientX;
       const closing = el.querySelector('.fan.closing');
+      if (closing && !S.fanFrom) return; // 窗口已经在变回横条了：等它画完
       if (closing) { // 正在收：原路弹回来
         closing.classList.remove('closing');
         fanFx.forEach(a => a.cancel());
         fanFx = [];
+        S.fanFrom?.ghost?.remove();
+        closing.querySelector('.fh')?.classList.remove('morph');
         return;
       }
-      if (!S.compact || S.dock.tucked || S.fan || S.dragging) return;
-      fanT = setTimeout(async () => {
-        const r = box().getBoundingClientRect();
-        const from = { w: r.width, h: r.height, mx: Math.round(mx), my: Math.round(r.height / 2) };
-        const room = await window.tickAnchor(from.mx, from.my);
-        if (!el.matches(':hover') || !S.compact || S.fan) { window.tickAnchor(-1, 0); return; } // 等宿主回话时鼠标已经走了
-        S.fanFrom = from;
-        S.fanRoom = room;
-        S.fan = true;
-        tipHide();
-        window.tickClear?.(true); // 窗口变透明（没开毛玻璃时宿主不改，页面保留实底）
-        render();
-        morphFan(true);
-      }, 160);
+      pressed = false;
+      armFan();
     });
-    // 收起：卡片先淡掉、小圆收回圆心，再把圆心拉回横条
+    el.addEventListener('pointerdown', () => { pressed = true; clearTimeout(fanT); }, { passive: true });
+    el.addEventListener('pointerup', () => { pressed = false; armFan(); }, { passive: true });
+    function armFan() {
+      clearTimeout(fanT);
+      if (!S.compact || S.dock.tucked || S.fan || S.dragging) return;
+      fanT = setTimeout(openFan, FAN_DELAY);
+    }
+    async function openFan() {
+      const r = box().getBoundingClientRect();
+      const from = { w: r.width, h: r.height, mx: Math.round(mx), my: Math.round(r.height / 2), sx: screenX, sy: screenY };
+      const room = await window.tickAnchor(from.mx, from.my);
+      // 等宿主回话时鼠标已经走了、按下了、或者双击展开了
+      if (!el.matches(':hover') || !S.compact || S.fan || pressed || S.dragging) { window.tickAnchor(-1, 0); return; }
+      const ghost = RM.matches ? null : box().querySelector(':scope > .f-in')?.cloneNode(true);
+      if (ghost) {
+        ghost.removeAttribute('data-key');
+        ghost.classList.add('fh-ghost');
+        Object.assign(ghost.style, { width: `${from.w}px`, height: `${from.h}px` });
+      }
+      S.fanFrom = { ...from, ghost, px: 0, py: 0 };
+      S.fanRoom = room;
+      S.fan = true;
+      tipHide();
+      window.tickClear?.(true); // 窗口变透明（没开毛玻璃时宿主不改，页面保留实底）
+      render();
+      const fan = el.querySelector('.fan'), hub = fan?.querySelector('.fh');
+      if (!fan || !hub || RM.matches) return;
+      // 窗口换尺寸之前：圆心按钮先扮成横条，放在页面左上角（横条原来的位置），其余先藏着、入场动画先停着
+      fan.classList.add('hold');
+      const fb = fan.getBoundingClientRect();
+      const hold = hub.animate([pillKey(S.fanFrom, fb), pillKey(S.fanFrom, fb)], { duration: 1, fill: 'forwards' });
+      hub.classList.add('morph');
+      if (ghost) hub.prepend(ghost);
+      // 等窗口换到新尺寸，横条马上挪到新窗口里对应的位置（按屏幕坐标换算，贴着屏幕边被挡住时也对得上）
+      const want = Math.ceil(S.fanGeo.W);
+      await settle(() => Math.abs(innerWidth - want) <= 2, 400, 0);
+      if (!S.fan || S.fanFrom?.ghost !== ghost) { hold.cancel(); return; }
+      S.fanFrom.px = from.sx - screenX;
+      S.fanFrom.py = from.sy - screenY;
+      hold.effect.setKeyframes([pillKey(S.fanFrom, fan.getBoundingClientRect()), pillKey(S.fanFrom, fan.getBoundingClientRect())]);
+      // 窗口刚变大的那几帧会卡一下（实测 150ms 左右）：等帧率稳住再开始，动画才有完整的中间帧
+      await settle(() => true, 300, 2);
+      if (!S.fan || S.fanFrom?.ghost !== ghost) { hold.cancel(); return; }
+      fan.classList.remove('hold');
+      morphFan(true);
+      hold.cancel();
+    }
+    // 一帧一帧等到 ok() 成立，再等 calm 个间隔正常（< 25ms）的帧；最多等 max 毫秒
+    async function settle(ok, max, calm) {
+      const t0 = performance.now();
+      let last = t0, n = 0;
+      while (performance.now() - t0 < max) {
+        const t = await new Promise(requestAnimationFrame);
+        if (ok()) { n = calm && t - last < 25 ? n + 1 : 0; if (n >= calm) return; }
+        last = t;
+      }
+    }
+    // 收起：卡片先淡掉、小圆收回圆心，圆心再往两头拉长回横条（文字淡回来），最后窗口一步变回横条大小
     const closeFan = () => {
       const fan = el.querySelector('.fan');
-      const done = () => { S.fan = false; render(); fanRestore(); };
+      // 先让窗口回到横条的位置和大小，到位后再画横条：反过来的话，横条会在大窗口的左上角闪一下
+      const done = async () => {
+        const w = S.fanFrom?.w;
+        fanRestore();
+        if (w && !RM.matches) await settle(() => Math.abs(innerWidth - Math.ceil(w)) <= 2, 300, 0);
+        S.fan = false;
+        render();
+        if (el.matches(':hover')) armFan(); // 鼠标又回到了横条上：照常计时再拉开
+      };
       if (!fan || RM.matches) return done();
       tipHide();
       fan.classList.add('closing');
@@ -2644,18 +2730,21 @@ function toggleCompact() {
     { duration: 200, delay: S.compact ? 140 : 110, easing: EASE_OUT, fill: 'backwards' });
 }
 
-// 胶囊里放最要紧的一件事：先等你，其次正在做的那一步
+// 胶囊（单行）轮流显示“进行中”分组里的每个会话，每 4 秒换一个（见下面的计时器），在等你的排在前面。
+// 一行写：状态图标、会话标题、正在做的一步（等你时写问题）、进度。换会话时新的一行从下面淡入
+const pillList = d => [...d.active.filter(isWaiting), ...d.active.filter(s => !isWaiting(s))];
 function pillHtml(d, live) {
-  const waiting = visible().filter(isWaiting).sort(byUpdated)[0];
-  if (waiting) {
-    return `<span class="pill-tx" data-key="pill-w">${sicon(waiting.status)}<span class="tx"><b>${esc(agentOf(waiting.agent).name)}</b> ${esc(firstLine(waiting.statusNote || '等你回复'))}</span>${d.nW > 1 ? `<span class="badge num" data-roll>${d.nW}</span>` : ''}</span>`;
-  }
-  const running = visible().filter(s => s.status === 'running' && current(s)).sort(byUpdated)[0];
-  if (running) {
-    const p = progress(running);
-    return `<span class="pill-tx" data-key="pill-r">${sicon('running')}<span class="tx${live() ? ' sweep' : ''}" data-key="pill-step-${esc(current(running).id)}-${esc(running.id)}" data-enter="fade">${esc(current(running).text)}</span><span class="p num"><span data-roll>${p.done}</span>/${p.total}</span></span>`;
-  }
-  return `<span class="pill-tx" data-key="pill-q"><span class="tx t3">${d.nR ? `${d.nR} 个会话在跑` : '都安静着'}</span></span>`;
+  const list = pillList(d);
+  const s = list.find(x => x.id === S.pillSid) || list[0];
+  if (!s) return `<span class="pill-tx" data-key="pill-q"><span class="tx t3">${d.recent.length || d.stale.length ? '没有进行中的会话' : '都安静着'}</span></span>`;
+  S.pillSid = s.id;
+  const p = progress(s);
+  const step = current(s);
+  const sub = isWaiting(s) ? firstLine(s.statusNote || '等你回复') : step ? step.text : subline(s);
+  const ticking = s.status === 'running' && !!step && live();
+  return `<span class="pill-tx" data-key="pill-${esc(s.id)}" data-enter="fade">${sicon(isDormant(s) ? 'dormant' : s.status)}
+    <span class="tx"><b>${esc(s.title)}</b> <span class="${ticking ? 'sweep' : 't3'}" data-key="pill-step-${esc(step?.id || s.status)}">${esc(sub)}</span></span>
+    ${p.total ? `<span class="p num"><span data-roll>${p.done}</span>/${p.total}</span>` : ''}${list.length > 1 ? `<span class="pill-dots" data-tip="${list.length} 个进行中，轮流显示">${list.slice(0, 6).map((x, i) => `<i${x === s || (i === 5 && list.indexOf(s) > 5) ? ' class="on"' : ''}></i>`).join('')}</span>` : ''}</span>`;
 }
 
 // 清单分模块时的段标题：模块名 + 这个模块勾了几项（悬浮窗、面板详情、卡片背面共用）。没分模块的条目不出标题
@@ -3637,6 +3726,15 @@ function edgeBeam(el, color, dur = 1800) {
     { duration: dur, easing: 'cubic-bezier(.45,.05,.55,.95)' }).finished.finally(() => fx.remove()).catch(() => {});
 }
 if (!TOAST && !MENU) setInterval(() => { pulse(document); if (pip.win) pulse(pip.win.document); }, 3200);
+// 胶囊轮换：鼠标停在上面（在看）、拉开转盘、拖动、窗口藏着时不换
+if (FLOAT) setInterval(() => {
+  if (!S.compact || S.fan || S.dragging || S.idle || root.matches(':hover')) return;
+  const list = pillList(floatData());
+  if (list.length < 2) return;
+  const i = list.findIndex(s => s.id === S.pillSid);
+  S.pillSid = list[(i + 1) % list.length].id;
+  schedule();
+}, 4000);
 // 主题色：宿主给 {brand, hi, lo}，只接受 #RRGGBB；悬浮窗、置顶小窗、托盘菜单都换同一组变量
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 function setTheme(t) {
