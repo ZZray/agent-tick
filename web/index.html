@@ -780,9 +780,10 @@ html:not([data-glass]) .f.fanning{background:var(--bg-2)}
 .fh:hover,.fh:focus-visible{outline:none;scale:1.06;box-shadow:0 0 0 1px color-mix(in srgb,var(--brand) 55%,transparent),0 0 0 6px color-mix(in srgb,var(--brand) 14%,transparent),var(--lift)}
 .fh:active{scale:.96}
 .fh>*{animation:fade 180ms 300ms var(--ease) backwards}
-.fh svg{position:absolute;inset:0}
-.fh b{position:relative;font-size:17px;font-weight:650;color:var(--text-1);letter-spacing:-.02em}
-.fh .wd{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2.5px var(--bg-3)}
+/* 只管圆心自己的直接子元素：变形时按钮里会放一份横条副本，别把副本里的图标、文字也改了 */
+.fh>svg{position:absolute;inset:0}
+.fh>b{position:relative;font-size:17px;font-weight:650;color:var(--text-1);letter-spacing:-.02em}
+.fh>.wd{position:absolute;top:3px;right:3px;width:10px;height:10px;border-radius:50%;background:var(--orange);box-shadow:0 0 0 2.5px var(--bg-3)}
 @keyframes fade{from{opacity:0}}
 /* 一个任务 = 连线 + 小圆 + 信息卡，放在同一个零尺寸的组里，悬停任何一个三者一起亮 */
 .fg{position:absolute;left:0;top:0;width:0;height:0}
@@ -2352,7 +2353,9 @@ function drawerHtml(d) {
 const FAN = { max: 6, bub: 16, hub: 28, cw: 236, ch: 58, gap: 10, pad: 28, step: 66 };
 // 布局照着草图：任务上下等距排成一列，横向沿圆弧往外鼓（离圆心远近随高度变），
 // 卡片横着放在小圆外侧、右边缘对齐小圆；整列朝屏幕上空旷的那一侧（窗口靠右就往左排）
-function fanLayout(n, room) {
+// pill：从横条拉开时横条相对圆心的位置 {l, t, r, b}。窗口要把横条原来的位置也包进去，
+// 不然横条变成圆的那几帧，伸出窗口的那半截被裁掉，看着只剩半个
+function fanLayout(n, room, pill) {
   const dir = room.l >= room.r ? -1 : 1;
   const half = (n - 1) * FAN.step / 2;
   // 上下放不下时整列往有空间的一边挪（圆心仍在鼠标下）
@@ -2363,6 +2366,7 @@ function fanLayout(n, room) {
   const R = Math.max(FAN.hub + FAN.bub + 52, Math.abs(y0) + 40, Math.abs(y0 + 2 * half) + 40);
   const items = [];
   const pts = [[-FAN.hub, -FAN.hub], [FAN.hub, FAN.hub]];
+  if (pill) pts.push([pill.l, pill.t], [pill.r, pill.b]);
   for (let i = 0; i < n; i++) {
     const by = n <= 1 ? 0 : y0 + i * FAN.step;
     const bx = dir * Math.sqrt(R * R - by * by);
@@ -2380,7 +2384,8 @@ function fanHtml(d, live) {
   const shown = list.length > FAN.max ? list.slice(0, FAN.max - 1) : list;
   const more = list.length - shown.length;
   const n = Math.max(1, shown.length + (more > 0 ? 1 : 0));
-  const g = fanLayout(n, S.fanRoom || { l: 400, r: 400, u: 300, d: 300 });
+  const f = S.fanFrom;
+  const g = fanLayout(n, S.fanRoom || { l: 400, r: 400, u: 300, d: 300 }, f && { l: -f.mx, t: -f.my, r: f.w - f.mx, b: f.h - f.my });
   S.fanGeo = g;
   const stColor = s => (isWaiting(s) ? 'var(--orange)' : s.status === 'failed' ? 'var(--red)' : isEnded(s) ? 'var(--green)' : isDormant(s) ? 'var(--text-4)' : 'var(--brand)');
   const C = 2 * Math.PI * 14;
@@ -2542,7 +2547,8 @@ function wireFloat(el, mode) {
     const FAN_DELAY = 480, FAN_MS = 380;
     el.addEventListener('pointermove', e => { if (!S.fan) mx = e.clientX; }, { passive: true });
     // 横条在页面里的矩形，换成圆心按钮（.fh）的 left/top/width/height 关键帧
-    const pillKey = (f, fanBox) => ({ left: `${f.px - fanBox.left}px`, top: `${f.py - fanBox.top}px`, width: `${f.w}px`, height: `${f.h}px`, borderRadius: `${f.h / 2}px` });
+    // fx/fy：横条左上角在 .fan 里的坐标
+    const pillKey = f => ({ left: `${f.fx}px`, top: `${f.fy}px`, width: `${f.w}px`, height: `${f.h}px`, borderRadius: `${f.h / 2}px` });
     const hubKey = g => ({ left: `${g.hx - FAN.hub}px`, top: `${g.hy - FAN.hub}px`, width: `${FAN.hub * 2}px`, height: `${FAN.hub * 2}px`, borderRadius: `${FAN.hub}px` });
     // 横条缩成圆心 / 圆心变回横条：两头同时往鼠标那一点收（或从那一点往两头长），
     // 横条上的文字留在原处被收窄的边裁掉，前 40% 淡出（变回去时后 40% 淡入）
@@ -2551,8 +2557,7 @@ function wireFloat(el, mode) {
       fanFx.forEach(a => a.cancel());
       fanFx = [];
       if (!f || !g || !fan || !hub || RM.matches) return null;
-      const fanBox = fan.getBoundingClientRect();
-      const a = pillKey(f, fanBox), b = hubKey(g);
+      const a = pillKey(f), b = hubKey(g);
       const opt = { duration: open ? FAN_MS : 300, easing: open ? 'cubic-bezier(.2,.8,.2,1)' : 'cubic-bezier(.4,0,.2,1)', fill: open ? 'none' : 'forwards' };
       hub.classList.add('morph');
       const ghost = f.ghost;
@@ -2615,7 +2620,7 @@ function wireFloat(el, mode) {
         ghost.classList.add('fh-ghost');
         Object.assign(ghost.style, { width: `${from.w}px`, height: `${from.h}px` });
       }
-      S.fanFrom = { ...from, ghost, px: 0, py: 0 };
+      S.fanFrom = { ...from, ghost, fx: 0, fy: 0 };
       S.fanRoom = room;
       S.fan = true;
       tipHide();
@@ -2623,19 +2628,23 @@ function wireFloat(el, mode) {
       render();
       const fan = el.querySelector('.fan'), hub = fan?.querySelector('.fh');
       if (!fan || !hub || RM.matches) return;
-      // 窗口换尺寸之前：圆心按钮先扮成横条，放在页面左上角（横条原来的位置），其余先藏着、入场动画先停着
+      // 窗口换尺寸之前：圆心按钮先扮成横条，直接放在新窗口里横条原来的位置（圆心在鼠标下，所以横条在
+      // 圆心左上方 mx、my 处）。窗口还没换过来的那一两帧，小窗口里看不到它；换过来后正好对上，不会先跳到左上角。
+      // 其余先藏着、入场动画先停着
       fan.classList.add('hold');
-      const fb = fan.getBoundingClientRect();
-      const hold = hub.animate([pillKey(S.fanFrom, fb), pillKey(S.fanFrom, fb)], { duration: 1, fill: 'forwards' });
+      const g = S.fanGeo;
+      S.fanFrom.fx = g.hx - from.mx;
+      S.fanFrom.fy = g.hy - from.my;
+      const hold = hub.animate([pillKey(S.fanFrom), pillKey(S.fanFrom)], { duration: 1, fill: 'forwards' });
       hub.classList.add('morph');
       if (ghost) hub.prepend(ghost);
-      // 等窗口换到新尺寸，横条马上挪到新窗口里对应的位置（按屏幕坐标换算，贴着屏幕边被挡住时也对得上）
-      const want = Math.ceil(S.fanGeo.W);
-      await settle(() => Math.abs(innerWidth - want) <= 2, 400, 0);
+      // 等窗口换到新尺寸。贴着屏幕边、窗口被挤开时，按屏幕坐标重新对一次
+      await settle(() => Math.abs(innerWidth - Math.ceil(g.W)) <= 2, 400, 0);
       if (!S.fan || S.fanFrom?.ghost !== ghost) { hold.cancel(); return; }
-      S.fanFrom.px = from.sx - screenX;
-      S.fanFrom.py = from.sy - screenY;
-      hold.effect.setKeyframes([pillKey(S.fanFrom, fan.getBoundingClientRect()), pillKey(S.fanFrom, fan.getBoundingClientRect())]);
+      const fb = fan.getBoundingClientRect();
+      S.fanFrom.fx = from.sx - screenX - fb.left;
+      S.fanFrom.fy = from.sy - screenY - fb.top;
+      hold.effect.setKeyframes([pillKey(S.fanFrom), pillKey(S.fanFrom)]);
       // 窗口刚变大的那几帧会卡一下（实测 150ms 左右）：等帧率稳住再开始，动画才有完整的中间帧
       await settle(() => true, 300, 2);
       if (!S.fan || S.fanFrom?.ghost !== ghost) { hold.cancel(); return; }
