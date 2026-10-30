@@ -387,31 +387,29 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .tb{flex:none;display:flex;flex-direction:column;align-items:center;gap:7px;width:30px;padding:7px 0 8px;cursor:pointer;user-select:none}
 :is([data-dock=top],[data-dock=bottom]) .tb{flex-direction:row;width:auto;height:30px;padding:0 9px 0 7px}
 [data-dock=bottom] .f.native.tucked{align-items:flex-end}
-/* 细条：8px 粗，每个任务一段；横贴（上 / 下）时横着，竖贴（左 / 右）时竖着 */
-.tb.strip{gap:8px;padding:0;width:auto;height:auto;cursor:pointer}
-.sb{display:flex;flex-direction:column;gap:2px;padding:2px;width:8px;height:calc(var(--n) * 34px + 4px);max-height:300px;border-radius:4px;background:var(--bg-2)}
-:is([data-dock=top],[data-dock=bottom]) .sb{flex-direction:row;width:calc(var(--n) * 44px + 4px);max-width:360px;height:8px}
-.sb-g{flex:1;border-radius:2px;background:linear-gradient(to bottom,var(--c) var(--p),color-mix(in srgb,var(--c) 26%,transparent) var(--p));transition:filter 160ms var(--ease)}
-:is([data-dock=top],[data-dock=bottom]) .sb-g{background:linear-gradient(to right,var(--c) var(--p),color-mix(in srgb,var(--c) 26%,transparent) var(--p))}
-.sb-g.idle{background:var(--line-strong)}
-.sb-g.w{animation:sbW 1.4s ease-in-out infinite}
-@keyframes sbW{50%{filter:brightness(1.5)}}
-.strip.open .sb-g:not(.on){filter:saturate(.5) brightness(.75)}
-/* 进度卡：贴在细条朝屏幕里的那一侧 */
-.tb.strip.open{align-items:flex-start;padding:8px}
-[data-dock=right] .tb.strip.open{flex-direction:row-reverse}
-[data-dock=top] .tb.strip.open{flex-direction:column}
-[data-dock=bottom] .tb.strip.open{flex-direction:column-reverse}
-.sc{display:flex;flex-direction:column;gap:4px;width:250px;padding:2px 2px 0}
-.sc-h{display:flex;align-items:center;gap:7px}
-.sc-h b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:560;font-size:12.5px}
-.sc-h .num{color:var(--text-3);font-size:11.5px}
-.sc-s{position:relative;overflow:hidden;color:var(--text-2);font-size:12px;white-space:nowrap;text-overflow:ellipsis}
-.sc .segs{margin:3px 0 1px}
-.sc-m{display:flex;align-items:center;gap:6px;color:var(--text-4);font-size:11px;white-space:nowrap}
-.sc-m .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px}
-.sc-m .dot{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7}
-@media (prefers-reduced-motion:reduce){.sb-g.w{animation:none}}
+/* 长条：贴边收起时窗口是一条贯穿屏幕边缘的细条（--len 长、--th 粗，宿主算好给页面），每个任务一段、一种颜色。
+   上 / 下贴时横着，左 / 右贴时竖着。窗口自己没有底色、圆角和边框（宿主去掉了），只剩这些彩色分段 */
+.f.native.tucked.long{width:var(--len,100vw);height:var(--th,6px);box-shadow:none}
+:is([data-dock=left],[data-dock=right]) .f.native.tucked.long{width:var(--th,6px);height:var(--len,100vh)}
+[data-glass] .f.tucked.long,html:not([data-glass]) .f.tucked.long{background:transparent}
+.f.long>.breath{display:none} /* 未读的呼吸光圈套在 6px 的条上只会把整条染成一个色；等你的那一段自己会变橙闪 */
+.tb.strip{gap:0;padding:0;width:100%;height:100%;cursor:pointer}
+.sb{flex:1;display:flex;flex-direction:column;gap:2px;width:100%;height:100%}
+:is([data-dock=top],[data-dock=bottom]) .sb{flex-direction:row}
+.sb-g{position:relative;overflow:hidden;flex:1 1 0;min-width:0;min-height:0;border-radius:2px;background:linear-gradient(to bottom,var(--c) var(--p),color-mix(in srgb,var(--c) 42%,transparent) var(--p));transition:filter 160ms var(--ease)}
+:is([data-dock=top],[data-dock=bottom]) .sb-g{background:linear-gradient(to right,var(--c) var(--p),color-mix(in srgb,var(--c) 42%,transparent) var(--p))}
+.sb-g:hover{filter:brightness(1.25)}
+.sb-g.idle{background:color-mix(in srgb,var(--line-strong) 70%,transparent)}
+/* 已完成的那一部分（.fl，宽 / 高跟着完成比例）里面一层微光：朝里那一侧淡淡的高光，正在跑的任务隔一会儿有一道光扫过去。
+   光都是 pulse() 每拍用 WAAPI 播一次，平时静止（无限循环的 CSS 动画会让窗口每帧重新合成） */
+.sb-g>.fl{position:absolute;left:0;top:0;bottom:0;width:var(--p);overflow:hidden;pointer-events:none;background:linear-gradient(to bottom,rgba(255,255,255,.36),rgba(255,255,255,0) 70%)}
+.sb-g>.fl::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent);transform:translateX(-110%)}
+:is([data-dock=left],[data-dock=right]) .sb-g>.fl{right:0;bottom:auto;width:auto;height:var(--p);background:linear-gradient(to right,rgba(255,255,255,.36),rgba(255,255,255,0) 70%)}
+:is([data-dock=left],[data-dock=right]) .sb-g>.fl::after{left:0;right:0;bottom:auto;width:auto;height:45%;background:linear-gradient(180deg,transparent,rgba(255,255,255,.75),transparent);transform:translateY(-110%)}
+/* 有未读通知的那一段：呼吸（整段用自己的颜色亮起来再暗下去，.nb）+ 边缘流光（.nf，像 Ant Design 的 border beam：彗星状的渐变光沿着这一段跑过去）。同样由 pulse() 播；看到通知（悬停出卡片）就停 */
+.sb-g>.nb{position:absolute;inset:0;background:var(--c);opacity:0;pointer-events:none}
+.sb-g>.nf{position:absolute;top:0;bottom:0;left:0;width:140px;border-radius:0 3px 3px 0;background:linear-gradient(90deg,transparent,#9C40FF 35%,#4EA7FC 62%,#2DD4BF 86%,#fff);transform:translateX(-140px);pointer-events:none}
+:is([data-dock=left],[data-dock=right]) .sb-g>.nf{left:0;right:0;bottom:auto;width:auto;height:140px;border-radius:0 0 3px 3px;background:linear-gradient(180deg,transparent,#9C40FF 35%,#4EA7FC 62%,#2DD4BF 86%,#fff);transform:translateY(-140px)}
 .tb .logo{width:16px;height:16px;border-radius:4px}
 .tb-sep{width:12px;height:1px;background:var(--line)}
 :is([data-dock=top],[data-dock=bottom]) .tb-sep{width:1px;height:12px}
@@ -579,7 +577,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 /* 所有浮窗（悬浮窗、托盘菜单、托盘未读预览、提醒卡）共用一套底色：--glass。
    盖在悬浮窗内容上的层（通知抽屉、Agent 面板）再加一层页面内的高斯模糊，底下的列表只剩一片色块，不会和上面的字叠在一起 */
 [data-glass]{--glass:color-mix(in srgb,var(--bg-2) 78%,transparent);--glass-over:color-mix(in srgb,var(--bg-2) 86%,transparent)}
-[data-glass] .f,[data-glass] .tst,[data-glass] .mn,[data-glass] .pk-box{background:var(--glass)}
+[data-glass] .f,[data-glass] .tst,[data-glass] .mn,[data-glass] .pk-box,[data-glass] .sk-box{background:var(--glass)}
 [data-glass] .f::before{opacity:.6}
 [data-glass] .f-top{background:color-mix(in srgb,var(--bg-2) 35%,transparent);backdrop-filter:none;-webkit-backdrop-filter:none}
 [data-glass] .f-drawer{background:var(--glass-over)}
@@ -679,7 +677,7 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 @media (prefers-reduced-motion:reduce){.tc-ic,.tc-tx,.tc-ok circle:first-child,.tc-burst{animation:none}.tc-ok path{animation:none;stroke-dashoffset:0}}
 
 /* ============ 托盘悬停预览（view=peek）：未读列表，像微信托盘那样 ============ */
-html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body{background:var(--bg-2)}
+html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body,html:not([data-glass]):has(.sk-box),html:not([data-glass]):has(.sk-box) body{background:var(--bg-2)}
 .pk-box{width:320px;display:flex;flex-direction:column}
 .pv-h{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px 0 14px;box-shadow:inset 0 -1px 0 var(--line-soft)}
 .pv-h .logo{width:16px;height:16px}
@@ -704,6 +702,25 @@ html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body{bac
 .pv-f .pv-read{color:var(--text-2)}
 .pv-f .pv-read:hover{color:var(--text-1)}
 .pv-f .pv-clear:hover,.dr-clear:hover{color:var(--red)}
+
+/* ============ 长条悬停详情卡（view=card）：标题 + 状态 + 具体子步骤，左边一道任务的颜色 ============ */
+.sk-box{width:300px;display:flex;flex-direction:column;gap:7px;padding:10px 13px 9px 14px;box-shadow:inset 3px 0 0 var(--c)}
+.sk-h{display:flex;align-items:center;gap:7px;min-width:0}
+.sk-h b{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-1);font-weight:600;font-size:13px}
+.sk-h .num{flex-shrink:0;color:var(--text-3);font-size:12px}
+.sk-pin{flex-shrink:0;display:grid;place-items:center;color:var(--text-3)}
+.sk-m{display:flex;align-items:center;gap:6px;color:var(--text-4);font-size:11.5px;white-space:nowrap}
+.sk-m .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px;flex-shrink:0}
+.sk-m .dot{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7;flex-shrink:0}
+.sk-note{font-size:12px;line-height:1.45;color:var(--orange);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sk-list{display:flex;flex-direction:column;gap:1px;margin:0 -4px;padding-top:6px;box-shadow:inset 0 1px 0 var(--line-soft)}
+.sk-it{display:flex;align-items:flex-start;gap:8px;padding:3px 4px;font-size:12px;line-height:16px;color:var(--text-3)}
+.sk-it>.ic{margin-top:1px;flex-shrink:0}
+.sk-it .tx{min-width:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.sk-it.doing,.sk-it.blocked{color:var(--text-1);font-weight:510;background:var(--hover);border-radius:var(--r)}
+.sk-it.todo{color:var(--text-2)}
+.sk-it.done .tx,.sk-it.skipped .tx{color:var(--text-4)}
+.sk-fold{padding:3px 4px 3px 26px;font-size:11.5px;color:var(--text-4)}
 
 /* 组头：一律单行，不许被挤成竖排；操作按钮只放图标，鼠标移到组头上（或键盘聚焦）才出现 */
 .g-h{white-space:nowrap;min-height:34px}
@@ -1131,6 +1148,7 @@ const FLOAT = VIEW === 'float' || VIEW === 'mini';
 const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示悬浮窗转过来的卡片，不连数据
 const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
 const PEEK = VIEW === 'peek';   // 鼠标停在托盘图标上弹出的未读列表（像微信）
+const CARD = VIEW === 'card';   // 鼠标停在贴边长条某一段上弹出的详情卡（具体子步骤）
 const WIN = qs.get('host') === 'panel' && typeof window.tickWin === 'function'; // 原生面板窗口：无边框，标题栏由页面画
 if (WIN) document.documentElement.dataset.win = '';
 const HTTP = location.protocol.startsWith('http');
@@ -1222,7 +1240,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '永久删除…': 'Delete…', '再点一次：连同子任务一起删，不能撤销': 'Click again to delete with sub-tasks. This cannot be undone.', '再点一次：删掉，不能撤销': 'Click again to delete. This cannot be undone.', '没报进度 ·': 'no report ·', '：多半已经停了或窗口关了': ': it has probably stopped or the window was closed', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '永久删除…': 'Delete…', '再点一次：连同子任务一起删，不能撤销': 'Click again to delete with sub-tasks. This cannot be undone.', '再点一次：删掉，不能撤销': 'Click again to delete. This cannot be undone.', '没报进度 ·': 'no report ·', '：多半已经停了或窗口关了': ': it has probably stopped or the window was closed', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成长条': 'Edge bar when docked', '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开': 'Docked, it becomes a thin bar along the screen edge, one color per task. Hover a segment for its steps, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1507,7 +1525,7 @@ function ingestNotice(n) {
     const s = S.sessions.get(n.sessionId);
     sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
     noticeGlow(n.kind);
-    if (NATIVE && S.dock.tucked) speakFor(n);
+    if (NATIVE && S.dock.tucked && !S.strip) speakFor(n);
     if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) { S.drawerWant = true; S.pillSid = n.sessionId; } // 胶囊先换到提问的那个
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
     if (FLOAT && !RM.matches) {
@@ -1693,6 +1711,7 @@ function renderNow() {
   if (TOAST) return renderToast();
   if (MENU) return renderMenu();
   if (PEEK) return renderPeek();
+  if (CARD) return renderCard();
   if (FLOAT) renderFloat(root, NATIVE ? 'native' : 'page');
   else renderPanel();
   if (pip.root) { pip.root.ownerDocument.documentElement.dataset.theme = S.theme; renderFloat(pip.root, 'pip'); }
@@ -1843,6 +1862,58 @@ function startPeek() {
   new ResizeObserver(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickPeekFit(el.offsetWidth, el.offsetHeight); }).observe(root);
   window.tickPeekReady();
 }
+// ======================================================================
+// 长条悬停详情卡（view=card）：鼠标停在贴边长条的某一段上，在鼠标旁边弹出这个任务的详情（具体子步骤）。
+// 内容由宿主每次弹出时给（tickCardShow({session, color})），不连数据，也不处理点击
+// ======================================================================
+function startCard() {
+  window.tickCardGlass?.().then(on => document.documentElement.toggleAttribute('data-glass', !!on));
+  const fit = () => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickCardFit(el.offsetWidth, el.offsetHeight); };
+  window.tickCardShow = d => {
+    S.card = d;
+    S.cardPinned = false; // 钉住是紧跟在内容后面单独来的
+    S.hostHidden = false;
+    setIdle();
+    render();
+    requestAnimationFrame(fit);
+  };
+  // 藏起来时停掉动画（点阵、光环）：隐藏的窗口不一定会让 document.hidden 变真
+  window.tickCardHidden = () => { S.hostHidden = true; setIdle(); }; // 藏着时点阵、计时器都停（和悬浮窗藏起来时一样）
+  window.tickCardPinned = on => { S.cardPinned = !!on; render(); }; // 右键钉住后标题旁多一个图钉
+  // 钉住的卡片点一下就关（没钉住的鼠标碰不到它：它在长条旁边，鼠标一离开长条就收了）
+  document.addEventListener('mousedown', () => window.tickCardDismiss());
+  new ResizeObserver(fit).observe(root);
+  S.hostHidden = true; // 窗口提前建好、还没人悬停：先安静着
+  setIdle();
+  window.tickCardReady();
+}
+const CARD_ROWS = 10;
+function renderCard() {
+  const d = S.card;
+  if (!d) return;
+  const s = d.session, p = progress(s), a = agentOf(s.agent), all = s.items;
+  // 清单长时只显示当前这一步附近的一段，前后各折成一行说明
+  let from = 0, to = all.length;
+  if (all.length > CARD_ROWS) {
+    let c = all.findIndex(it => it.status === 'doing' || it.status === 'blocked');
+    if (c < 0) c = all.findIndex(it => it.status === 'todo');
+    if (c < 0) c = all.length - 1;
+    from = Math.max(0, Math.min(c - 2, all.length - CARD_ROWS));
+    to = from + CARD_ROWS;
+  }
+  const doneBefore = all.slice(0, from).filter(finished).length;
+  const pre = from ? `<div class="sk-fold">${doneBefore === from ? `前面 ${from} 项已完成` : `前面 ${from} 项（${doneBefore} 项已完成）`}</div>` : '';
+  const post = to < all.length ? `<div class="sk-fold">后面还有 ${all.length - to} 项</div>` : '';
+  const rows = all.slice(from, to).map(it => `<div class="sk-it ${it.status}">${sicon(it.status)}<span class="tx">${esc(it.text)}</span></div>`).join('');
+  const note = isWaiting(s) && s.statusNote ? `<div class="sk-note">${esc(firstLine(s.statusNote))}</div>` : '';
+  morph(root, `<div class="sk-box" style="--c:${esc(d.color)}">
+    <header class="sk-h">${sicon(s.status)}<b>${esc(s.title)}</b>${p.total ? `<span class="num">${p.done}/${p.total}</span>` : ''}${S.cardPinned ? `<span class="sk-pin">${IC.pinOn}</span>` : ''}</header>
+    <div class="sk-m"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span>${esc(a.name)}<i class="dot"></i>${esc(STATUS[s.status] || s.status)}<i class="dot"></i><span class="num">${short(elapsed(s))}</span></div>
+    ${note}
+    ${all.length ? `<div class="sk-list">${pre}${rows}${post}</div>` : ''}
+  </div>`);
+}
+
 function renderPeek() {
   const d = S.peek;
   if (!d) return;
@@ -1949,7 +2020,7 @@ function renderMenu() {
       ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
       ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
       ${sw('autostart', '开机启动', m.autostart)}
-      ${sw('strip', '贴边收成细条', m.strip, '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开')}
+      ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
       <div class="mn-row nohov"><span class="grow">提醒停留</span>${pickHtml('m-toastlen', [{ id: 'short', name: '短（一半）' }, { id: '', name: '标准' }, { id: 'long', name: '长（两倍）' }], m.toastLen || '', '提醒停留')}</div>
@@ -2280,7 +2351,7 @@ function renderFloat(el, mode) {
     ? (d.unread.some(n => n.kind === 'blocked' || n.kind === 'failed') ? 'var(--red)' : d.unread.some(n => n.kind === 'waiting') ? 'var(--orange)' : 'var(--brand)') : '';
   const breath = breathC ? `<i class="breath" data-key="breath" data-enter="fade" data-exit="fade" style="--bc:${breathC}" aria-hidden="true"></i>` : '';
   const inner = (tucked ? tabHtml(d, live) : fan ? `<div class="f-in" data-key="fan-in">${fanHtml(d, live)}</div>` : drawer ? main + drawerHtml(d) : sheet ? main + agentsHtml() : main) + breath;
-  const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${sheet ? ' sheet' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
+  const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && S.strip ? ' long' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${sheet ? ' sheet' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
   // 只在形态变化（面板 ↔ 标签 ↔ 气泡 ↔ 胶囊 ↔ 抽屉 ↔ Agent 面板 ↔ 转盘）时做盒子变形；内容变高由条目自己的撑开动画负责
   const shape = `${tucked}|${tucked && !!S.speak}|${S.compact}|${drawer}|${sheet}|${fan}`;
   const box = el.firstElementChild;
@@ -2436,6 +2507,7 @@ function tabHtml(d, live) {
   const t = now();
   const rank = s => (isWaiting(s) ? 0 : s.status === 'running' ? 1 : s.status === 'planning' ? 2 : 3);
   const list = visible().filter(s => !isChild(s) && (!isEnded(s) || t - s.endedAt < 30 * MIN)).sort((a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt);
+  if (S.strip) return stripHtml(list); // 长条：新消息不变气泡（窗口只有 6px），有提醒卡和托盘闪动，等你的那一段变橙闪
   const sp = S.speak;
   if (sp) {
     const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' }[sp.kind] || '';
@@ -2443,7 +2515,6 @@ function tabHtml(d, live) {
     return `<div class="tb speak k-${esc(sp.kind)}" data-key="tab-speak-${esc(sp.id || sp.sessionId)}" data-enter="fade" data-drag data-act="untuck">
       ${sicon(sp.kind)}<div class="tb-tx"><b>${esc(agentOf(sp.agent).name)} ${verb}</b><span>${esc(firstLine(text))}</span></div></div>`;
   }
-  if (S.strip) return stripHtml(list, live);
   const shown = list.slice(0, 4);
   const more = list.length - shown.length;
   return `<div class="tb" data-key="tab" data-enter="fade" data-drag data-act="untuck" data-tip="${esc(list.length ? `${d.nR} 进行中${d.nW ? ` · ${d.nW} 等你` : ''}` : '都安静着')}">
@@ -2454,42 +2525,114 @@ function tabHtml(d, live) {
   </div>`;
 }
 
-// 细条：贴边收起时只剩一根 8px 的条，每个任务一段、各用一种颜色，段里按完成比例填满；等你的那段闪橙色。
-// 鼠标停上去（宿主调 tickStripHover）或按 Ctrl+Alt+← / →（tickCycle）时，条旁边长出当前任务的进度卡；点一下展开
-const STRIP_COLORS = ['#4CB782', '#4EA7FC', '#8B7CF6', '#F472B6', '#F2B33D', '#2DD4BF'];
-function stripHtml(list, live) {
-  const shown = list.slice(0, 8);
-  if (!shown.some(s => s.id === S.focusSid)) S.focusSid = shown[0]?.id || null;
-  const pct = s => { const p = progress(s); return p.total ? p.done / p.total : s.status === 'done' ? 1 : 0; };
-  const bar = `<span class="sb" style="--n:${Math.max(1, shown.length)}">${shown.length ? shown.map((s, i) => `<i class="sb-g${isWaiting(s) ? ' w' : ''}${s.id === S.focusSid ? ' on' : ''}" style="--c:${STRIP_COLORS[i % STRIP_COLORS.length]};--p:${(pct(s) * 100).toFixed(1)}%"></i>`).join('') : '<i class="sb-g idle"></i>'}</span>`;
-  const s = (S.stripHover || S.stripPeek) && shown.find(x => x.id === S.focusSid);
-  if (!s) return `<div class="tb strip" data-key="tab-strip" data-drag data-act="untuck">${bar}</div>`;
-  const p = progress(s);
-  const a = agentOf(s.agent);
-  const i = shown.indexOf(s);
-  const ticking = s.status === 'running' && !!current(s)?.startedAt && live();
-  return `<div class="tb strip open" data-key="tab-strip" data-drag data-act="untuck" data-sid="${esc(s.id)}">${bar}
-    <div class="sc" data-key="sc-${esc(s.id)}" data-enter="fade" style="--c:${STRIP_COLORS[i % STRIP_COLORS.length]}">
-      <div class="sc-h">${sicon(isDormant(s) ? 'dormant' : s.status)}<b>${esc(s.title)}</b><span class="num">${p.total ? `${p.done}/${p.total}` : ''}</span></div>
-      <div class="sc-s${ticking ? ' sweep' : ''}">${esc(firstLine(subline(s)))}</div>
-      ${p.total ? segs(s, ticking) : ''}
-      <div class="sc-m"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span>${esc(a.name)}<i class="dot"></i><span class="num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span><span class="grow"></span>${shown.length > 1 ? `<span class="num">${i + 1}/${shown.length} · Ctrl+Alt+← →</span>` : ''}</div>
-    </div></div>`;
+// 长条：贴边收起时，窗口是一条贯穿屏幕边缘的细条（上 / 下贴就是整条屏幕宽，左 / 右贴就是整条屏幕高，6px 粗），
+// 每个任务一段、各用一种颜色，段里按完成比例填满；等你的那段变橙并闪。长度和粗细（--len / --th）由宿主算好给页面。
+// 鼠标停在某一段上，鼠标旁边弹出这个任务的详情卡（具体子步骤，另一个小窗口，见 view=card）；点一下展开成面板并定位到这个任务
+const STRIP_COLORS = ['#4CB782', '#4EA7FC', '#8B7CF6', '#F472B6', '#F2B33D', '#2DD4BF'], WAIT_COLOR = '#F2994A';
+// 颜色跟着任务走：每个任务拿当前没被占用的最小一种，别的任务结束后不会让剩下的颜色跳变
+function stripColors(shown) {
+  const m = S.stripCol || (S.stripCol = new Map());
+  const alive = new Set(shown.map(s => s.id));
+  for (const id of [...m.keys()]) if (!alive.has(id)) m.delete(id);
+  const used = new Set(m.values());
+  for (const s of shown) {
+    if (m.has(s.id)) continue;
+    let k = 0;
+    while (used.has(k) && k < STRIP_COLORS.length) k++;
+    if (k === STRIP_COLORS.length) k = m.size % STRIP_COLORS.length;
+    m.set(s.id, k);
+    used.add(k);
+  }
+  return s => (isWaiting(s) ? WAIT_COLOR : STRIP_COLORS[m.get(s.id) ?? 0]);
 }
-window.tickStripHover = on => { S.stripHover = !!on; schedule(); };
-// 全局快捷键切任务：收着时露出那个任务的卡 2.6 秒；展开着就在列表里定位它
+function stripHtml(list) {
+  const shown = list.slice(0, 12).sort((a, b) => a.createdAt - b.createdAt); // 按登记先后排，位置和颜色不随状态跳
+  if (!shown.some(s => s.id === S.focusSid)) S.focusSid = shown[0]?.id || null;
+  const color = S.stripColor = stripColors(shown);
+  const pct = s => { const p = progress(s); return p.total ? p.done / p.total : s.status === 'done' ? 1 : 0; };
+  // 有没读通知的任务（子任务的通知算在主任务那一段上）：这一段呼吸 + 流光，看过通知（已读）就停
+  const topOf = id => { const x = S.sessions.get(id); return x && isChild(x) ? x.parentId : id; };
+  const noticed = new Set(S.notices.filter(n => !n.read).map(n => topOf(n.sessionId)));
+  const segs = shown.length
+    ? shown.map(s => {
+      const n = noticed.has(s.id);
+      return `<i class="sb-g${n ? ' n' : ''}${s.status === 'running' && !isDormant(s) ? ' run' : ''}${s.id === S.focusSid ? ' on' : ''}" data-key="sg-${esc(s.id)}" data-sid="${esc(s.id)}" style="--c:${color(s)};--p:${(pct(s) * 100).toFixed(1)}%"><b class="fl"></b>${n ? '<b class="nb"></b><b class="nf"></b>' : ''}</i>`;
+    }).join('')
+    : '<i class="sb-g idle" data-key="sg-idle"></i>';
+  return `<div class="tb strip long" data-key="tab-strip" data-act="untuck"><span class="sb">${segs}</span></div>`;
+}
+// 详情卡：停在一段上稍等一下才出（划过去不弹）；已经出来了换到别的段就马上跟过去；同一段里鼠标挪远了（超过 28px）也跟着挪。
+// 卡片窗口在鼠标旁边（长条朝屏幕里的一侧），宿主按鼠标位置摆；鼠标离开长条就收（宿主也盯着光标兜底）。
+// 右键某一段：钉住它的卡片，鼠标离开也不收，方便慢慢看；再右键同一段、点卡片、或展开 / 收起长条才关
+let cardSid = '', cardAlong = 0, cardT = 0, cardPend = null, cardPinned = false;
+const stripVertical = () => S.dock.edge === 'left' || S.dock.edge === 'right';
+// 卡片显示出来 = 看到这个任务的通知了：它没读的通知算已读，那一段不再呼吸 / 流光（和托盘预览一弹出就算已读一样）
+function cardSeen(sid) {
+  const topOf = id => { const x = S.sessions.get(id); return x && isChild(x) ? x.parentId : id; };
+  const ids = S.notices.filter(n => !n.read && topOf(n.sessionId) === sid).map(n => n.id);
+  if (ids.length) markRead(ids);
+}
+function cardShowFor(sid, along, holdMs = 0) {
+  const s = S.sessions.get(sid);
+  cardSid = sid;
+  cardAlong = along;
+  window.tickCard(sid, along, s && S.stripColor ? S.stripColor(s) : STRIP_COLORS[0], holdMs);
+  cardSeen(sid);
+}
+function cardFlush() {
+  cardT = 0;
+  if (cardPend) cardShowFor(cardPend.sid, cardPend.along);
+}
+// force：钉住的卡片只有右键、点卡片、展开 / 收起长条才关，鼠标离开关不掉
+function cardHide(force = false) {
+  clearTimeout(cardT);
+  cardT = 0;
+  cardPend = null;
+  if (cardPinned && !force) return;
+  cardPinned = false;
+  if (cardSid) { cardSid = ''; window.tickCardClose(); }
+}
+// 宿主自己收起了卡片（鼠标离开的兜底、点了卡片）：页面记的状态也清掉
+window.tickCardGone = () => { clearTimeout(cardT); cardT = 0; cardPend = null; cardPinned = false; cardSid = ''; };
+function cardMove(e) {
+  if (!S.dock.tucked || !S.strip) return cardHide();
+  if (cardPinned) return; // 钉住的卡片不跟着鼠标走
+  const g = e.target.closest?.('.sb-g[data-sid]');
+  if (!g) return; // 段与段之间的 2px 缝：保持原样，免得卡片闪一下
+  const along = stripVertical() ? e.clientY : e.clientX;
+  if (g.dataset.sid === cardSid && Math.abs(along - cardAlong) < 28) return;
+  cardPend = { sid: g.dataset.sid, along };
+  if (cardSid) cardFlush();
+  else if (!cardT) cardT = setTimeout(cardFlush, 90);
+}
+function cardPinToggle(e, seg) {
+  const sid = seg.dataset.sid;
+  if (cardPinned && cardSid === sid) return cardHide(true);
+  clearTimeout(cardT);
+  cardT = 0;
+  cardPend = null;
+  cardShowFor(sid, stripVertical() ? e.clientY : e.clientX);
+  cardPinned = true;
+  window.tickCardPin(true);
+}
+// 全局快捷键切任务：收着时（长条）在那一段旁边弹出它的详情卡 2.6 秒；展开着就在列表里定位它
 let peekT = 0;
 window.tickCycle = dir => {
   const list = [...floatData().active, ...floatData().stale];
   if (!list.length) return;
   const i = list.findIndex(s => s.id === S.focusSid);
   S.focusSid = list[(i + dir + list.length) % list.length].id;
-  if (S.dock.tucked) {
-    S.stripPeek = true;
+  if (!S.dock.tucked) return focusSession(S.focusSid);
+  if (!S.strip) return;
+  schedule(); // 让这一段亮起来
+  requestAnimationFrame(() => {
+    const g = root.querySelector(`.sb-g[data-sid="${CSS.escape(S.focusSid)}"]`);
+    if (!g) return;
+    const r = g.getBoundingClientRect();
+    cardShowFor(S.focusSid, stripVertical() ? r.top + r.height / 2 : r.left + r.width / 2, 2600); // 鼠标不在长条上也留 2.6 秒
     clearTimeout(peekT);
-    peekT = setTimeout(() => { S.stripPeek = false; schedule(); }, 2600);
-    schedule();
-  } else focusSession(S.focusSid);
+    peekT = setTimeout(() => cardHide(), 2600);
+  });
 };
 
 // 一个会话的小进度环：弧长 = 完成比例；中间的符号表示状态（等你 = 暂停、卡住 = 横杠、做完 = 对勾）
@@ -2536,6 +2679,8 @@ function wireFloat(el, mode) {
     toggleCompact();
   });
   if (mode === 'native') {
+    el.addEventListener('pointermove', cardMove, { passive: true }); // 长条上的悬停详情卡
+    el.addEventListener('pointerleave', () => cardHide()); // 注意别把事件对象当成 force 传进去
     // 胶囊悬停 480ms 才拉开：一扫而过不打扰，也给双击留出时间（双击是展开成完整面板）；
     // 按下过鼠标（单击、双击、开始拖）就不拉开，松手后重新计时。
     // 圆心钉在鼠标下面：先让宿主记住这一点在屏幕上的位置，之后报尺寸时带上圆心在页面里的位置，
@@ -2717,6 +2862,7 @@ function wireFloat(el, mode) {
 // 收起 / 展开：窗口尺寸会跳，用一层很轻的模糊交叉淡入把跳变盖住
 function toggleCompact() {
   S.fanRestore?.(); // 从环形列表点进来：窗口先回到横条原来的位置，再展开
+  S.compactAuto = false; // 用户自己点了：以这次为准，收起时不再自动恢复
   S.compact = !S.compact;
   S.histOpen = false;
   S.fan = false;
@@ -3198,12 +3344,23 @@ function focusSession(id) {
 }
 window.tickFocus = focusSession;
 // 宿主告诉页面停靠状态：贴着哪条边、是否收起。收起时露在外面的窄边由 CSS 画
-window.tickDock = (edge, tucked) => {
+// len / th：长条的长度（工作区沿这条边的长度）和粗细，CSS 像素，宿主算好给页面，页面照这个画长条
+window.tickDock = (edge, tucked, len, th) => {
+  const wasTucked = S.dock.tucked;
+  cardHide(true); // 展开 / 收起 / 换边：详情卡（钉住的也一样）都先收掉
   S.dock = { edge: edge || '', tucked: !!tucked };
   root.dataset.dock = S.dock.edge;
+  if (len > 0) { root.style.setProperty('--len', `${len}px`); root.style.setProperty('--th', `${th}px`); }
   root.dataset.scrolled = ''; // 面板会重建，新的列表在顶部
   if (!tucked) S.speak = null; // 展开了就是看到了，气泡不用再说
-  if (tucked) { S.histOpen = false; S.staleOpen = false; S.drawer = false; S.agentsOpen = false; S.fan = false; S.fanRestore?.(); } // 收起来时顺手把临时展开的都收回去
+  if (tucked) {
+    S.histOpen = false; S.staleOpen = false; S.drawer = false; S.agentsOpen = false; S.fan = false; S.fanRestore?.(); // 收起来时顺手把临时展开的都收回去
+    if (S.compactAuto) { S.compact = true; S.compactAuto = false; } // 收回去时恢复成用户选的单行
+  } else if (wasTucked && S.compact) {
+    // 鼠标碰到贴边的标签 / 长条展开出来：直接给完整面板，不是单行。用户选的单行只在内存里让一下（不改设置），收起时恢复
+    S.compact = false;
+    S.compactAuto = true;
+  }
   setIdle();
   render();
   if (!tucked && S.focusAfter) {
@@ -3494,11 +3651,12 @@ async function onClick(e) {
     case 'hide': window.tickLeave(); break;
     case 'untuck': {
       // 拖过的不算点击（按下和松开距离超过 4px）
-      const moved = S.downAt && Math.hypot(e.screenX - S.downAt[0], e.screenY - S.downAt[1]) > 4;
+      // （长条不能拖，不看按下的位置；S.downAt 可能是上一次拖面板留下的）
+      const moved = !el.classList.contains('long') && S.downAt && Math.hypot(e.screenX - S.downAt[0], e.screenY - S.downAt[1]) > 4;
       if (moved) break;
-      // 点在某个会话的环上：展开并直接打开那个会话；点在别处：只展开
-      const ring = e.target.closest('.mini[data-sid], .strip.open[data-sid]');
-      if (ring) { S.stripHover = S.stripPeek = false; focusSession(ring.dataset.sid); }
+      // 点在某个会话的环 / 长条的某一段上：展开并直接打开那个会话；点在别处：只展开
+      const ring = e.target.closest('.mini[data-sid], .sb-g[data-sid]');
+      if (ring) { cardHide(true); focusSession(ring.dataset.sid); }
       else if (S.speak?.sessionId) focusSession(S.speak.sessionId);
       else window.tickUntuck();
       break;
@@ -3690,9 +3848,19 @@ document.addEventListener('pointerdown', e => {
 // 这里每 4.5 秒把所有“正在进行”的动效一起播一遍（约 1.2 秒），其余时间窗口完全静止：
 // 正在做那一步的文字上扫过一道光、进度条正在做的那段亮一下、点阵沿对角线点亮一轮、进度环上的高光转一圈
 function pulse(doc) {
-  if (S.idle || RM.matches || doc.hidden) return;
+  // 贴边长条上有没读通知的那一段要一直呼吸，哪怕此时没有任务在跑（收着、没有进行中的会话时页面算空闲）
+  const stripAlive = S.dock.tucked && S.strip && S.notices.some(n => !n.read);
+  if ((S.idle && !stripAlive) || RM.matches || doc.hidden) return;
   const q = s => doc.querySelectorAll(s);
   const ease = 'cubic-bezier(.4,0,.2,1)';
+  // 长条：跑着的任务，已完成那部分里扫过一道光；有未读通知的那一段呼吸（亮起再暗下）并有一道流光
+  const ax = doc.querySelector('[data-dock=left] .sb, [data-dock=right] .sb') ? 'Y' : 'X';
+  q('.sb-g.run > .fl').forEach(el => el.animate([{ transform: `translate${ax}(-110%)` }, { transform: `translate${ax}(330%)` }], { duration: 1100, easing: ease, pseudoElement: '::after' }));
+  q('.sb-g.n > .nb').forEach(el => el.animate([{ opacity: 0 }, { opacity: .55 }, { opacity: 0 }], { duration: 3000, easing: 'ease-in-out' }));
+  q('.sb-g.n > .nf').forEach(el => { // 彗星从这一段的一头跑到另一头，速度大致不变（约 0.5px/ms）
+    const len = ax === 'Y' ? el.parentElement.offsetHeight : el.parentElement.offsetWidth;
+    el.animate([{ transform: `translate${ax}(-140px)` }, { transform: `translate${ax}(${len}px)` }], { duration: Math.round(Math.min(2800, Math.max(900, len * 2))), easing: 'cubic-bezier(.45,.05,.55,.95)' });
+  });
   q('.sweep').forEach(el => el.animate([{ transform: 'translateX(-110%)' }, { transform: 'translateX(330%)' }], { duration: 900, easing: ease, pseudoElement: '::after' }));
   q('.segs i.doing.live, .pb-n.live').forEach(el => el.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(100%)' }], { duration: 900, easing: ease, pseudoElement: '::before' }));
   q('.m-orbit, .fb-orbit').forEach(c => c.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 900, easing: ease }));
@@ -3908,9 +4076,11 @@ function ctxOpen(e, s) {
 }
 document.addEventListener('contextmenu', e => {
   if (e.target.closest('input,textarea')) return;
+  const seg = e.target.closest?.('.sb-g[data-sid]'); // 长条上右键：钉住 / 取消钉住这一段的详情卡
+  if (seg && S.dock.tucked && S.strip) { e.preventDefault(); cardPinToggle(e, seg); return; }
   const row = e.target.closest('.s[data-sid], .kid[data-sid], .row[data-sid], .card[data-sid]');
   const s = row && S.sessions.get(row.dataset.sid);
-  if (MENU || TOAST || PEEK) { e.preventDefault(); return; } // 小窗口里不出浏览器自带菜单
+  if (MENU || TOAST || PEEK || CARD) { e.preventDefault(); return; } // 小窗口里不出浏览器自带菜单
   if (!s) return;
   e.preventDefault();
   ctxOpen(e, s);
@@ -4136,6 +4306,7 @@ window.tickVisible = on => {
   if (TOAST) { document.title = tr('Tick 提醒'); startToast(); return; }
   if (MENU) { document.title = tr('Tick 菜单'); startMenu(); return; }
   if (PEEK) { document.title = 'Tick 未读'; startPeek(); return; }
+  if (CARD) { document.title = 'Tick Card'; startCard(); return; } // 窗口标题跟着页面标题走；卡片窗口没有标题栏，用不着中文
   if (FLOAT) document.title = tr('Tick 小窗');
   if (NATIVE) {
     try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }

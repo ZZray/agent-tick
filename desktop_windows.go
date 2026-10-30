@@ -93,7 +93,7 @@ type deskSettings struct {
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
-	Strip            bool      // 贴边收起时缩成一根细条（每个任务一段颜色）；鼠标停上去只露出当前任务的进度卡，点了才展开
+	NoStrip          bool      // 贴边收起时默认缩成贯穿屏幕边缘的长条（每个任务一段颜色，悬停出子步骤卡片）；勾掉才用小环标签
 	ToastLen         string    // 右下角提醒卡停留多久："short"（一半）、""（标准）、"long"（两倍）
 }
 
@@ -109,7 +109,7 @@ func (f *floatWin) toastLen() string {
 func (f *floatWin) strip() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return f.set.Strip
+	return !f.set.NoStrip
 }
 
 // pageURL 悬浮窗、提醒卡、托盘菜单、面板的页面地址，带上界面语言
@@ -251,8 +251,14 @@ type floatWin struct {
 	dock     dockRuntime
 	dockReq  chan func()
 	tucked   atomic.Bool
-	fsHidden atomic.Bool  // 因全屏让开了
-	lastBeat atomic.Int64 // 页面上次报心跳的时间（毫秒）
+	// 长条：窗口现在是不是贯穿屏幕边缘的长条形态（无圆角、无边框、透明底）；
+	// 从长条展开成面板的最初一小会儿，面板要围着鼠标在长条上的位置长出来，下面三个量记着那一点和有效期
+	stripLook        atomic.Bool
+	stripAnchorX     atomic.Int32
+	stripAnchorY     atomic.Int32
+	stripAnchorUntil atomic.Int64 // UnixMilli
+	fsHidden         atomic.Bool  // 因全屏让开了
+	lastBeat         atomic.Int64 // 页面上次报心跳的时间（毫秒）
 }
 
 // inDock 把一个操作交给 dockLoop 执行；队列满了就丢，下一轮轮询会自己纠正
@@ -479,11 +485,18 @@ func (f *floatWin) fitAt(cssW, cssH, ax, ay float64) {
 }
 
 func (f *floatWin) fit(cssW, cssH float64) {
-	// 下限放到 6：贴边细条只有 8px 粗
-	// 上限 720 宽：通知抽屉拉开时是主面板加抽屉的宽度
-	f.cssW, f.cssH = math.Max(6, math.Min(cssW, 720)), math.Max(6, math.Min(cssH, 720))
-	old := f.windowRect()
+	// 下限放到 6：长条只有 6px 粗
+	// 上限 720 宽：通知抽屉拉开时是主面板加抽屉的宽度；长条贯穿整条屏幕边缘，上限放到工作区大小
 	wa := f.workArea()
+	limW, limH := 720.0, 720.0
+	edge := f.dockEdge()
+	long := edge != "" && f.tucked.Load() && f.strip()
+	if long {
+		s := f.scale()
+		limW, limH = float64(wa.Right-wa.Left)/s, float64(wa.Bottom-wa.Top)/s
+	}
+	f.cssW, f.cssH = math.Max(6, math.Min(cssW, limW)), math.Max(6, math.Min(cssH, limH))
+	old := f.windowRect()
 	w, h := f.physical(f.cssW, f.cssH)
 	x, y := old.Left, old.Top
 	if (old.Top+old.Bottom)/2 > (wa.Top+wa.Bottom)/2 {
@@ -495,9 +508,19 @@ func (f *floatWin) fit(cssW, cssH float64) {
 	x = max(wa.Left, min(x, wa.Right-w))
 	y = max(wa.Top, min(y, wa.Bottom-h))
 	// 停靠时尺寸变了也要继续贴着边（收起状态下保持只露窄边）
-	if edge := f.dockEdge(); edge != "" {
+	if edge != "" {
 		// 贴边时：顶边固定（左右停靠）或左边固定（上停靠），从标签原地长出面板，再贴齐那条边
-		x, y = f.dockPos(edge, rect{old.Left, old.Top, old.Left + w, old.Top + h})
+		base := rect{old.Left, old.Top, old.Left + w, old.Top + h}
+		// 从长条展开：面板围着鼠标在长条上的那一点长出来（沿边居中），别从长条的一头冒出来
+		if !long && now() < f.stripAnchorUntil.Load() {
+			ax, ay := f.stripAnchorX.Load(), f.stripAnchorY.Load()
+			if edge == "top" || edge == "bottom" {
+				base.Left, base.Right = ax-w/2, ax-w/2+w
+			} else {
+				base.Top, base.Bottom = ay-h/2, ay-h/2+h
+			}
+		}
+		x, y = f.dockPos(edge, base)
 	}
 	pSetWindowPos.Call(f.hwnd, 0, uintptr(x), uintptr(y), uintptr(w), uintptr(h), swpNoZOrder|swpNoActivate)
 }
@@ -665,6 +688,12 @@ func (f *floatWin) bind() {
 	must(f.w.Bind("tickToast", f.toast))                                                     // 右下角提醒卡（JSON）
 	must(f.w.Bind("tickTheme", func(dark bool) { setDarkFrame(f.hwnd, dark) }))              // 毛玻璃的着色跟页面主题走
 	must(f.w.Bind("tickClear", func(on bool) bool { setClear(f.hwnd, on); return glassOn })) // 环形列表：窗口透明
+	// 长条：鼠标停在某一段上时在旁边弹详情卡（sid、鼠标沿长条的位置、这一段的颜色），离开时收起
+	must(f.w.Bind("tickCard", func(sid string, along float64, color string, holdMs float64) {
+		theCard.show(f, sid, along, color, holdMs)
+	}))
+	must(f.w.Bind("tickCardClose", func() { theCard.hide() }))
+	must(f.w.Bind("tickCardPin", func(on bool) { theCard.pin(on) })) // 右键钉住
 }
 
 // openExternal 用系统默认程序打开链接（浏览器、codex:// 等）；拒绝本地文件和脚本协议

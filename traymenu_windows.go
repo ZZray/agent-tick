@@ -59,7 +59,7 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
+		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: !f.set.NoStrip, ToastLen: f.set.ToastLen}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Dnd = f.dnd()
@@ -117,7 +117,8 @@ func (t *tray) act(name string, on bool, val string) {
 	case "autoupdate":
 		setFlag(&f.set.NoAutoUpdate, !on)
 	case "strip":
-		setFlag(&f.set.Strip, on)
+		setFlag(&f.set.NoStrip, !on)
+		f.inDock(func() { f.applyStripLook(); f.notifyDock() }) // 已经收着时马上在长条和小环之间换
 		f.pushHostState()
 	case "toastlen":
 		if slices.Contains(toastLens, val) {

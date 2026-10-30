@@ -41,7 +41,6 @@ type dockRuntime struct {
 	enteredAt  time.Time // 收起状态下鼠标进入窄边的时刻
 	holdHover  bool      // 等你：一直露着，直到鼠标进来过再离开
 	holdUntil  time.Time // 做完类通知：露到这个时间
-	stripHover bool      // 细条模式：鼠标是否在细条上（变化时告诉页面）
 }
 
 func (f *floatWin) dockEdge() string {
@@ -111,15 +110,57 @@ func (f *floatWin) setTucked(on bool) {
 	if f.dockEdge() == "" || f.tucked.Load() == on {
 		return
 	}
+	if !on && f.stripLook.Load() {
+		// 从长条展开：记下鼠标在长条上的位置，面板围着它长出来（见 fit）
+		var c point
+		pGetCursorPos.Call(uintptr(unsafe.Pointer(&c)))
+		f.stripAnchorX.Store(c.X)
+		f.stripAnchorY.Store(c.Y)
+		f.stripAnchorUntil.Store(now() + 600)
+	}
 	f.tucked.Store(on)
+	f.applyStripLook()
 	f.notifyDock()
 }
 
-// notifyDock 告诉页面当前停靠状态，页面据此画露在外面的那条窄边
+// applyStripLook 收起成长条时，窗口去掉 Acrylic、圆角和 1px 边框（6px 高的窗口带边框和圆角会很难看），
+// 只剩页面画的彩色分段；展开或换成小环标签时恢复
+func (f *floatWin) applyStripLook() {
+	want := f.dockEdge() != "" && f.tucked.Load() && f.strip()
+	if f.stripLook.Swap(want) == want {
+		return
+	}
+	setClear(f.hwnd, want)
+	if want {
+		go theCard.warm(f) // 提前把详情卡窗口建好（隐藏着），第一次悬停不用等一两秒
+	}
+	if !glassOn { // 没有毛玻璃时 setClear 什么也不改，圆角和边框要自己去掉
+		round, border := int32(2), uint32(0x00332F2E)
+		if want {
+			round, border = 1, 0xFFFFFFFE
+		}
+		pDwmSetWindowAttribute.Call(f.hwnd, 33, uintptr(unsafe.Pointer(&round)), 4)
+		pDwmSetWindowAttribute.Call(f.hwnd, 34, uintptr(unsafe.Pointer(&border)), 4)
+	}
+}
+
+// stripGeom 长条的长度（工作区沿停靠边的长度）和粗细，CSS 像素
+func (f *floatWin) stripGeom() (length, thick float64) {
+	wa, s := f.workArea(), f.scale()
+	length = float64(wa.Right-wa.Left) / s
+	if e := f.dockEdge(); e == "left" || e == "right" {
+		length = float64(wa.Bottom-wa.Top) / s
+	}
+	return length, 6
+}
+
+// notifyDock 告诉页面当前停靠状态，页面据此画露在外面的那条窄边；
+// 长度和粗细是给长条用的：页面照这个尺寸画，窗口再按页面报的尺寸摆（见 fit）
 func (f *floatWin) notifyDock() {
 	edge, tucked := f.dockEdge(), f.tucked.Load()
+	length, thick := f.stripGeom()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickDock && tickDock(%q, %t)", edge, tucked))
+		f.w.Eval(fmt.Sprintf("window.tickDock && tickDock(%q, %t, %.1f, %.1f)", edge, tucked, length, thick))
 	})
 }
 
@@ -145,6 +186,7 @@ func (f *floatWin) afterDrag() {
 	// 拖的是收起的小标签、松手还在边上：继续收着，只是沿边挪了位置；拖离边缘就展开成完整面板
 	if edge == "" {
 		f.tucked.Store(false)
+		f.applyStripLook()
 	}
 	f.dock.lastInside = time.Now()
 	f.notifyDock()
@@ -197,16 +239,8 @@ func (f *floatWin) dockLoop() {
 		m := int32(math.Round(6 * f.scale()))
 		inside := c.X >= r.Left-m && c.X < r.Right+m && c.Y >= r.Top-m && c.Y < r.Bottom+m
 		now := time.Now()
-		if !f.tucked.Load() {
-			f.dock.stripHover = false
-		}
 		if f.tucked.Load() && f.strip() {
-			// 细条：鼠标停上去不展开，只让页面露出当前任务的进度卡；点一下才展开（页面调 tickUntuck）
-			if inside != f.dock.stripHover {
-				f.dock.stripHover = inside
-				on := inside
-				f.dispatch(func() { f.w.Eval(fmt.Sprintf("window.tickStripHover && tickStripHover(%t)", on)) })
-			}
+			// 长条：鼠标停上去不展开，页面自己处理悬停（弹出子步骤卡片，见 card_windows.go）；点一下才展开（页面调 tickUntuck）
 			continue
 		}
 		if f.tucked.Load() {
