@@ -749,7 +749,13 @@ func runTray(srv *Server, f *floatWin) {
 		f.setOnChange(t.refresh)
 		t.refresh()
 		theTray = t
-		systray.SetOnTapped(f.toggle)         // 左键开关悬浮窗
+		systray.SetOnTapped(func() { // 左键开关悬浮窗；点了就是看过了：通知全部算已读，托盘停闪，未读预览收起
+			thePeek.hide()
+			if srv.store.UnreadNotices() > 0 {
+				_, _ = srv.store.ReadNotices(ReadInput{All: true})
+			}
+			f.toggle()
+		})
 		systray.SetOnSecondaryTapped(func() { // 右键：宫格弹窗；建不出来时 open 返回 false，之后改出系统菜单
 			if !theMenu.open(t) {
 				systray.SetOnSecondaryTapped(nil)
