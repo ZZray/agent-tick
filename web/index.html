@@ -316,6 +316,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .s-l2 .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s-l2 .tm{color:var(--text-4);flex-shrink:0}
 .s-l2 .stale{color:var(--text-4);flex-shrink:0}
+.s-l2 .stale.live{color:var(--text-3)} /* 对话还在动，只是没报：比“没动静”亮一点 */
 .s .segs{margin:7px 0 0 22px}
 .s-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
 .s.open .s-items{grid-template-rows:1fr}
@@ -533,6 +534,9 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .ctx .pk-o:hover svg{color:var(--text-1)}
 .ctx .pk-o.warn:hover{color:var(--red)}
 .ctx .pk-o.warn:hover svg{color:var(--red)}
+.ctx .pk-o.armed{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red);white-space:normal;height:auto;min-height:28px;padding-block:5px}
+.ctx .pk-o.armed svg{color:var(--red)}
+.ctx-sep{display:block;height:1px;margin:3px 4px;background:var(--line-soft)}
 [data-glass] .pk-pop{background:color-mix(in srgb,var(--bg-3) 94%,transparent)}
 .pk-o.on{color:var(--text-1);font-weight:510}
 .pk-o svg{margin-left:auto;color:var(--brand)}
@@ -1195,7 +1199,7 @@ const TR = {
   '只看当前附近': 'Show nearby only', '只支持 stdio 的客户端': 'stdio-only clients', '置顶小窗（Chrome / Edge 116+）': 'Pinned mini window (Chrome / Edge 116+)', '置顶': 'Pin',
   '重连中…': 'Reconnecting…', '重启到新版': 'Restart to update', '主题色': 'Theme color', '主题': 'Theme', '自动更新没改成': 'Could not change auto-update', '自动更新': 'Auto-update',
   '总耗时': 'Total time', '总结': 'Summary', '最大化': 'Maximize', '最小化': 'Minimize', '最新在前': 'Newest first', '最早在前': 'Oldest first', '昨天': 'Yesterday',
-  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
+  '做完了': 'finished', '提醒停留': 'Alert duration', '短（一半）': 'Short (half)', '标准': 'Normal', '长（两倍）': 'Long (double)', 'Agent：谁接入了、最近在做什么': 'Agents: who is connected and what they did last', '和 Tick 服务断开了，正在重连。点开看 agent': 'Lost connection to Tick, reconnecting. Click to see agents', '把 Tick 加进 agent 的 MCP 配置，它写下第一份清单就会出现在这里。': 'Add Tick to an agent\'s MCP config. It shows up here once it writes its first checklist.', '有新进展，移出归档': 'Unarchived: new activity', '永久删除…': 'Delete…', '再点一次：连同子任务一起删，不能撤销': 'Click again to delete with sub-tasks. This cannot be undone.', '再点一次：删掉，不能撤销': 'Click again to delete. This cannot be undone.', '没报进度 ·': 'no report ·', '：多半已经停了或窗口关了': ': it has probably stopped or the window was closed', '最新': 'Up to date', '需要更新': 'Outdated', '没装': 'Not installed', '本机没有这个 agent': 'Agent not found', '复制路径': 'Copy path', '路径已复制': 'Path copied', '复制安装提示': 'Copy install prompt', '复制技能全文': 'Copy skill text', '技能全文已复制': 'Skill text copied', '重新写一遍': 'Write again', '正在读取…': 'Loading…', '安装提示已复制，粘给 agent 就行': 'Install prompt copied. Paste it to an agent.', '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）': 'Archive: take a session that already stopped off the list (it comes back if the agent reports again)', '结束（标成已取消）': 'End (mark cancelled)', '在面板里看': 'Open in panel', '看详情': 'Details', '取消归档': 'Unarchive', '已归档这个会话': 'Archived', '已放回': 'Restored', '你手动结束的': 'Ended by you', '返回（Esc）': 'Back (Esc)', '返回': 'Back', '未读': 'Unread', '清空通知': 'Clear notifications', '删掉全部通知记录（会话不受影响）': 'Delete all notification history (sessions are kept)', '没成功，再点一次': 'Failed, click again', '清空': 'Clear', '清空通知历史（会话不受影响）': 'Clear notification history (sessions are kept)', '全屏卡片：这个视图里每个会话一张，点一下翻面看清单（C）': 'Full-screen cards: one per session in this view, click to flip and see the checklist (C)', '卡片': 'Cards', '点卡片翻面 · 方向键切换 · Esc 退出': 'Click to flip · arrows to move · Esc to exit', '退出卡片（Esc）': 'Exit cards (Esc)', '这里没有会话': 'No sessions here', '换个视图再来铺卡片。': 'Switch to another view and try again.', '看详情': 'Details', '贴边收成细条': 'Thin bar when docked', '每个任务一段颜色；鼠标停上去看当前任务，Ctrl+Alt+← → 切换，点一下展开': 'One colored segment per task. Hover to see the current task, Ctrl+Alt+← → to switch, click to expand', '可能掉线了': 'Possibly stalled', '没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'with no update. The agent was probably closed, lost its context, or forgot to wrap up', '说在跑、但 30 分钟没有更新：agent 多半被关了、丢了上下文，或者忘了收尾': 'Marked running but no update for 30 min: the agent was probably closed, lost its context, or forgot to wrap up', '全部结束：标成已取消（agent 回来接着报会自动恢复）': 'End all: mark as cancelled (they resume if the agent reports again)', '结束：标成已取消（能撤销）': 'End: mark as cancelled (undoable)', '标成已取消；agent 回来接着做会自动恢复': 'Mark as cancelled; it resumes if the agent continues', '结束': 'End', '你手动结束的：很久没有更新，agent 可能已经关掉了': 'Ended by you: no update for a long time, the agent was probably closed', '已结束这个会话': 'Session ended', '全部结束': 'End all', '自动更新开': 'Auto-update on', '自动更新关': 'Auto-update off', '后面': 'later', '界面语言': 'Language', '跟随系统': 'System', '翠绿': 'Green', '湖蓝': 'Blue', '紫罗兰': 'Violet', '樱粉': 'Pink', '琥珀': 'Amber', '青碧': 'Teal',
   '展开悬浮窗看全部 ': 'Open the window to see all', '提醒': 'Alerts', '进行中的颜色': 'Running color',
 };
 const PUNCT = { '，': ', ', '。': '. ', '：': ': ', '（': ' (', '）': ')', '「': '“', '」': '”', '、': ', ', '？': '? ', '！': '! ', '；': '; ' };
@@ -1290,8 +1294,11 @@ const current = s => s.items.find(it => it.status === 'doing') || null;
 // 10 分钟没报；子 agent 在动时不算（主会话在等子任务，没有“没动静”）
 const isStale = s => s.status === 'running' && now() - s.updatedAt > 10 * MIN && !childrenOf(s).some(c => !isEnded(c) && now() - c.updatedAt <= 10 * MIN);
 // 不活跃：说是在跑 / 在写清单，但 30 分钟没有任何更新。多半是 agent 被关了或忘了收尾，单独收起来，不和真在跑的混在一起
+// 对话最后有动静的时间：Codex / Claude Code 的对话记录文件最近写过，说明 agent 还在干，只是没报进度（见 /api/activity）
+const alive = s => S.activity?.[s.id] || 0;
+const lastSign = s => Math.max(s.updatedAt, alive(s));
 // 主会话自己 30 分钟没报，但手下的子 agent 还在动：它没掉线，不放进“可能掉线了”
-const quiet = s => (s.status === 'running' || s.status === 'planning') && now() - s.updatedAt > 30 * MIN;
+const quiet = s => (s.status === 'running' || s.status === 'planning') && now() - lastSign(s) > 30 * MIN;
 const isDormant = s => quiet(s) && !childrenOf(s).some(c => (c.status === 'running' || c.status === 'planning') && !quiet(c));
 // “进行中”在所有地方都按这一条数：在跑 / 写清单、没掉线，子任务也算一个；等你单独数
 const isRunning = s => (s.status === 'running' || s.status === 'planning') && !isDormant(s);
@@ -1511,7 +1518,9 @@ async function connect() {
 }
 async function reload() {
   try {
-    const [ss, ns] = await Promise.all([fetch('/api/sessions?archived=1').then(r => r.json()), fetch('/api/notices').then(r => r.json())]);
+    const [ss, ns, act] = await Promise.all([fetch('/api/sessions?archived=1').then(r => r.json()), fetch('/api/notices').then(r => r.json()),
+      fetch('/api/activity').then(r => r.json()).catch(() => ({}))]);
+    S.activity = act;
     S.sessions = new Map(ss.map(s => [s.id, s]));
     S.notices = ns;
     S.conn = 'live';
@@ -1523,7 +1532,8 @@ async function reload() {
 }
 async function post(path, body, method = 'POST') {
   if (S.conn === 'demo') return;
-  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  // X-Tick-User：这是用户在界面上手动改的（勾选、改清单），服务端不把它当成 agent 回来干活
+  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Tick-User': '1' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
 }
 async function markRead(ids) {
@@ -2720,8 +2730,10 @@ function sessionRow(s, live) {
     <button class="s-head" data-act="toggle" aria-expanded="${open}">
       <span class="s-l1">${sicon(dead ? 'dormant' : s.status)}<span class="s-title">${esc(s.title)}</span><span class="s-prog num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>${IC.chev}</span>
       <span class="s-l2"><span class="tile sm" data-tip="${esc(a.name)}">${esc(a.mark)}</span><span class="tx-wrap"><span class="tx${ticking ? ' sweep' : ''}" data-key="sub-${esc(step?.id || s.status)}" data-enter="fade">${esc(firstLine(subline(s)))}</span></span>
-        ${isStale(s) && !dead ? `<span class="stale">${short(now() - s.updatedAt)} 没动静 ·</span>` : ''}<span class="tm num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span>
-      ${dead ? `<span class="s-why"><b class="num">${short(now() - s.updatedAt)}</b> 没有任何更新：agent 多半被关了、丢了上下文，或者忘了收尾</span>` : ''}
+        ${isStale(s) && !dead ? (now() - alive(s) < 10 * MIN
+          ? `<span class="stale live" data-tip="对话 ${short(now() - alive(s))} 前还有动静：agent 在干活，只是没报进度（比如在跑很长的命令）">${short(now() - s.updatedAt)} 没报进度 ·</span>`
+          : `<span class="stale">${short(now() - s.updatedAt)} 没动静 ·</span>`) : ''}<span class="tm num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span>
+      ${dead ? `<span class="s-why"><b class="num">${short(now() - s.updatedAt)}</b> 没有任何更新${alive(s) ? `，对话也 <b class="num">${short(now() - alive(s))}</b> 没动静：多半已经停了或窗口关了` : '：agent 多半被关了、丢了上下文，或者忘了收尾'}</span>` : ''}
       ${p.total && !isEnded(s) ? `<span class="segs-wrap">${segs(s, ticking)}</span>` : ''}
     </button>
     <div class="s-quick" data-key="q-${esc(s.id)}">
@@ -3345,6 +3357,9 @@ async function onClick(e) {
     case 'win-close': window.tickWin('close'); break;
     case 'panel': NATIVE ? window.tickPanel('') : window.open(`${BASE}/`, 'tick-main'); break;
     case 'open-panel-session': NATIVE ? window.tickPanel(`#${sid}`) : window.open(`${BASE}/#${sid}`, 'tick-main'); break;
+    case 'ctx-delete-ok':
+      if (sid) try { await post(`/api/sessions/${sid}`, {}, 'DELETE'); } catch (err) { toast(`没删成：${esc(err.message)}`); }
+      break;
     case 'hide': window.tickLeave(); break;
     case 'untuck': {
       // 拖过的不算点击（按下和松开距离超过 4px）
@@ -3723,17 +3738,30 @@ function ctxOpen(e, s) {
     FLOAT ? ['open-panel-session', IC.panel, '在面板里看'] : ['select', IC.panel, '看详情'],
     !isEnded(s) && ['end-session', IC.x, '结束（标成已取消）'],
     ['archive', IC.archive, s.archived ? '取消归档' : '归档'],
+    ['ctx-delete', IC.trash, '永久删除…'],
   ].filter(Boolean);
   const el = doc.createElement('div');
   el.className = 'pk-pop ctx';
   el.setAttribute('role', 'menu');
   el.innerHTML = tr(`<div class="ctx-h trunc">${esc(s.title)}</div>${items.map(([a, ic, t]) =>
-    `<button type="button" role="menuitem" class="pk-o${a === 'end-session' ? ' warn' : ''}" data-act="${a}" data-sid="${sid}">${ic}<span>${t}</span></button>`).join('')}`);
+    `${a === 'ctx-delete' ? '<i class="ctx-sep"></i>' : ''}<button type="button" role="menuitem" class="pk-o${a === 'end-session' || a === 'ctx-delete' ? ' warn' : ''}" data-act="${a}" data-sid="${sid}">${ic}<span>${t}</span></button>`).join('')}`);
   doc.body.appendChild(el);
   const w = el.offsetWidth, h = el.offsetHeight;
   el.style.left = `${Math.round(Math.max(6, Math.min(view.innerWidth - w - 6, e.clientX)))}px`;
   el.style.top = `${Math.round(Math.max(6, Math.min(view.innerHeight - h - 6, e.clientY)))}px`;
-  el.addEventListener('click', ev => { if (ev.target.closest('.pk-o')) setTimeout(ctxClose); });
+  el.addEventListener('click', ev => {
+    const b = ev.target.closest('.pk-o');
+    if (!b) return;
+    // 永久删除要点两次：第一次把这一项变成确认，第二次才删（连同子任务和通知，不能撤销）
+    if (b.dataset.act === 'ctx-delete') {
+      ev.stopPropagation();
+      b.dataset.act = 'ctx-delete-ok';
+      b.classList.add('armed');
+      b.querySelector('span').textContent = tr(childrenOf(s).length ? '再点一次：连同子任务一起删，不能撤销' : '再点一次：删掉，不能撤销');
+      return;
+    }
+    setTimeout(ctxClose);
+  });
   ctx.el = el;
   el.querySelector('.pk-o')?.focus({ preventScroll: true });
   view.requestAnimationFrame(() => el.classList.add('on'));
@@ -3940,7 +3968,13 @@ function setIdle() {
         if (doc) for (const el of doc.getElementsByClassName('dmx')) el.dataset.ph = ph;
       }
     }, 140);
-    slowTimer = setInterval(schedule, 30e3); // “没动静”“刚结束”这类随时间变化的分组
+    let actN = 0;
+    slowTimer = setInterval(() => { // “没动静”“刚结束”这类随时间变化的分组
+      // 有会话 8 分钟以上没报进度时，每分钟看一次它的对话记录还有没有动静（区分在跑长命令和真停了）
+      if (actN++ % 2 === 0 && S.conn === 'live' && visible().some(s => (s.status === 'running' || s.status === 'planning') && now() - s.updatedAt > 8 * MIN))
+        fetch('/api/activity').then(r => r.json()).then(a => { S.activity = a; schedule(); }).catch(() => {});
+      else schedule();
+    }, 30e3);
     schedule();
   }
 }

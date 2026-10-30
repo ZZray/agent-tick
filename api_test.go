@@ -450,6 +450,41 @@ func TestParentSession(t *testing.T) {
 	}
 }
 
+// 用户回答问题后，agent 直接勾完 / 跳过一条或改清单（没先报 doing）：会话也要从“等你”回到进行中；
+// 用户在界面上手动勾的不算
+func TestResumeFromWaitingOnProgress(t *testing.T) {
+	h := newHarness(t, t.TempDir())
+	id := h.ok("POST", "/api/sessions", map[string]any{"agent": "codex", "title": "问完接着干", "items": []string{"一", "二", "三", "四"}})["id"].(string)
+	wait := func() {
+		h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "waiting", "note": "A 还是 B？"})
+	}
+	status := func() string { return h.ok("GET", "/api/sessions/"+id, nil)["status"].(string) }
+	for _, c := range []struct {
+		name         string
+		method, path string
+		body         map[string]any
+	}{
+		{"直接勾完", "PATCH", "/items/1", map[string]any{"status": "done", "note": "按 A 做了"}},
+		{"跳过一条", "PATCH", "/items/2", map[string]any{"status": "skipped", "note": "用户说不要"}},
+		{"追加条目", "POST", "/items", map[string]any{"text": "五"}},
+		{"重发清单", "PUT", "/items", map[string]any{"items": []string{"一", "二", "三", "四", "五", "六"}}},
+	} {
+		wait()
+		h.ok(c.method, "/api/sessions/"+id+c.path, c.body)
+		if got := status(); got != "running" {
+			t.Fatalf("%s 后应回到进行中，实际 %s", c.name, got)
+		}
+	}
+	// 用户在界面上手动勾一条：还在等用户回答，不该变
+	wait()
+	if code, _, raw := h.do("PATCH", "/api/sessions/"+id+"/items/3", map[string]any{"status": "done"}, "X-Tick-User", "1"); code != 200 {
+		t.Fatalf("手动勾选失败：%d %s", code, raw)
+	}
+	if got := status(); got != "waiting" {
+		t.Fatalf("用户手动勾选不该把会话拉回进行中，实际 %s", got)
+	}
+}
+
 // 归档过的会话，agent 又接着报进度：自动移出归档；用户手动归档、结束后的状态变化不受影响
 func TestUnarchiveOnActivity(t *testing.T) {
 	h := newHarness(t, t.TempDir())

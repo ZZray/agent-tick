@@ -905,7 +905,7 @@ func (st *Store) Patch(id string, in PatchInput) (*Session, error) {
 }
 
 // ReplacePlan 重发完整清单：文字相同的条目保留原状态和耗时
-func (st *Store) ReplacePlan(id string, raw []json.RawMessage) (*Session, error) {
+func (st *Store) ReplacePlan(id string, raw []json.RawMessage, byUser bool) (*Session, error) {
 	if raw == nil {
 		return nil, bad("缺少 items")
 	}
@@ -938,6 +938,7 @@ func (st *Store) ReplacePlan(id string, raw []json.RawMessage) (*Session, error)
 		first := len(s.Items) == 0
 		s.Items = next
 		unarchive(s)
+		st.resumeOnProgress(s, byUser)
 		if first {
 			addEvent(s, "plan", fmt.Sprintf("写好清单：%d 项", len(next)))
 		} else {
@@ -948,7 +949,7 @@ func (st *Store) ReplacePlan(id string, raw []json.RawMessage) (*Session, error)
 	})
 }
 
-func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string) (*Session, error) {
+func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string, byUser bool) (*Session, error) {
 	var inputs []itemInput
 	if raw != nil {
 		var err error
@@ -970,6 +971,7 @@ func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string) (*S
 			st.wake(s)
 		}
 		unarchive(s)
+		st.resumeOnProgress(s, byUser)
 		texts := make([]string, len(inputs))
 		for i, x := range inputs {
 			s.Items = append(s.Items, newItem(s, x))
@@ -983,6 +985,15 @@ func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string) (*S
 
 type ItemPatch struct {
 	Status, Note, Text *string
+	ByUser             bool `json:"-"` // 用户在界面上手动改的（请求带 X-Tick-User），不算 agent 回来干活
+}
+
+// resumeOnProgress agent 在“等你 / 受阻”时又报了进度（勾完、跳过一条，改了清单）：说明用户已经回答、它接着干了，
+// 会话回到进行中。用户在界面上手动改的不算。只认 agent 实打实的进度，通知之类的不算（它可能是在催用户）
+func (st *Store) resumeOnProgress(s *Session, byUser bool) {
+	if !byUser && isWaiting(s.Status) {
+		st.wake(s)
+	}
 }
 
 func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
@@ -1013,9 +1024,11 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 		if it == nil {
 			return &apiError{404, fmt.Sprintf("没有条目 %s（清单共 %d 项）", ref, len(s.Items))}
 		}
-		// agent 开始做某条，说明它已经回到工作状态
+		// agent 开始做某条，说明它已经回到工作状态；等你的时候直接勾完 / 跳过一条也是
 		if status == "doing" && isPaused(s.Status) {
 			st.wake(s)
+		} else if status == "done" || status == "skipped" {
+			st.resumeOnProgress(s, in.ByUser)
 		} else if status != "" && status != "todo" && s.Status == "planning" {
 			st.setSessionStatus(s, "running")
 		}

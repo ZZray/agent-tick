@@ -57,6 +57,9 @@ func writeErr(w http.ResponseWriter, err error) {
 	writeJSON(w, 500, map[string]string{"error": "服务内部错误：" + err.Error()})
 }
 
+// byUser 请求来自 Tick 自己的界面（用户手动勾选、改清单），不是 agent 报的进度
+func byUser(r *http.Request) bool { return r.Header.Get("X-Tick-User") == "1" }
+
 // decode 读取 JSON 对象请求体；空体当作 {}
 func decode(r *http.Request, v any) error {
 	b, err := io.ReadAll(io.LimitReader(r.Body, maxBody+1))
@@ -143,6 +146,10 @@ func (srv *Server) Handler() http.Handler {
 		}
 		return 200, h, nil
 	})
+	// 对话活跃度：很久没报进度的会话，它的对话记录最近有没有写入（见 liveness.go）
+	handle("GET /api/activity", func(*http.Request) (int, any, error) {
+		return 200, st.Activity(), nil
+	})
 	handle("GET /api/skills", func(*http.Request) (int, any, error) {
 		return 200, map[string]any{"skills": skillStatus(renderSkill(skillExe(), srv.port)), "url": srv.origins()[0] + "/skill"}, nil
 	})
@@ -190,7 +197,7 @@ func (srv *Server) Handler() http.Handler {
 		if err := decode(r, &in); err != nil {
 			return 0, nil, err
 		}
-		s, err := st.ReplacePlan(r.PathValue("id"), in.Items)
+		s, err := st.ReplacePlan(r.PathValue("id"), in.Items, byUser(r))
 		return 200, s, err
 	})
 	handle("POST /api/sessions/{id}/items", func(r *http.Request) (int, any, error) {
@@ -201,7 +208,7 @@ func (srv *Server) Handler() http.Handler {
 		if err := decode(r, &in); err != nil {
 			return 0, nil, err
 		}
-		s, err := st.AppendItems(r.PathValue("id"), in.Items, in.Text)
+		s, err := st.AppendItems(r.PathValue("id"), in.Items, in.Text, byUser(r))
 		return 200, s, err
 	})
 	handle("PATCH /api/sessions/{id}/items/{ref}", func(r *http.Request) (int, any, error) {
@@ -209,6 +216,7 @@ func (srv *Server) Handler() http.Handler {
 		if err := decode(r, &in); err != nil {
 			return 0, nil, err
 		}
+		in.ByUser = byUser(r)
 		s, err := st.PatchItem(r.PathValue("id"), r.PathValue("ref"), in)
 		return 200, s, err
 	})

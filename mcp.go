@@ -29,7 +29,9 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块。计划变了用 tick_plan 重发完整清单。
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
 - 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
-- 用户回答后立刻更新：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单。不要让会话一直停在“等你”。
+- 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
+- 一条预计超过 10 分钟（全量编译、长测试）：doing 时在 note 写预计多久，跑完马上 done。Tick 30 分钟收不到更新会标成“可能掉线了”。
+- 报“没有会话”：用户在 Tick 里删掉了它；只有接着做同一件事时才重新 tick_start（同样的 conversation_id）。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
 - 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。
 - 其他值得用户知道的事用 tick_notify kind=info / success / warning。不要写密钥。Tick 连不上不影响主任务。`
@@ -370,9 +372,9 @@ var mcpHandlers = map[string]toolFn{
 		var s *Session
 		switch mode := a.str("mode"); {
 		case mode == nil || *mode == "replace":
-			s, err = st.ReplacePlan(id, items)
+			s, err = st.ReplacePlan(id, items, false)
 		case *mode == "append":
-			s, err = st.AppendItems(id, items, nil)
+			s, err = st.AppendItems(id, items, nil, false)
 		default:
 			return "", fmt.Errorf("mode 只能是 replace 或 append")
 		}
