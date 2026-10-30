@@ -286,13 +286,8 @@ func runUpdateCLI(cmd string) int {
 	fmt.Printf("已更新到 %s：%s\n", tag, exe)
 	// 正在运行的 Tick 让它自己重启到新版
 	port := defaultPort()
-	if pingTick(port) {
-		req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/desktop/restart", port), strings.NewReader("{}"))
-		req.Header.Set("Content-Type", "application/json")
-		if res, err := (&http.Client{Timeout: 3 * time.Second}).Do(req); err == nil {
-			res.Body.Close()
-			fmt.Println("正在运行的 Tick 会在空闲时重启到新版本")
-		}
+	if pingTick(port) && restartRunning(port) {
+		fmt.Println("正在运行的 Tick 马上重启到新版本")
 	}
 	return 0
 }

@@ -29,7 +29,7 @@ type Server struct {
 	// showFloat 让桌面端显示悬浮窗（第二次启动 tick.exe 时调用）；没有桌面端时为 nil
 	showFloat func()
 	// restart 让桌面端在空闲时重启到新版本（tick update 换好文件后调用）；没有桌面端时为 nil
-	restart func()
+	restart func(force bool)
 	// showPanel 打开本地完整面板窗口，hash 定位到会话（"#s_xxx"）
 	showPanel func(hash string)
 	// theme 返回当前主题色（桌面端设置里存的）；没有桌面端时为 nil，页面用默认色
@@ -255,11 +255,17 @@ func (srv *Server) Handler() http.Handler {
 		srv.showPanel(hash)
 		return 200, map[string]bool{"ok": true}, nil
 	})
-	handle("POST /api/desktop/restart", func(*http.Request) (int, any, error) {
+	// {"force": true}：不等会话空闲，马上重启（会话都存在磁盘上，重启只断开几秒）。
+	// 发版后在本机装好新程序时用，不然有 agent 在跑就一直等着，跑着的还是旧版
+	handle("POST /api/desktop/restart", func(r *http.Request) (int, any, error) {
+		var in struct{ Force bool }
+		if err := decode(r, &in); err != nil {
+			return 0, nil, err
+		}
 		if srv.restart == nil {
 			return 0, nil, &apiError{404, "没有桌面端，手动重启服务即可"}
 		}
-		go srv.restart()
+		go srv.restart(in.Force)
 		return 200, map[string]bool{"ok": true}, nil
 	})
 	handle("POST /api/desktop/show", func(*http.Request) (int, any, error) {

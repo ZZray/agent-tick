@@ -714,7 +714,7 @@ func runTray(srv *Server, f *floatWin) {
 		mUpdate := systray.AddMenuItem(L("检查更新（当前 ", "Check for updates (current ")+version+L("）", ")"), "")
 		mAutoUp := systray.AddMenuItemCheckbox(L("自动更新", "Auto-update"), L("每 12 小时检查一次，空闲时重启到新版本", "Checks every 12 hours and restarts into the new version when idle"), !f.set.NoAutoUpdate)
 		t.up = &updater{f: f, srv: srv, menu: mUpdate}
-		srv.restart = func() { t.up.setPending(L("新版本", "new version")); t.up.restartWhenIdle(false) }
+		srv.restart = func(force bool) { t.up.setPending(L("新版本", "new version")); t.up.restartWhenIdle(force) }
 		go t.up.loop()
 		systray.AddSeparator()
 		mQuit := systray.AddMenuItem(L("退出 Tick", "Quit Tick"), "")

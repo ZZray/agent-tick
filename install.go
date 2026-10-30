@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -197,6 +198,13 @@ func runInstall(args []string) int {
 				say("\n✗ 启动 Tick 失败：%v，可以手动运行 %s", err, target)
 			} else {
 				_ = cmd.Process.Release()
+			}
+		} else if old := runningVersion(defaultPort()); old != version {
+			// 开着的是别的版本：让它马上重启到刚装好的这一份（会话都在磁盘上，只断开几秒）
+			if restartRunning(defaultPort()) {
+				say("\n· 正在运行的 Tick %s 会马上重启到 %s", old, version)
+			} else {
+				say("\n· 正在运行的是 Tick %s，从托盘退出再打开就是 %s", old, version)
 			}
 		}
 		say("\n装好了。已经开着的 agent 要重开一次才会读到新的 MCP 配置。")
@@ -457,4 +465,28 @@ func claudeMCP(exe string, dry, remove bool) (string, error) {
 		return "✓ 已从 Claude Code 删掉 tick", nil
 	}
 	return "✓ MCP：claude mcp（用户级）", nil
+}
+
+// runningVersion 正在运行的 Tick 报的版本号；连不上返回空串
+func runningVersion(port int) string {
+	res, err := (&http.Client{Timeout: 2 * time.Second}).Get(fmt.Sprintf("http://127.0.0.1:%d/api/health", port))
+	if err != nil {
+		return ""
+	}
+	defer res.Body.Close()
+	var h struct{ Version string }
+	_ = json.NewDecoder(res.Body).Decode(&h)
+	return h.Version
+}
+
+// restartRunning 让正在运行的 Tick 马上重启（旧版不认 force，会等到空闲）
+func restartRunning(port int) bool {
+	req, _ := http.NewRequest("POST", fmt.Sprintf("http://127.0.0.1:%d/api/desktop/restart", port), strings.NewReader(`{"force":true}`))
+	req.Header.Set("Content-Type", "application/json")
+	res, err := (&http.Client{Timeout: 3 * time.Second}).Do(req)
+	if err != nil {
+		return false
+	}
+	res.Body.Close()
+	return res.StatusCode == 200
 }
