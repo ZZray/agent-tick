@@ -319,6 +319,7 @@ func OpenStore(dir string) (*Store, error) {
 		st.sessions[s.ID] = s
 	}
 	st.notices = d.Notices
+	supersedeOld(st.notices)
 	return st, nil
 }
 
@@ -641,6 +642,11 @@ func (st *Store) pushNotice(s *Session, agent, kind, title, text string) *Notice
 	n := &Notice{ID: newID("n_", 5), At: now(), Agent: agent, Kind: kind, Title: title, Text: clip(text, maxNote)}
 	if s != nil {
 		n.SessionID, n.Agent, n.Title = s.ID, s.Agent, s.Title
+		// 同一会话的状态通知只留最新一条没读：agent 常常先报“做完了”紧接着又问“接下来？”，
+		// 两条都挂着，用户会看到同一个会话既做完了又在等你。agent 主动发的 info / success / warning 不受影响
+		if isStatusNotice(kind) {
+			st.markRead(func(x *Notice) bool { return x.SessionID == s.ID && isStatusNotice(x.Kind) })
+		}
 	}
 	st.notices = append(st.notices, n)
 	if len(st.notices) > maxNotices {
@@ -648,6 +654,27 @@ func (st *Store) pushNotice(s *Session, agent, kind, title, text string) *Notice
 	}
 	st.pending = append(st.pending, n)
 	return n
+}
+
+// isStatusNotice 随会话状态自动生成的通知（等你 / 受阻 / 做完 / 没做成）
+func isStatusNotice(kind string) bool {
+	_, ok := noticeDefault[kind]
+	return ok
+}
+
+// supersedeOld 打开旧数据时整理一次：每个会话只留最新一条没读的状态通知（老版本留下的“做完了 + 在等你”成对未读）
+func supersedeOld(ns []*Notice) {
+	seen := map[string]bool{}
+	for i := len(ns) - 1; i >= 0; i-- { // 新的在后面
+		n := ns[i]
+		if n.Read || n.SessionID == "" || !isStatusNotice(n.Kind) {
+			continue
+		}
+		if seen[n.SessionID] {
+			n.Read = true
+		}
+		seen[n.SessionID] = true
+	}
 }
 
 func (st *Store) markRead(match func(*Notice) bool) int {

@@ -31,6 +31,7 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
 - 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
 - 一条预计超过 10 分钟（全量编译、长测试）：doing 时在 note 写预计多久，跑完马上 done。Tick 30 分钟收不到更新会标成“可能掉线了”。
+- 做完了只想问接下来做什么：只发一次 kind=waiting（先一句结论再给选项），不要先 tick_finish 再问，用户会收到两条矛盾的提醒。用户选完再 doing 或 tick_finish。
 - 报“没有会话”：用户在 Tick 里删掉了它；只有接着做同一件事时才重新 tick_start（同样的 conversation_id）。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
 - 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。

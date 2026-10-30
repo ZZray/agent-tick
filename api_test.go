@@ -450,6 +450,41 @@ func TestParentSession(t *testing.T) {
 	}
 }
 
+// 同一会话先报“做完了”紧接着又问“接下来？”：只留最新那条状态通知没读；agent 主动发的提醒不受影响
+func TestStatusNoticeSupersedes(t *testing.T) {
+	h := newHarness(t, t.TempDir())
+	id := h.ok("POST", "/api/sessions", map[string]any{"agent": "cursor", "title": "做完又问", "items": []string{"一"}})["id"].(string)
+	h.ok("POST", "/api/notices", map[string]any{"sessionId": id, "kind": "info", "text": "顺便说一声"})
+	h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "done", "summary": "改好了"})
+	h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "waiting", "note": "接下来？A 编译 B 提交"})
+	unread := map[string]int{}
+	for _, n := range h.notices(id) {
+		if n["read"] == false {
+			unread[n["kind"].(string)]++
+		}
+	}
+	if unread["waiting"] != 1 || unread["done"] != 0 || unread["info"] != 1 {
+		t.Fatalf("应只剩“等你”和 agent 自己发的提醒没读：%v", unread)
+	}
+	// 反过来：问完用户、用户答了、做完 → 只剩“做完了”
+	h.ok("PATCH", "/api/sessions/"+id, map[string]any{"status": "done", "summary": "按 A 编好了"})
+	unread = map[string]int{}
+	for _, n := range h.notices(id) {
+		if n["read"] == false {
+			unread[n["kind"].(string)]++
+		}
+	}
+	if unread["waiting"] != 0 || unread["done"] != 1 {
+		t.Fatalf("做完后应只剩“做完了”没读：%v", unread)
+	}
+	// 老数据：重新打开时整理成每个会话一条
+	ns := []*Notice{{ID: "a", SessionID: "s", Kind: "done"}, {ID: "b", SessionID: "s", Kind: "waiting"}, {ID: "c", SessionID: "s", Kind: "info"}}
+	supersedeOld(ns)
+	if !ns[0].Read || ns[1].Read || ns[2].Read {
+		t.Fatalf("老数据整理不对：%v %v %v", ns[0].Read, ns[1].Read, ns[2].Read)
+	}
+}
+
 // 用户回答问题后，agent 直接勾完 / 跳过一条或改清单（没先报 doing）：会话也要从“等你”回到进行中；
 // 用户在界面上手动勾的不算
 func TestResumeFromWaitingOnProgress(t *testing.T) {
