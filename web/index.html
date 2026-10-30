@@ -1800,6 +1800,8 @@ function startPeek() {
     S.peek = d;
     document.documentElement.removeAttribute('data-idle');
     render();
+    // 弹出来就算看过了：全部标已读（托盘停闪、悬浮窗角标清零、自动拉开的通知页收回主面板），不用再点什么
+    fetch('/api/notices/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"all":true}' }).catch(() => {});
     const box = root.querySelector('.pk-box');
     if (box && !RM.matches) {
       box.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: EASE_OUT });
@@ -2229,7 +2231,14 @@ function renderFloat(el, mode) {
   // 贴边收起时整块换成小标签（或消息气泡）；外层 .f 的尺寸在两种形态之间平滑变形，原生窗口跟着长
   const tucked = mode === 'native' && S.dock.tucked;
   // 新的“等你 / 受阻”到了：下次以完整面板出现时自动拉开抽屉（收着、胶囊时先不撑大窗口）
-  if (S.drawerWant && !tucked && !S.compact) { S.drawer = true; S.drawerTab = 'unread'; S.drawerWant = false; }
+  // 这时问题已经被处理（看过、回答了、agent 接着跑了）就不拉了，免得打开一个空抽屉
+  if (S.drawerWant && !tucked && !S.compact) { if (d.cards.length) { S.drawer = true; S.drawerTab = 'unread'; S.drawerAuto = true; S.fresh = new Set(); } S.drawerWant = false; }
+  // 自动拉开的抽屉只为那几个问题：都处理完就回主面板，不因为还有别的未读停在通知页
+  // 在别处全部已读了（托盘预览、点托盘图标、全部已读按钮）也回主面板；打开抽屉时自己标的已读（S.fresh）不算
+  else if (S.drawer && ((S.drawerAuto && !d.cards.length) || (S.lastUnread > 0 && !d.unread.length && !S.fresh?.size))) {
+    S.drawer = false; S.drawerAuto = false; S.fresh = new Set();
+  }
+  S.lastUnread = d.unread.length;
   const drawer = S.drawer && !tucked && !S.compact;
   const sheet = S.agentsOpen && !drawer && !tucked && !S.compact; // logo 点开的 Agent 面板，和通知抽屉二选一
   const fan = S.fan && mode === 'native' && S.compact && !tucked;
@@ -3212,7 +3221,7 @@ function guideConfigs() {
 // 给 agent 的安装提示：让它自己去取技能全文、存到它自己的技能目录
 function skillPrompt() {
   const k = S.skills;
-  const paths = (k?.skills || []).filter(x => x.status !== 'noagent').map(x => `- ${x.agent}：${x.path}`).join('\n');
+  const paths = (k?.skills || []).filter(x => x.status !== 'noagent' && x.kind !== 'rule').map(x => `- ${x.agent}：${x.path}`).join('\n');
   return `请安装（或更新）Tick 技能：读取 ${k?.url || `${BASE}/skill`} 的全文，原样保存成你自己技能目录下的 tick/SKILL.md，覆盖旧版。\n${paths ? `本机各 agent 的位置：\n${paths}\n` : ''}装好后以后的多步任务都按它执行：开工写完整清单、逐条勾选、需要我回答时用 tick wait、我答完马上把下一条标成 doing、做完 tick finish。`;
 }
 const SKILL_ST = { ok: ['ok', '最新'], old: ['old', '需要更新'], missing: ['miss', '没装'], noagent: ['none', '本机没有这个 agent'] };
@@ -3228,9 +3237,10 @@ function guideHtml() {
     <h2><span class="grow">接入 agent</span><button class="ib" data-act="close-guide" aria-label="关闭">${IC.x}</button></h2>
     <p>接入分两步：<b>装技能</b>（告诉 agent 必须怎么用 Tick：完整清单、逐条勾选、提问走 Tick、回答后马上更新），<b>配 MCP</b>（让 agent 能调用 Tick）。</p>
     <h3>1. 技能（SKILL.md）</h3>
+    <p class="t4">Kiro 只在需要时加载技能，长对话里会忘，所以另外装一份每轮都生效的常驻规则，和一个在你每次回复时提醒它先更新 Tick 的钩子。</p>
     <div class="sk-list">${rows}</div>
     <div class="sk-acts">
-      <button class="btn primary" data-act="skill-update" data-tip="把这一版技能写给本机装了的每个 agent，旧版会被覆盖">${IC.update}${need ? `更新 ${need} 个` : '重新写一遍'}</button>
+      <button class="btn primary" data-act="skill-update" data-tip="把这一版技能和常驻规则写给本机装了的每个 agent，旧版会被覆盖">${IC.update}${need ? `更新 ${need} 个` : '重新写一遍'}</button>
       <button class="btn" data-act="copy-skill-prompt" data-tip="粘给任何 agent，它会自己去取技能并存到自己的目录">${IC.copy}复制安装提示</button>
       <button class="btn ghost" data-act="copy-skill-body">${IC.copy}复制技能全文</button>
     </div>
@@ -3263,9 +3273,10 @@ async function onClick(e) {
   if (!act && el.dataset.view) { S.view = el.dataset.view; S.agent = null; return schedule(); }
   if (!act && el.dataset.agent !== undefined) { S.agent = S.agent === el.dataset.agent ? null : el.dataset.agent; return schedule(); }
   switch (act) {
-    case undefined: // 通知行：标已读并展开对应会话
+    case undefined: // 通知行：标已读，回主面板展开对应会话
       markRead([el.dataset.nid]);
-      if (sid) focusSession(sid);
+      if (FLOAT) { S.drawer = false; S.drawerAuto = false; S.fresh = new Set(); }
+      if (sid) focusSession(sid); else schedule();
       break;
     case 'select': openSession(sid, true); break;
     case 'deck': toggleDeck(); break;
@@ -3287,12 +3298,13 @@ async function onClick(e) {
       break;
     case 'read-all': // 全部看过了就没必要留着抽屉
       markRead(S.notices.filter(n => !n.read).map(n => n.id));
-      S.drawer = false;
+      S.drawer = false; S.drawerAuto = false; S.fresh = new Set();
       schedule();
       break;
     // ---------- 悬浮窗：抽屉、排序、刚结束、底栏动态、转盘、提示音 ----------
     case 'drawer': {
       S.drawer = !S.drawer;
+      S.drawerAuto = false; // 自己打开的抽屉不会自动收起
       // 打开就算看过了：未读全部标成已读（角标、外框呼吸、托盘闪动一起停）；
       // 这次打开期间它们仍留在“未读”页签里，关掉抽屉后才归到“全部”
       const ids = S.drawer ? S.notices.filter(n => !n.read).map(n => n.id) : [];
@@ -3364,7 +3376,7 @@ async function onClick(e) {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
         S.skills = { ...S.skills, skills: d.skills };
-        toast(`已写入 ${d.updated} 个 agent 的技能；已经开着的 agent 新开对话后生效`);
+        toast(`已写入 ${d.updated} 个文件；已经开着的 agent 新开对话后生效`);
       } catch (err) { toast(`没写进去：${esc(err.message)}`); }
       openGuide();
       break;

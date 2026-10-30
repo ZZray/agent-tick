@@ -25,11 +25,24 @@ import (
 //go:embed skill/SKILL.md
 var skillTemplate string
 
+//go:embed skill/kiro-steering.md
+var kiroSteeringTemplate string
+
+//go:embed skill/kiro-hook.json
+var kiroHookTemplate string
+
+// ruleFile 技能之外的常驻规则文件。技能按需加载，长对话里会掉出上下文；
+// 常驻规则（Kiro steering）每轮都注入，钩子在用户每发一条消息时提醒先更新 Tick
+type ruleFile struct {
+	label, path, tmpl string
+}
+
 type agentTarget struct {
 	name     string
 	home     string // 存在才算装了
 	skillDir string // 空表示这个 agent 没有 skill 机制
 	mcp      func(exe string, dry, remove bool) (string, error)
+	rules    []ruleFile
 }
 
 func installTargets(home string) []agentTarget {
@@ -38,15 +51,35 @@ func installTargets(home string) []agentTarget {
 		return func(exe string, dry, remove bool) (string, error) { return mergeJSONMCP(file, exe, dry, remove) }
 	}
 	return []agentTarget{
-		{"Claude Code", j(".claude"), j(".claude", "skills", "tick"), claudeMCP},
+		{"Claude Code", j(".claude"), j(".claude", "skills", "tick"), claudeMCP, nil},
 		{"Codex", j(".codex"), j(".codex", "skills", "tick"), func(exe string, dry, remove bool) (string, error) {
 			return codexMCP(j(".codex", "config.toml"), exe, dry, remove)
+		}, nil},
+		{"Kiro", j(".kiro"), j(".kiro", "skills", "tick"), jsonMCP(j(".kiro", "settings", "mcp.json")), []ruleFile{
+			{"常驻规则", j(".kiro", "steering", "tick.md"), kiroSteeringTemplate},
+			{"钩子", j(".kiro", "hooks", "tick-sync-on-prompt.json"), kiroHookTemplate},
 		}},
-		{"Kiro", j(".kiro"), j(".kiro", "skills", "tick"), jsonMCP(j(".kiro", "settings", "mcp.json"))},
-		{"Cursor", j(".cursor"), j(".cursor", "skills", "tick"), jsonMCP(j(".cursor", "mcp.json"))},
-		{"Gemini CLI", j(".gemini"), "", jsonMCP(j(".gemini", "settings.json"))},
-		{"通用 agents 目录", j(".agents"), j(".agents", "skills", "tick"), nil},
+		{"Cursor", j(".cursor"), j(".cursor", "skills", "tick"), jsonMCP(j(".cursor", "mcp.json")), nil},
+		{"Gemini CLI", j(".gemini"), "", jsonMCP(j(".gemini", "settings.json")), nil},
+		{"通用 agents 目录", j(".agents"), j(".agents", "skills", "tick"), nil, nil},
 	}
+}
+
+// renderRule 填好程序路径；JSON 文件里的路径要转义反斜杠
+func renderRule(r ruleFile, exe string, port int) string {
+	if strings.HasSuffix(r.path, ".json") {
+		b, _ := json.Marshal(exe)
+		exe = string(b[1 : len(b)-1])
+	}
+	body := strings.ReplaceAll(r.tmpl, "{{EXE}}", exe)
+	return strings.ReplaceAll(body, "{{BASE}}", fmt.Sprintf("http://127.0.0.1:%d", port))
+}
+
+func writeFile(file, body string) error {
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(file, []byte(body), 0o644)
 }
 
 func installDir() string {
@@ -124,6 +157,26 @@ func runInstall(args []string) int {
 				}
 			}
 		}
+		for _, r := range t.rules {
+			switch {
+			case remove && dry:
+				say("  · 删除%s %s", r.label, r.path)
+			case remove:
+				if err := os.Remove(r.path); err != nil && !os.IsNotExist(err) {
+					say("  ✗ 删除%s失败：%v", r.label, err)
+				} else {
+					say("  ✓ 已删除%s", r.label)
+				}
+			case dry:
+				say("  · 写入%s %s", r.label, r.path)
+			default:
+				if err := writeFile(r.path, renderRule(r, target, defaultPort())); err != nil {
+					say("  ✗ 写入%s失败：%v", r.label, err)
+				} else {
+					say("  ✓ %s：%s", r.label, r.path)
+				}
+			}
+		}
 		if t.mcp != nil {
 			msg, err := t.mcp(target, dry, remove)
 			if err != nil {
@@ -175,23 +228,21 @@ func skillExe() string {
 	return exe
 }
 
-// SkillInfo 一个 agent 的技能文件：在哪、装没装、是不是最新
+// SkillInfo 一个 agent 的技能或常驻规则文件：在哪、装没装、是不是最新
 type SkillInfo struct {
 	Agent  string `json:"agent"`
+	Kind   string `json:"kind"` // skill 技能；rule 常驻规则或钩子
 	Path   string `json:"path"`
 	Status string `json:"status"` // ok 已是最新；old 装过但不是这一版；missing 没装；noagent 本机没装这个 agent
 }
 
-// skillStatus 列出各 agent 的技能文件状态，body 是这一版应有的全文
-func skillStatus(body string) []SkillInfo {
+// skillStatus 列出各 agent 的技能和常驻规则文件状态，和这一版应有的全文比较
+func skillStatus(exe string, port int) []SkillInfo {
 	home, _ := os.UserHomeDir()
 	var out []SkillInfo
-	for _, t := range installTargets(home) {
-		if t.skillDir == "" {
-			continue
-		}
-		info := SkillInfo{Agent: t.name, Path: filepath.Join(t.skillDir, "SKILL.md")}
-		switch b, err := os.ReadFile(info.Path); {
+	add := func(t agentTarget, agent, kind, path, body string) {
+		info := SkillInfo{Agent: agent, Kind: kind, Path: path}
+		switch b, err := os.ReadFile(path); {
 		case err == nil && string(b) == body:
 			info.Status = "ok"
 		case err == nil:
@@ -203,6 +254,15 @@ func skillStatus(body string) []SkillInfo {
 		}
 		out = append(out, info)
 	}
+	skill := renderSkill(exe, port)
+	for _, t := range installTargets(home) {
+		if t.skillDir != "" {
+			add(t, t.name, "skill", filepath.Join(t.skillDir, "SKILL.md"), skill)
+		}
+		for _, r := range t.rules {
+			add(t, t.name+" · "+r.label, "rule", r.path, renderRule(r, exe, port))
+		}
+	}
 	return out
 }
 
@@ -211,18 +271,27 @@ func dirExists(p string) bool {
 	return err == nil && st.IsDir()
 }
 
-// updateSkills 把这一版技能写给本机装了的每个 agent（只写技能，不动 MCP 配置）
-func updateSkills(body string) (int, error) {
+// updateSkills 把这一版技能和常驻规则写给本机装了的每个 agent（不动 MCP 配置），返回写了几个文件
+func updateSkills(exe string, port int) (int, error) {
 	home, _ := os.UserHomeDir()
+	skill := renderSkill(exe, port)
 	n := 0
 	for _, t := range installTargets(home) {
-		if t.skillDir == "" || !dirExists(t.home) {
+		if !dirExists(t.home) {
 			continue
 		}
-		if err := writeSkill(t.skillDir, body); err != nil {
-			return n, fmt.Errorf("%s：%w", t.name, err)
+		if t.skillDir != "" {
+			if err := writeSkill(t.skillDir, skill); err != nil {
+				return n, fmt.Errorf("%s：%w", t.name, err)
+			}
+			n++
 		}
-		n++
+		for _, r := range t.rules {
+			if err := writeFile(r.path, renderRule(r, exe, port)); err != nil {
+				return n, fmt.Errorf("%s %s：%w", t.name, r.label, err)
+			}
+			n++
+		}
 	}
 	return n, nil
 }

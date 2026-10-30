@@ -151,13 +151,12 @@ func (srv *Server) Handler() http.Handler {
 		return 200, st.Activity(), nil
 	})
 	handle("GET /api/skills", func(*http.Request) (int, any, error) {
-		return 200, map[string]any{"skills": skillStatus(renderSkill(skillExe(), srv.port)), "url": srv.origins()[0] + "/skill"}, nil
+		return 200, map[string]any{"skills": skillStatus(skillExe(), srv.port), "url": srv.origins()[0] + "/skill"}, nil
 	})
-	// 一键更新：把这一版技能写给本机装了的每个 agent（和 tick install 写的是同一份）
+	// 一键更新：把这一版技能和常驻规则写给本机装了的每个 agent（和 tick install 写的是同一份）
 	handle("POST /api/skills", func(*http.Request) (int, any, error) {
-		body := renderSkill(skillExe(), srv.port)
-		n, err := updateSkills(body)
-		return 200, map[string]any{"updated": n, "skills": skillStatus(body)}, err
+		n, err := updateSkills(skillExe(), srv.port)
+		return 200, map[string]any{"updated": n, "skills": skillStatus(skillExe(), srv.port)}, err
 	})
 	handle("GET /api/sessions", func(r *http.Request) (int, any, error) {
 		return 200, st.Sessions(r.URL.Query().Get("archived") == "1"), nil
