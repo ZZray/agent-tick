@@ -330,10 +330,10 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .s-l2 .stale.live{color:var(--text-3)} /* 对话还在动，只是没报：比“没动静”亮一点 */
 .s .segs{margin:7px 0 0 22px}
 .s-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
-.s.open .s-items{grid-template-rows:1fr}
+.s.open>.s-items{grid-template-rows:1fr}
 .s-items>div{overflow:hidden;min-height:0}
 .s-items .pad{padding:2px 8px 8px 30px;opacity:0;transition:opacity 140ms var(--ease)}
-.s.open .s-items .pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.s.open>.s-items>div>.pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
 .it-s.sum .tx{color:var(--text-3)}
 /* 子任务：挂在主会话下，左侧一条细线连起来 */
 .kids{margin:-2px 8px 6px 15px;padding-left:10px;border-left:1px solid var(--line)}
@@ -345,8 +345,8 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .kid-s{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-4)}
 .kid-p{color:var(--text-4);font-size:11.5px;flex-shrink:0}
 .kid .s-items .pad{padding:0 6px 6px 25px}
-.kid.open .s-items{grid-template-rows:1fr}
-.kid.open .s-items .pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.kid.open>.s-items{grid-template-rows:1fr}
+.kid.open>.s-items>div>.pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
 .it-s{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:12px;color:var(--text-2)}
 .it-s .ic{margin-top:2px}
 .it-s .tx{flex:1;min-width:0;line-height:18px;word-break:break-word}
@@ -2919,7 +2919,8 @@ function itemsHtml(s) {
   let from = 0, to = all.length;
   const long = FLOAT && all.length > ITEMS_LONG;
   if (long && !S.open.has(`all:${s.id}`)) {
-    let c = all.findIndex(it => it.status === 'doing' || it.status === 'blocked');
+    let c = all.findIndex(it => it.status === 'doing');
+    if (c < 0) c = all.findIndex(it => it.status === 'blocked');
     if (c < 0) c = all.findIndex(it => it.status === 'todo');
     if (c < 0) c = all.length - 1;
     from = Math.max(0, Math.min(c - 1, all.length - ITEMS_WIN));
@@ -3017,8 +3018,7 @@ function sessionRow(s, live) {
       <button class="ib" data-act="archive" data-sid="${esc(s.id)}" data-tip="${isEnded(s) ? '归档' : '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）'}">${IC.archive}</button>
       ${dead ? `<button class="ib" data-act="end-session" data-sid="${esc(s.id)}" data-tip="结束：标成已取消（能撤销）">${IC.x}</button>` : ''}
     </div>
-    ${kidsHtml(s, live)}
-    <div class="s-items"><div><div class="pad">
+    <div class="s-items"><div>${kidsHtml(s, live)}<div class="pad">
       ${itemsHtml(s)}
       <div class="s-more">
         ${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
@@ -3332,7 +3332,11 @@ function focusSession(id) {
   if (NATIVE && S.dock.tucked) { S.focusAfter = id; window.tickUntuck(); return; }
   const s = S.sessions.get(id);
   S.open.add(id);
-  if (s && isEnded(s)) S.histOpen = true; // 收起的“刚结束”里的会话：先把分组打开
+  const parent = s && isChild(s) ? S.sessions.get(s.parentId) : null;
+  if (parent) S.open.add(parent.id); // 子任务现在跟随父条目折叠，通知定位时先把父条目展开。
+  const rowSession = parent || s;
+  if (rowSession && isEnded(rowSession)) S.histOpen = true;
+  if (rowSession && isDormant(rowSession)) S.staleOpen = true;
   if (s && isWaiting(s)) S.open.add(`card:${id}`); // 抽屉里的卡片也展开清单
   render();
   const host = pip.root || root;

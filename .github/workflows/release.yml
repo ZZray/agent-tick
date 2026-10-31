@@ -17,12 +17,19 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Test
         shell: pwsh
         run: |
           $env:CGO_ENABLED = '0'
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test -count=1 ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: UI tests
+        run: node --test web/*.test.cjs
       - name: Build
         shell: pwsh
         run: |
