@@ -25,12 +25,31 @@ function setup(sessions = []) {
     render: () => {}, pip: {}, root: {querySelector:()=>({scrollIntoView:()=>{ctx.scrolled=true;}})},
   };
   vm.createContext(ctx);
+  vm.runInContext(html.slice(html.indexOf('function matches('), html.indexOf('function hitLine(')),ctx);
   vm.runInContext(html.slice(html.indexOf('const ITEMS_LONG'), html.indexOf('function cardHtml')),ctx);
   vm.runInContext(html.slice(html.indexOf('function kidsHtml'), html.indexOf('function floatEmpty')),ctx);
   vm.runInContext(html.slice(html.indexOf('function focusSession'), html.indexOf('window.tickFocus')),ctx);
   return ctx;
 }
 const item = (i,status='todo') => ({id:`i${i}`,text:`step ${i}`,status,note:''});
+
+test('a renamed task is found by its old title and keeps its current title',()=>{
+  const ctx=setup();
+  const s={id:'p',agent:'codex',title:'Tick · 展开与标题优化',titleHistory:['了解 Tick 项目','Tick · 修复折叠'],items:[]};
+  assert.ok(ctx.matches(s,'了解 tick'));
+  assert.ok(ctx.matches(s,'修复折叠'));
+  assert.ok(ctx.matches(s,'展开与标题优化'));
+  assert.equal(s.title,'Tick · 展开与标题优化');
+  assert.equal(ctx.matches(s,'其他项目'),false);
+});
+
+test('old task data without title history remains searchable',()=>{
+  const ctx=setup();
+  const s={id:'old',agent:'codex',title:'既有会话',items:[item(1)]};
+  assert.ok(ctx.matches(s,'既有会话'));
+  assert.ok(ctx.matches(s,'step 1'));
+  assert.equal(ctx.matches(s,'undefined'),false);
+});
 
 test('old blocked item does not hide the two current parallel steps',()=>{
   const ctx=setup();

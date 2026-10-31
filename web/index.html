@@ -25,7 +25,9 @@
   --frost:rgba(15,16,17,.78); --glow:rgba(255,255,255,.05);
   --edge:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.04) 42%,rgba(255,255,255,.11));
   --ease:cubic-bezier(.25,.46,.45,.94); --ease-out:cubic-bezier(.23,1,.32,1); --ease-drawer:cubic-bezier(.32,.72,0,1);
-  --t-press:120ms; --t-hover:100ms; --t-pop:180ms; --t-menu:200ms; --t-panel:320ms;
+  --t-press:120ms; --t-hover:100ms; --t-pop:180ms; --t-menu:200ms; --t-panel:320ms; --t-fold:320ms;
+  /* 清单撑开 / 收起：前后都留出“中间”，不像强 ease-out 那样头几帧就走完大半、看着像直接跳到终点 */
+  --ease-fold:cubic-bezier(.33,.1,.2,1);
   --r-sm:4px; --r:6px; --r-lg:8px; --r-xl:12px;
   --shadow-pop:0 0 0 1px var(--line),0 16px 48px -12px rgba(0,0,0,.7);
   color-scheme:dark;
@@ -177,6 +179,13 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f{display:flex;align-items:flex-start;width:100%;background:var(--bg-2);position:relative;overflow:hidden}
 .f.native{width:max-content}
 .f-in{flex:none;display:flex;flex-direction:column;width:340px;position:relative}
+.f.native:not(.pill):not(.tucked):not(.fanning)>.f-in{width:var(--float-width,340px)}
+.f-resize{position:absolute;top:8px;bottom:8px;width:6px;z-index:8;cursor:ew-resize;touch-action:none;user-select:none}
+.f-resize.left{left:0}.f-resize.right{right:0}
+.f-resize::after{content:"";position:absolute;inset:0 2px;border-radius:2px;background:transparent;transition:background-color 100ms var(--ease)}
+.f-resize:hover::after,[data-width-resizing] .f-resize::after{background:var(--brand)}
+[data-dock=left] .f-resize.left,[data-dock=right] .f-resize.right{display:none}
+[data-width-resizing],[data-width-resizing] *{cursor:ew-resize!important}
 .f.pill .f-in{width:300px}
 /* 收起 / 展开时旧内容的影子：叠在原位淡出，不接收鼠标 */
 .f-ghost{position:absolute;top:0;left:0;z-index:5;pointer-events:none}
@@ -194,6 +203,9 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f.fill .f-in{width:100%;height:100%}
 /* 原生窗口：高度跟内容走，列表最多到 560px 再滚动 */
 .f.native .f-body{max-height:560px}
+/* 清单展开期间：窗口可能比页面先长一两帧，盒子下面垫一截同色的底，露出来的也是面板颜色，不是系统底色 */
+[data-reserving] .f.native{box-shadow:0 72px 0 0 var(--bg-2)}
+[data-glass][data-reserving] .f.native{box-shadow:0 72px 0 0 var(--glass)}
 .f::before{content:"";position:absolute;inset:-90px 10% auto;height:180px;pointer-events:none;z-index:0;
   background:radial-gradient(50% 50% at 50% 50%,var(--glow),transparent 70%)}
 /* 标题栏下沿：内容没压在下面时不画分割线，滚动后才浮出一道柔和渐隐（Apple 滚动边缘） */
@@ -277,9 +289,9 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .s{border-radius:var(--r-lg);transition:background-color var(--t-hover) var(--ease)}
 .s:hover{background:var(--hover)}
 .s.open{background:var(--layer-1)}
-.s-head{display:block;width:100%;padding:8px 8px 9px;border-radius:var(--r-lg);transition:transform var(--t-press) var(--ease-out)}
+.s-head{display:block;width:100%;min-width:0;padding:8px 8px 9px;border-radius:var(--r-lg);transition:transform var(--t-press) var(--ease-out)}
 .s-head:active{transform:scale(.99)}
-.s-l1{display:flex;align-items:center;gap:8px}
+.s-l1{display:flex;align-items:center;gap:8px;min-width:0}
 /* 箭头只在展开时占位，收起时宽度为 0，进度数字和下一行的耗时右边对齐 */
 .s-l1 .chev{flex-shrink:0;width:0;margin-left:-8px;color:var(--text-4);opacity:0;overflow:visible;
   transition:opacity var(--t-hover) var(--ease),transform var(--t-menu) var(--ease-out),width var(--t-menu) var(--ease-out),margin var(--t-menu) var(--ease-out)}
@@ -308,7 +320,11 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
   opacity:0;transform:translateX(6px) scale(.96);pointer-events:none;transition:opacity 140ms var(--ease),transform 180ms var(--ease-out)}
 .s-quick .ib{width:24px;height:24px}
 .s:hover>.s-quick,.s:focus-within>.s-quick{opacity:1;transform:none;pointer-events:auto;transition-delay:80ms}
-.s:hover>.s-head .s-prog,.s:hover>.s-head .s-l1 .chev{opacity:0}
+@media (hover:hover){
+  .s:hover>.s-head .s-l1,.s:focus-within>.s-head .s-l1{padding-right:var(--quick-w)}
+  .s:hover>.s-head .s-prog,.s:hover>.s-head .s-l1 .chev,
+  .s:focus-within>.s-head .s-prog,.s:focus-within>.s-head .s-l1 .chev{display:none}
+}
 .s-prog{transition:opacity 120ms var(--ease)}
 /* 条目悬停：耗时让位给“复制 / 跳过” */
 .it-s{position:relative;border-radius:var(--r-sm)}
@@ -329,11 +345,12 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .s-l2 .stale{color:var(--text-4);flex-shrink:0}
 .s-l2 .stale.live{color:var(--text-3)} /* 对话还在动，只是没报：比“没动静”亮一点 */
 .s .segs{margin:7px 0 0 22px}
-.s-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
+.s-items{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-fold) var(--ease-fold)}
 .s.open>.s-items{grid-template-rows:1fr}
 .s-items>div{overflow:hidden;min-height:0}
+/* 展开：高度和内容同时开始，不再等 60ms 才淡入（那样框先空着长出来）；每一行另外从右侧依次滑进来（见 foldMotion） */
 .s-items .pad{padding:2px 8px 8px 30px;opacity:0;transition:opacity 140ms var(--ease)}
-.s.open>.s-items>div>.pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.s.open>.s-items>div>.pad{opacity:1;transition:opacity 120ms var(--ease)}
 .it-s.sum .tx{color:var(--text-3)}
 /* 子任务：挂在主会话下，左侧一条细线连起来 */
 .kids{margin:-2px 8px 6px 15px;padding-left:10px;border-left:1px solid var(--line)}
@@ -346,7 +363,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .kid-p{color:var(--text-4);font-size:11.5px;flex-shrink:0}
 .kid .s-items .pad{padding:0 6px 6px 25px}
 .kid.open>.s-items{grid-template-rows:1fr}
-.kid.open>.s-items>div>.pad{opacity:1;transition:opacity 200ms 60ms var(--ease)}
+.kid.open>.s-items>div>.pad{opacity:1;transition:opacity 120ms var(--ease)}
 .it-s{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:12px;color:var(--text-2)}
 .it-s .ic{margin-top:2px}
 .it-s .tx{flex:1;min-width:0;line-height:18px;word-break:break-word}
@@ -565,7 +582,7 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
   background:conic-gradient(from 0deg,transparent 0 62%,color-mix(in srgb,var(--fx) 30%,transparent) 80%,var(--fx) 94%,transparent 100%)}
 
 /* ============ 自绘提示框 ============ */
-.ui-tip{position:fixed;z-index:70;left:0;top:0;max-width:240px;padding:5px 9px 6px;border-radius:var(--r);pointer-events:none;white-space:pre-line;
+.ui-tip{position:fixed;z-index:70;left:0;top:0;max-width:min(280px,calc(100vw - 12px));padding:5px 9px 6px;border-radius:var(--r);pointer-events:none;white-space:pre-line;overflow-wrap:anywhere;
   background:var(--bg-3);box-shadow:var(--shadow-pop),inset 0 0 0 1px var(--line);font-size:11.5px;line-height:1.45;color:var(--text-1);
   opacity:0;transform:translateY(2px);transition:opacity 110ms var(--ease),transform 160ms var(--ease-out)}
 .ui-tip.on{opacity:1;transform:none}
@@ -657,11 +674,23 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 .tc-tx{animation-delay:40ms}
 @keyframes tcIn{from{opacity:0;transform:translateX(26px)}}
 .tc-ic svg{display:block;overflow:visible}
-/* 签名动效：圆先弹出来，再一笔描出对勾；做完的还会往外扩一圈 */
-.tc-ok circle:first-child{transform-box:fill-box;transform-origin:center;animation:pop 360ms 60ms var(--ease-out) backwards}
-.tc-ok path{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 360ms 220ms var(--ease-out) forwards}
-.tc-burst{transform-box:fill-box;transform-origin:center;opacity:0;animation:burst 700ms 260ms var(--ease-out)}
-@keyframes burst{from{opacity:.7;transform:scale(1)}to{opacity:0;transform:scale(1.7)}}
+/* 签名动效（像一段短 GIF，只播一次）：先从 12 点顺时针画一圈 → 圈里铺满底色 → 一笔一笔描出标记 →
+   做完 / 完成一项鼓一下，没做成 / 卡住横向抖一下，等你轻轻晃一下。只动 stroke-dashoffset、transform、opacity */
+.sg{--c:var(--brand)}
+.sg.k-failed,.sg.k-blocked{--c:var(--red)} .sg.k-waiting{--c:var(--orange)} .sg.k-info{--c:var(--blue)} .sg.k-warning{--c:var(--orange)}
+.sg .sg-ring{fill:none;stroke:var(--c);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 360ms 90ms cubic-bezier(.65,0,.35,1) forwards}
+.sg .sg-fill{fill:var(--c);transform-box:fill-box;transform-origin:center;animation:sgFill 240ms 380ms var(--ease-out) backwards}
+.sg .sg-mk{fill:none;stroke:#fff;stroke-width:2.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:draw 220ms 520ms var(--ease-out) forwards}
+.sg .sg-mk.b{animation-delay:640ms}
+.sg .sg-dot{fill:var(--c);transform-box:fill-box;transform-origin:center;animation:sgFill 260ms 420ms cubic-bezier(.3,1.5,.5,1) backwards}
+.sg.k-info .sg-fill,.sg.k-warning .sg-fill{fill:var(--layer-3)}
+.sg.k-done,.sg.k-item{animation:sgPop 300ms 720ms cubic-bezier(.3,1.35,.5,1)}
+.sg.k-failed,.sg.k-blocked{animation:sgShake 320ms 780ms ease}
+.sg.k-waiting{transform-origin:50% 60%;animation:sgTilt 460ms 760ms ease}
+@keyframes sgFill{from{transform:scale(.35);opacity:0}}
+@keyframes sgPop{45%{transform:scale(1.16)}}
+@keyframes sgShake{20%{transform:translateX(-2px)}50%{transform:translateX(1.6px)}80%{transform:translateX(-.8px)}}
+@keyframes sgTilt{30%{transform:rotate(-9deg)}65%{transform:rotate(6deg)}}
 .tc-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:12.5px;line-height:1.45}
 .tc-tx b{color:var(--text-1);font-weight:600;font-size:13px}
 .tc-tx span{color:var(--text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
@@ -674,7 +703,7 @@ html:not([data-glass]):has(.tst),html:not([data-glass]):has(.tst) body{backgroun
 .k-info .tc-bar,.k-success .tc-bar,.k-warning .tc-bar{background:var(--text-3)}
 .tst:hover .tc-bar{animation-play-state:paused}
 @keyframes tcBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
-@media (prefers-reduced-motion:reduce){.tc-ic,.tc-tx,.tc-ok circle:first-child,.tc-burst{animation:none}.tc-ok path{animation:none;stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.tc-ic,.tc-tx,.sg,.sg *{animation:none!important}.sg .sg-ring,.sg .sg-mk{stroke-dashoffset:0}}
 
 /* ============ 托盘悬停预览（view=peek）：未读列表，像微信托盘那样 ============ */
 html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body,html:not([data-glass]):has(.sk-box),html:not([data-glass]):has(.sk-box) body{background:var(--bg-2)}
@@ -885,6 +914,25 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 .nav-i .cnt.hot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--orange)}
 .nav-i .dot{margin:0 5px}
 .side-foot{border-top:1px solid var(--line-soft);padding-top:8px;display:flex;flex-direction:column;gap:1px}
+.settings-trigger .grow{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-trigger[aria-expanded=true]{background:var(--bg-3);color:var(--text-1)}
+.settings-pop{position:fixed;z-index:55;width:320px;max-width:calc(100vw - 16px);overflow-y:auto;overscroll-behavior:contain;padding:6px;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-pop);transform-origin:bottom left}
+.settings-head,.settings-foot{display:flex;align-items:center;gap:8px;padding:8px 10px}
+.settings-head{font-weight:600;color:var(--text-1)}
+.settings-section{padding:6px 0;border-top:1px solid var(--line-soft)}
+.settings-section h3{margin:2px 10px 6px;color:var(--text-3);font-size:10px;font-weight:500}
+.settings-pop .mn-row{width:100%;min-height:34px;gap:12px;padding:6px 10px}
+.settings-pop .mn-row>.grow{min-width:0;text-align:left}
+.settings-pop .pk{max-width:170px}
+.settings-pop .pk-v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-pop .mn-cs{flex-wrap:wrap;justify-content:flex-end;max-width:180px}
+.settings-note{margin:4px 10px;color:var(--text-3);font-size:10px;line-height:1.5}
+.settings-foot{border-top:1px solid var(--line-soft);font-size:11px;color:var(--text-3)}
+.settings-foot a{color:var(--text-2)}
+.settings-pop [aria-busy=true]{opacity:.65}
+.settings-pop button:disabled{cursor:wait;opacity:.55}
+.settings-pop .mn-err{display:block;overflow-wrap:anywhere}
+.settings-pop .mn-err .btn{margin-top:6px}
 .main{flex:1;min-width:0;display:flex;padding:8px 8px 8px 0}
 .panel{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-xl);
   background:var(--bg-2);box-shadow:inset 0 1px 0 var(--hi);overflow:hidden}
@@ -937,7 +985,10 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
   background:color-mix(in srgb,var(--bg-2) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line-soft)}
 .d-main{padding:20px 28px 48px;max-width:780px}
 .d-status{display:flex;align-items:center;gap:8px;color:var(--text-3);font-size:12px;font-weight:510}
-.d-title{margin:8px 0 6px;font-size:20px;line-height:1.4;font-weight:510;color:var(--text-1);letter-spacing:-.01em}
+.d-title{margin:8px 0 6px;font-size:20px;line-height:1.4;font-weight:510;color:var(--text-1);letter-spacing:-.01em;overflow-wrap:anywhere}
+.d-titles{margin:4px 0 12px;color:var(--text-3);font-size:12px;overflow-wrap:anywhere}
+.d-titles summary{cursor:pointer}
+.d-titles ul{margin:6px 0 0;padding-left:18px}
 .d-goal{color:var(--text-2);line-height:1.65}
 .callout{margin-top:16px;padding:12px 14px;border-radius:var(--r-lg);border:1px solid transparent;
   background:linear-gradient(var(--bg-3),var(--bg-3)) padding-box,var(--edge) border-box}
@@ -1125,7 +1176,11 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
   [data-theme=light]{--line:rgba(0,0,0,.24);--line-soft:rgba(0,0,0,.16);--text-3:#4E525A}
 }
 @media (max-width:900px){
-  .side{display:none} .main{padding:8px}
+  .side{position:fixed;bottom:8px;left:8px;z-index:5;width:auto;padding:0}
+  .side>.brand,.side>nav{display:none}
+  .side-foot{border:0;padding:0}
+  .side .settings-trigger{max-width:190px;background:var(--bg-2);box-shadow:0 0 0 1px var(--line)}
+  .main{padding:8px 8px 48px}
   .body.split{grid-template-columns:minmax(0,1fr)} .body.split .list{display:none} .detail{border-left:0}
 }
 @media (max-width:560px){ .row .time,.today{display:none} .facts{grid-template-columns:auto minmax(0,1fr)} .d-main{padding:16px} }
@@ -1158,6 +1213,9 @@ const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem('tick.' + k)) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem('tick.' + k, JSON.stringify(v)); } catch { /* 无痕模式 */ } },
 };
+const systemAppearance = matchMedia('(prefers-color-scheme: light)');
+function appearanceMode(value) { return ['dark', 'light', 'system'].includes(value) ? value : 'system'; }
+function resolvedAppearance(mode) { return mode === 'system' ? (systemAppearance.matches ? 'light' : 'dark') : mode; }
 // ============ 界面语言 ============
 // 宿主在地址里带 lang（跟系统或托盘菜单里选的）；浏览器直接打开时看浏览器语言。
 // 英文模式下 esc() 把用户 / agent 写的内容用 \u0001…\u0002 包起来，tr() 只翻译包外面的界面文字，
@@ -1179,6 +1237,12 @@ const TR_RE = [
   [/(\d+) 分钟前/g, '$1 min ago'], [/(\d+) 分钟/g, '$1 min'], [/(\d+) 项/g, '$1 items'], [/(\d+) 个/g, '$1'], [/(\d+) 条/g, '$1'],
 ];
 const TR = {
+  '外观': 'Appearance', '明暗模式': 'Appearance mode', '常规': 'General', '设置': 'Settings', '版本说明': 'Release notes',
+  '关闭设置': 'Close settings', '重新读取': 'Retry', '切换语言会重启 Tick。': 'Changing language restarts Tick.',
+  '正在重启 Tick…': 'Restarting Tick…', '语言已保存，尚未确认重启完成。请重新读取或重开面板。': 'Language saved, but restart is not confirmed. Retry or reopen the panel.',
+  '拖动调节宽度': 'Drag to resize width', '调宽未完成：': 'Could not finish resizing: ',
+  '桌面设置暂不可用，可重新读取。': 'Desktop settings are unavailable. Try again.',
+  '此模式没有桌面设置，外观仍可调整。': 'Desktop settings are unavailable in this mode. Appearance can still be changed.',
   '先用 tick_show（session_id': 'First call tick_show (session_id', '）看清单，再按 Tick 的要求接着勾选。': ') to read the checklist, then keep checking items off as Tick asks.',
   '，原因写在 tick.log': '; details in tick.log', '30 分钟没有更新': 'no update for 30 min',
   'agent 开工后会从这里散出来': 'Tasks fan out from here once an agent starts', 'agent 没报开始时间，按上一条完成到这条完成估算': 'The agent did not report a start time; estimated from the previous item',
@@ -1275,8 +1339,9 @@ const S = {
   view: 'active', agent: null, sel: null, detailFresh: false,
   open: new Set(), justDone: new Set(), celebrate: new Set(), dismissed: new Set(), dragging: false,
   dock: { edge: '', tucked: false }, speak: null, downAt: null, q: '', editing: null, confirmDel: null,
-  theme: qs.get('theme') || store.get('theme', matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'),
-  compact: false, pinned: true,
+  appearance: appearanceMode(store.get('appearance', store.get('theme', 'system'))),
+  theme: qs.get('theme') || resolvedAppearance(appearanceMode(store.get('appearance', store.get('theme', 'system')))),
+  compact: false, pinned: true, floatWidth: 340,
   order: store.get('order', 'new'),           // 同一档里按登记时间：new 最新在前，old 最早在前
   histOpen: false,                             // 悬浮窗“刚结束”默认收起；窗口藏起来、贴边收起、收成胶囊时自动再收
   drawer: false, drawerTab: 'unread',          // 通知抽屉
@@ -1344,9 +1409,9 @@ const isDormant = s => quiet(s) && !childrenOf(s).some(c => (c.status === 'runni
 // “进行中”在所有地方都按这一条数：在跑 / 写清单、没掉线，子任务也算一个；等你单独数
 const isRunning = s => (s.status === 'running' || s.status === 'planning') && !isDormant(s);
 const workMs = s => elapsed(s) - waited(s);
-// 搜索：标题、目标、总结、问题、目录、agent、条目和备注都算
+// 搜索：当前和曾用标题、目标、总结、问题、目录、agent、条目和备注都算
 function matches(s, q) {
-  const hay = [s.title, s.goal, s.summary, s.statusNote, s.workspace, s.agent, agentOf(s.agent).name, s.id, ...s.items.flatMap(it => [it.text, it.note])].join('\n').toLowerCase();
+  const hay = [s.title, ...(s.titleHistory || []), s.goal, s.summary, s.statusNote, s.workspace, s.agent, agentOf(s.agent).name, s.id, ...s.items.flatMap(it => [it.text, it.note])].join('\n').toLowerCase();
   return q.split(/\s+/).filter(Boolean).every(w => hay.includes(w));
 }
 // 搜索命中在条目里时，把命中的那一条当副标题，一眼看出为什么搜到它
@@ -1524,7 +1589,7 @@ function ingestNotice(n) {
     announce(n);
     const s = S.sessions.get(n.sessionId);
     sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
-    noticeGlow(n.kind);
+    noticeGlow(n.kind, n.sessionId);
     if (NATIVE && S.dock.tucked && !S.strip) speakFor(n);
     if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) { S.drawerWant = true; S.pillSid = n.sessionId; } // 胶囊先换到提问的那个
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
@@ -1544,6 +1609,7 @@ async function connect() {
     const h = await (await fetch('/api/health')).json();
     S.desktop = !!h.desktop;
     S.info = h;
+    if (settings.el) readSettings();
   } catch {
     return startDemo();
   }
@@ -1800,13 +1866,16 @@ function startToast() {
   window.tickToastReady();
 }
 function renderToast() {
+  // 签名动效图标：底色圆 + 描边圆（先画圈）+ 标记（再一笔笔描出），动画全在 CSS（.sg）
+  const sg = (k, mark) => `<svg class="sg k-${k}" width="30" height="30" viewBox="0 0 30 30"><circle class="sg-fill" cx="15" cy="15" r="13"/><circle class="sg-ring" cx="15" cy="15" r="13" pathLength="1" transform="rotate(-90 15 15)"/>${mark}</svg>`;
+  const mk = (d, b = '') => `<path class="sg-mk${b}" pathLength="1" d="${d}"/>`;
   const ic = k => ({
-    item: '<svg class="tc-ok" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--brand)"/><path d="M9.2 15.4l3.9 3.9 7.8-8.2" pathLength="1" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    done: '<svg class="tc-ok" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--brand)"/><path d="M9.2 15.4l3.9 3.9 7.8-8.2" pathLength="1" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="tc-burst" cx="15" cy="15" r="13" fill="none" stroke="var(--brand)" stroke-width="2"/></svg>',
-    failed: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--red)"/><path d="M10.5 10.5l9 9M19.5 10.5l-9 9" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>',
-    waiting: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--orange)"/><rect x="11" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/><rect x="16.2" y="9.5" width="2.8" height="11" rx="1.2" fill="#fff"/></svg>',
-    blocked: '<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--red)"/><rect x="9" y="13.6" width="12" height="2.8" rx="1.2" fill="#fff"/></svg>',
-  }[k] || `<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="var(--layer-3)" stroke="var(--line-strong)"/><circle cx="15" cy="15" r="4" fill="${k === 'warning' ? 'var(--orange)' : 'var(--blue)'}"/></svg>`);
+    item: sg('item', mk('M9.2 15.4l3.9 3.9 7.8-8.2')),
+    done: sg('done', mk('M9.2 15.4l3.9 3.9 7.8-8.2')),
+    failed: sg('failed', mk('M10.5 10.5l9 9') + mk('M19.5 10.5l-9 9', ' b')),
+    waiting: sg('waiting', mk('M12.4 10v10') + mk('M17.6 10v10', ' b')),
+    blocked: sg('blocked', mk('M9.5 15h11')),
+  }[k] || sg(k === 'warning' ? 'warning' : 'info', '<circle class="sg-dot" cx="15" cy="15" r="4"/>'));
   const head = c => `${esc(c.agent)} ${{ item: c.n > 1 ? `完成了 ${c.n} 项` : `完成了第 ${c.index} 项`, done: '做完了', failed: '没做成', waiting: '在等你', blocked: '卡住了' }[c.kind] || ''}`;
   const entered = morph(root, S.toasts.length ? `<div class="tst">${S.toasts.map(c => `<div class="tc k-${esc(c.kind)}" data-key="tc-${esc(c.sid || c.id)}" data-id="${esc(c.id)}" data-enter="grow" data-exit role="button" tabindex="0" aria-label="点一下打开">
       <div class="tc-ic" data-key="ic-${esc(c.id)}">${ic(c.kind)}</div>
@@ -1815,9 +1884,7 @@ function renderToast() {
       <i class="tc-bar" data-key="bar-${esc(c.id)}" data-id="${esc(c.id)}" style="animation-duration:${Number(c.ttl) || 7000}ms"></i>
     </div>`).join('')}</div>` : '');
   settle(entered);
-  // 新来的卡片沿边框绕一圈光，颜色跟类型走
-  const FX = { done: 'var(--green)', item: 'var(--brand-hi)', waiting: 'var(--orange)', blocked: 'var(--red)', failed: 'var(--red)' };
-  for (const el of entered) if (el.classList?.contains('tc')) setTimeout(() => edgeBeam(el, FX[[...el.classList].find(c => c.startsWith('k-'))?.slice(2)] || 'var(--brand-hi)', 1500), 260);
+  // 原来新卡片还会沿边框绕一圈光（edgeBeam）；现在由图标自己“画圈落标记”表达，边框不再绕光
 }
 
 // ======================================================================
@@ -2351,7 +2418,9 @@ function renderFloat(el, mode) {
     ? (d.unread.some(n => n.kind === 'blocked' || n.kind === 'failed') ? 'var(--red)' : d.unread.some(n => n.kind === 'waiting') ? 'var(--orange)' : 'var(--brand)') : '';
   const breath = breathC ? `<i class="breath" data-key="breath" data-enter="fade" data-exit="fade" style="--bc:${breathC}" aria-hidden="true"></i>` : '';
   const inner = (tucked ? tabHtml(d, live) : fan ? `<div class="f-in" data-key="fan-in">${fanHtml(d, live)}</div>` : drawer ? main + drawerHtml(d) : sheet ? main + agentsHtml() : main) + breath;
-  const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && S.strip ? ' long' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${sheet ? ' sheet' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}</div>`;
+  const grips = mode === 'native' && !S.compact && !tucked && !fan && typeof window.tickResizeStart === 'function'
+    ? ['left', 'right'].map(side => `<div class="f-resize ${side}" data-key="resize-${side}" data-resize="${side}" data-tip="拖动调节宽度" aria-hidden="true"></div>`).join('') : '';
+  const html = `<div class="f${mode === 'native' ? ' native' : ' fill'}${S.compact ? ' pill' : ''}${tucked ? ' tucked' : ''}${tucked && S.strip ? ' long' : ''}${tucked && d.nW ? ' hot' : ''}${drawer ? ' drawer' : ''}${sheet ? ' sheet' : ''}${fan ? ' fanning' : ''} side-${S.side} v-${S.vside}">${inner}${grips}</div>`;
   // 只在形态变化（面板 ↔ 标签 ↔ 气泡 ↔ 胶囊 ↔ 抽屉 ↔ Agent 面板 ↔ 转盘）时做盒子变形；内容变高由条目自己的撑开动画负责
   const shape = `${tucked}|${tucked && !!S.speak}|${S.compact}|${drawer}|${sheet}|${fan}`;
   const box = el.firstElementChild;
@@ -2859,8 +2928,35 @@ function wireFloat(el, mode) {
   }
 }
 
+// 清单展开 / 收起（原生悬浮窗）：窗口跟着内容逐帧变高。先请宿主把 WebView 视口一次撑够高，
+// 动画期间窗口变高只是露出已经画好的部分，新长出来的那截不会先闪一下系统底色（灰 / 白）；
+// 动画结束再收回。连续点：每次重新计时，最后一次结束后才收回
+let foldT = 0;
+const FOLD_MS = 320;
+async function foldReserve(row, open) {
+  const f = row.closest('.f.native');
+  if (!f || typeof window.tickReserve !== 'function' || RM.matches) return;
+  const body = row.querySelector(':scope > .s-items > div');
+  const h = f.getBoundingClientRect().height + (open ? body?.scrollHeight || 0 : 0) + 8;
+  clearTimeout(foldT);
+  document.documentElement.setAttribute('data-reserving', '');
+  foldT = setTimeout(() => { document.documentElement.removeAttribute('data-reserving'); window.tickReserve(false, 0); }, FOLD_MS + 150);
+  try { await window.tickReserve(true, h); } catch { return; }
+  await new Promise(r => requestAnimationFrame(r)); // 等新视口生效再开始变高
+}
+// 展开时每一行从右侧依次滑进来，和外框同时开始；收起时直接跟着整块淡出，并停掉还没播完的滑入
+function foldSlide(row, open) {
+  row._slide?.forEach(a => a.cancel());
+  row._slide = null;
+  if (!open || RM.matches) return;
+  const rows = [...row.querySelectorAll(':scope > .s-items > div > .kids > *, :scope > .s-items > div > .pad > *')];
+  row._slide = rows.map((r, i) => r.animate([{ opacity: 0, transform: 'translateX(18px)' }, { opacity: 1, transform: 'none' }],
+    { duration: 220, delay: Math.min(i, 8) * 16, easing: EASE_OUT, fill: 'backwards' }));
+}
+
 // 收起 / 展开：窗口尺寸会跳，用一层很轻的模糊交叉淡入把跳变盖住
 function toggleCompact() {
+  stopFloatResize?.();
   S.fanRestore?.(); // 从环形列表点进来：窗口先回到横条原来的位置，再展开
   S.compactAuto = false; // 用户自己点了：以这次为准，收起时不再自动恢复
   S.compact = !S.compact;
@@ -3001,9 +3097,9 @@ function sessionRow(s, live) {
   const ticking = (s.status === 'planning' || !!current(s)?.startedAt) && live();
   const step = current(s);
   const dead = isDormant(s);
-  return `<div class="s${open ? ' open' : ''}${isEnded(s) ? ' ended' : ''}${dead ? ' dead' : ''}${S.celebrate.has(s.id) ? ' celebrate' : ''}" data-key="${esc(s.id)}" data-enter="grow" data-exit data-sid="${esc(s.id)}">
+  return `<div class="s${open ? ' open' : ''}${isEnded(s) ? ' ended' : ''}${dead ? ' dead' : ''}${S.celebrate.has(s.id) ? ' celebrate' : ''}" style="--quick-w:${((s.link ? 4 : 3) + (dead ? 1 : 0)) * 25 + 8}px" data-key="${esc(s.id)}" data-enter="grow" data-exit data-sid="${esc(s.id)}">
     <button class="s-head" data-act="toggle" aria-expanded="${open}">
-      <span class="s-l1">${sicon(dead ? 'dormant' : s.status)}<span class="s-title">${esc(s.title)}</span><span class="s-prog num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>${IC.chev}</span>
+      <span class="s-l1">${sicon(dead ? 'dormant' : s.status)}<span class="s-title" data-tip="${esc(s.title)}">${esc(s.title)}</span><span class="s-prog num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>${IC.chev}</span>
       <span class="s-l2"><span class="tile sm" data-tip="${esc(a.name)}">${esc(a.mark)}</span><span class="tx-wrap"><span class="tx${ticking ? ' sweep' : ''}" data-key="sub-${esc(step?.id || s.status)}" data-enter="fade">${esc(firstLine(subline(s)))}</span></span>
         ${isStale(s) && !dead ? (now() - alive(s) < 10 * MIN
           ? `<span class="stale live" data-tip="对话 ${short(now() - alive(s))} 前还有动静：agent 在干活，只是没报进度（比如在跑很长的命令）">${short(now() - s.updatedAt)} 没报进度 ·</span>`
@@ -3101,9 +3197,7 @@ function renderPanel() {
         return `<button class="nav-i${S.agent === a ? ' on' : ''}" data-agent="${esc(a)}"><span class="dot" style="background:${ag.color}"></span><span class="grow">${esc(ag.name)}</span><span class="cnt num">${c || ''}</span></button>`; }).join('')}
     </nav>
     <div class="side-foot">
-      <button class="nav-i" data-act="pip">${IC.pip}<span class="grow">打开小窗</span></button>
-      <button class="nav-i" data-act="guide">${IC.plug}<span class="grow">接入 agent</span></button>
-      <button class="nav-i" data-act="theme">${S.theme === 'dark' ? IC.sun : IC.moon}<span class="grow">${S.theme === 'dark' ? '浅色' : '深色'}主题</span></button>
+      <button class="nav-i settings-trigger" data-key="settings-trigger" data-act="settings" data-tip="Tick · ${esc(S.info.version || '…')}" aria-haspopup="dialog" aria-expanded="${!!settings.el}" aria-controls="panel-settings">${IC.logo}<span class="grow">Tick · ${esc(S.info.version || '…')}</span>${IC.more || '···'}</button>
     </div>`);
   // 逆序：每组里的顺序倒过来；历史视图连“哪天在前”也倒过来
   const gs0 = groups().filter(g => g[1].length);
@@ -3147,7 +3241,150 @@ function renderPanel() {
   list.scrollTop = keep;
   renderDetail();
   renderDeck();
+  if (settings.el) positionSettings();
 }
+
+// 面板设置留在侧栏 morph 之外：任务流更新时不重建弹窗，也不打断控件焦点。
+const settings = { el: null, state: null, busy: false, reading: false, error: '', readError: '', timer: 0, generation: 0, revision: 0, restartLang: '', restartUntil: 0 };
+function positionSettings() {
+  const trigger = document.querySelector('[data-act="settings"]');
+  if (!settings.el || !trigger) return;
+  const r = trigger.getBoundingClientRect();
+  settings.el.style.left = `${Math.max(8, Math.min(r.left, innerWidth - settings.el.offsetWidth - 8))}px`;
+  settings.el.style.bottom = `${Math.max(8, innerHeight - r.top + 8)}px`;
+  settings.el.style.maxHeight = `${Math.max(80, r.top - 16)}px`;
+}
+function renderSettings() {
+  if (!settings.el) return;
+  const m = settings.state;
+  const error = settings.error || settings.readError;
+  const row = (label, content) => `<div class="mn-row nohov"><span class="grow">${label}</span>${content}</div>`;
+  const toggle = (key, label, on) => `<button class="mn-row" data-setting="${key}" aria-pressed="${!!on}"><span class="grow">${label}</span><i class="sw${on ? ' on' : ''}"></i></button>`;
+  morph(settings.el, `<header class="settings-head"><span class="grow">设置</span><button class="ib" data-act="settings-close" aria-label="关闭设置">${IC.x}</button></header>
+    <section class="settings-section"><h3>外观</h3>
+      ${row('明暗模式', pickHtml('s-appearance', [{id:'dark',name:'深色'},{id:'light',name:'浅色'},{id:'system',name:'跟随系统'}], S.appearance, tr('明暗模式')))}
+      ${m ? row('主题色', `<span class="mn-cs" role="group" aria-label="${tr('主题色')}">${m.themes.map(t => `<button class="mn-c${t.id === m.theme.id ? ' on' : ''}" data-setting="theme" data-v="${esc(t.id)}" aria-pressed="${t.id === m.theme.id}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}" style="--c:${esc(t.brand)}"></button>`).join('')}</span>`) : ''}
+    </section>
+    ${m ? `<section class="settings-section"><h3>通知</h3>
+      ${row('提示音', pickHtml('s-sound', [{id:'',name:'不响'},...m.sounds], m.sound || '', tr('提示音')))}
+      ${row('提醒停留', pickHtml('s-toastlen', [{id:'short',name:'短（一半）'},{id:'',name:'标准'},{id:'long',name:'长（两倍）'}], m.toastLen || '', tr('提醒停留')))}
+      ${toggle('dnd', m.dnd ? '勿扰中' : '勿扰 1 小时', m.dnd)}
+    </section>` : ''}
+    <section class="settings-section"><h3>常规</h3>
+      ${m ? `${row('界面语言', pickHtml('s-lang', [{id:'',name:'跟随系统'},{id:'zh',name:'中文'},{id:'en',name:'English'}], m.lang || '', tr('界面语言')))}<p class="settings-note">切换语言会重启 Tick。</p>${toggle('autostart', '开机启动', m.autostart)}` : ''}
+      <button class="mn-row" data-act="settings-mini">${IC.pip}<span class="grow">打开小窗</span></button>
+      <button class="mn-row" data-act="settings-guide">${IC.plug}<span class="grow">接入 agent</span></button>
+    </section>
+    ${settings.restartLang ? '<p class="settings-note" role="status">正在重启 Tick…</p>' : ''}
+    ${error ? `<div class="mn-err" role="alert">${esc(error)}<button class="btn ghost" data-act="settings-retry">重新读取</button></div>` : !m ? `<p class="settings-note" role="status">${S.desktop ? '正在读取…' : '此模式没有桌面设置，外观仍可调整。'}</p>` : ''}
+    <footer class="settings-foot"><span class="grow num">Tick · ${esc(m?.version || S.info.version || '…')}</span><a href="https://github.com/ZZray/agent-tick/releases" target="_blank" rel="noopener">版本说明 ${IC.external || ''}</a></footer>`);
+  const busy = settings.busy || !!settings.restartLang;
+  settings.el.setAttribute('aria-busy', String(busy));
+  settings.el.querySelectorAll('[data-setting],[data-pick^="s-"]').forEach(b => { b.disabled = busy; });
+  if (pk.el && settings.el.contains(pk.btn)) pk.btn.setAttribute('aria-expanded', 'true');
+  positionSettings();
+}
+function syncSettingsLanguage(m) {
+  if (!m.effectiveLang || WIN) return;
+  if (m.restart) {
+    settings.restartLang = m.effectiveLang; settings.restartUntil = Date.now() + 20000;
+    return;
+  }
+  if (settings.restartLang && m.effectiveLang !== settings.restartLang) return;
+  settings.restartLang = '';
+  if ((m.effectiveLang === 'en') === EN) return;
+  const url = new URL(location.href);
+  url.searchParams.set('lang', m.effectiveLang);
+  location.replace(url.href);
+}
+async function readSettings() {
+  if (!settings.el || settings.busy || settings.reading || !S.desktop) return;
+  const generation = settings.generation;
+  const revision = settings.revision;
+  clearTimeout(settings.timer);
+  settings.reading = true;
+  try {
+    const res = await fetch('/api/desktop/settings', { signal: AbortSignal.timeout(5000) });
+    const m = await res.json();
+    if (!res.ok) throw new Error(m.error || res.statusText);
+    if (generation !== settings.generation || revision !== settings.revision) return;
+    settings.readError = '';
+    if (JSON.stringify(m) !== JSON.stringify(settings.state)) { settings.state = m; setTheme(m.theme); syncSettingsLanguage(m); renderSettings(); }
+  } catch (err) {
+    if (generation === settings.generation && revision === settings.revision && !settings.restartLang) { settings.readError = `${tr('桌面设置暂不可用，可重新读取。')} ${err.message}`; renderSettings(); }
+  } finally {
+    settings.reading = false;
+    if (settings.restartLang && Date.now() >= settings.restartUntil) {
+      settings.restartLang = ''; settings.error = tr('语言已保存，尚未确认重启完成。请重新读取或重开面板。');
+    }
+    if (settings.el) { renderSettings(); clearTimeout(settings.timer); settings.timer = setTimeout(readSettings, 2000); }
+  }
+}
+async function settingsAct(name, on, val = '') {
+  if (settings.busy || settings.restartLang || !settings.el) return;
+  const focus = pk.btn || document.activeElement;
+  settings.busy = true; settings.revision++; settings.error = ''; settings.readError = ''; clearTimeout(settings.timer); renderSettings();
+  const generation = settings.generation;
+  try {
+    const input = ['float','dnd','autostart'].includes(name) ? {name,on} : {name,val};
+    const res = await fetch('/api/desktop/settings', { method:'POST', headers:{'Content-Type':'application/json','X-Tick-User':'1'}, body:JSON.stringify(input), signal:AbortSignal.timeout(8000) });
+    const m = await res.json();
+    if (!res.ok) throw new Error(m.error || res.statusText);
+    if (generation === settings.generation) { settings.state = m; setTheme(m.theme); syncSettingsLanguage(m); }
+  } catch (err) {
+    if (generation === settings.generation) settings.error = `${tr('没改成：')}${err.message}`;
+  } finally {
+    settings.busy = false;
+    if (settings.el) { renderSettings(); if (settings.el.contains(focus)) focus.focus({preventScroll:true}); clearTimeout(settings.timer); settings.timer = setTimeout(readSettings, 2000); }
+  }
+}
+function closeSettings(focus = false) {
+  if (!settings.el) return;
+  pickClose(); tipHide(); clearTimeout(settings.timer); settings.generation++;
+  settings.el.remove(); settings.el = null;
+  const trigger = document.querySelector('[data-act="settings"]');
+  trigger?.setAttribute('aria-expanded', 'false');
+  if (focus) trigger?.focus({preventScroll:true});
+}
+function openSettings(keyboard = false) {
+  if (settings.el) { closeSettings(true); return; }
+  pickClose(); tipHide(); settings.generation++; settings.error = ''; settings.readError = ''; settings.state = null;
+  const el = document.createElement('div');
+  el.id = 'panel-settings'; el.className = 'settings-pop'; el.setAttribute('role','dialog'); el.setAttribute('aria-label',tr('设置'));
+  settings.el = el; document.body.appendChild(el); renderSettings();
+  document.querySelector('[data-act="settings"]')?.setAttribute('aria-expanded','true');
+  if (!keyboard && !RM.matches) el.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:180,easing:EASE_OUT});
+  el.querySelector('button')?.focus({preventScroll:true});
+  readSettings();
+}
+function changeAppearance(value) {
+  S.appearance = appearanceMode(value); S.theme = resolvedAppearance(S.appearance);
+  store.set('appearance', S.appearance); store.set('theme', S.theme); schedule(); renderSettings();
+}
+systemAppearance.addEventListener('change', () => { if (S.appearance === 'system') { S.theme = resolvedAppearance(S.appearance); schedule(); } });
+window.addEventListener('storage', e => {
+  if (e.key !== 'tick.appearance' && e.key !== 'tick.theme') return;
+  S.appearance = appearanceMode(store.get('appearance', store.get('theme','system'))); S.theme = resolvedAppearance(S.appearance); schedule(); renderSettings();
+});
+window.addEventListener('resize', () => { if (settings.el) { pickClose(); positionSettings(); } });
+document.addEventListener('pointerdown', e => {
+  if (settings.el && !settings.el.contains(e.target) && !e.target.closest('[data-act="settings"],.pk-pop')) closeSettings();
+}, true);
+document.addEventListener('keydown', e => {
+  if (!settings.el || pk.el) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeSettings(true); }
+  else if (e.key === 'Tab') {
+    const buttons = [...settings.el.querySelectorAll('button:not(:disabled),a[href]')];
+    if (e.shiftKey && document.activeElement === buttons[0] || !e.shiftKey && document.activeElement === buttons.at(-1)) closeSettings();
+  } else if (settings.el.contains(e.target)) e.stopImmediatePropagation(); // 不让 J/K/C 等面板快捷键穿透控件
+}, true);
+document.addEventListener('focusin', e => {
+  if (settings.el && !settings.el.contains(e.target) && !e.target.closest('.pk-pop,[data-act="settings"]')) closeSettings();
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-setting]');
+  if (b && settings.el?.contains(b)) settingsAct(b.dataset.setting, b.getAttribute('aria-pressed') !== 'true', b.dataset.v || '');
+});
 
 // ---------- 全屏卡片：当前视图的会话铺成一桌牌，点一张翻到背面看清单 ----------
 const DECK_MAX = 24;
@@ -3277,6 +3514,7 @@ function renderDetail() {
       ${S.editing === `title:${s.id}`
         ? `<input class="d-title-in" data-key="title-edit" data-edit="title" data-sid="${esc(s.id)}" value="${esc(s.title)}" maxlength="200" aria-label="会话标题">`
         : `<h1 class="d-title" data-key="title" data-act="edit-title" data-tip="双击改标题">${esc(s.title)}</h1>`}${s.goal ? `<p class="d-goal">${esc(s.goal)}</p>` : ''}
+      ${s.titleHistory?.length ? `<details class="d-titles" data-key="title-history"><summary>${EN ? 'Previous titles' : '曾用标题'} · ${s.titleHistory.length}</summary><ul>${s.titleHistory.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}
       ${isWaiting(s) ? `<div class="callout" data-key="callout" data-enter="grow" data-exit><div class="c-h">${sicon(s.status)}<span>${esc(a.name)} ${s.status === 'waiting' ? '在等你' : '卡住了'}</span><span class="t4 num" data-clock="waitnow" data-sid="${esc(s.id)}">${s.waitSince ? short(now() - s.waitSince) : ''}</span></div>
         <p class="c-b">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>
         <div class="c-a">${s.link ? `<button class="btn primary" data-act="open-link" data-sid="${esc(s.id)}">回到对话</button>` : ''}<button class="btn" data-act="relay" data-sid="${esc(s.id)}">${IC.copy}复制接力提示</button></div></div>` : ''}
@@ -3350,6 +3588,7 @@ window.tickFocus = focusSession;
 // 宿主告诉页面停靠状态：贴着哪条边、是否收起。收起时露在外面的窄边由 CSS 画
 // len / th：长条的长度（工作区沿这条边的长度）和粗细，CSS 像素，宿主算好给页面，页面照这个画长条
 window.tickDock = (edge, tucked, len, th) => {
+  if (tucked) stopFloatResize?.();
   const wasTucked = S.dock.tucked;
   cardHide(true); // 展开 / 收起 / 换边：详情卡（钉住的也一样）都先收掉
   S.dock = { edge: edge || '', tucked: !!tucked };
@@ -3390,6 +3629,7 @@ window.tickAppear = () => {
   f.animate([{ opacity: 0, transform: 'translateY(6px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: EASE_OUT });
 };
 window.tickHostState = st => {
+  if ('width' in st) applyFloatWidth(st.width);
   if ('pinned' in st) S.pinned = st.pinned;
   if ('dnd' in st) S.dnd = st.dnd;
   if ('side' in st) S.side = st.side === 'left' ? 'left' : 'right';
@@ -3546,8 +3786,10 @@ async function onClick(e) {
       const row = el.closest('.kid, .s'); // 子任务行和会话行都能就地展开
       const open = !S.open.has(sid);
       if (open) S.open.add(sid); else S.open.delete(sid);
+      await foldReserve(row, open);
       row.classList.toggle('open', open); // 就地切换，保留展开过渡
       el.setAttribute('aria-expanded', String(open));
+      foldSlide(row, open);
       break;
     }
     case 'read':
@@ -3640,6 +3882,11 @@ async function onClick(e) {
       openGuide();
       break;
     }
+    case 'settings': openSettings(e.detail === 0); break;
+    case 'settings-close': closeSettings(true); break;
+    case 'settings-retry': settings.error = ''; settings.readError = ''; readSettings(); renderSettings(); break;
+    case 'settings-guide': closeSettings(); openGuide(); break;
+    case 'settings-mini': closeSettings(); typeof window.tickFloat === 'function' ? window.tickFloat() : openPip(); break;
     case 'guide': openGuide(); break;
     case 'close-guide': closeGuide(); break;
     case 'pip': typeof window.tickFloat === 'function' ? window.tickFloat() : openPip(); break;
@@ -3761,7 +4008,7 @@ async function onClick(e) {
       el.setAttribute('aria-expanded', String(open));
       break;
     }
-    case 'theme': S.theme = S.theme === 'dark' ? 'light' : 'dark'; store.set('theme', S.theme); schedule(); break;
+    case 'theme': changeAppearance(S.theme === 'dark' ? 'light' : 'dark'); break;
     case 'archive':
       if (s) {
         // 连同子任务一起：主会话归档了，挂在它下面的子 agent 也不该单独冒出来
@@ -3830,6 +4077,56 @@ document.addEventListener('focusout', e => {
 // 原生窗口：按住标题栏空白处拖动（宿主按真实光标挪窗口）。
 // 悬浮窗用 tickDrag；无边框面板用 tickWin，面板四周的留白也能拖
 const dragZone = t => t.closest('[data-drag]') || (WIN && t.matches('.app,.side,.main') ? t : null);
+// 宽度由宿主按真实光标采样，避免 WebView2 捕获指针后 screenX 不更新。
+// 串行等待每次回包，松手后先收完在途 Step，再接最终 End，旧宽度不会盖掉终态。
+let stopFloatResize = null;
+function applyFloatWidth(width) {
+  if (!Number.isFinite(width) || width <= 0) return;
+  S.floatWidth = width;
+  document.documentElement.style.setProperty('--float-width', `${width}px`);
+}
+async function resizeFloat(e) {
+  const grip = e.target.closest('[data-resize]');
+  if (!NATIVE || !grip || e.button !== 0 || S.dragging) return;
+  e.preventDefault(); tipHide(); pickClose();
+  grip.closest('.f')._box?.cancel(); // 接手正在变形的盒子，拖宽时直接跟手
+  let stopped = false, started = false, wake = null, frame = 0, failure = null;
+  const stop = event => {
+    if (event.pointerId !== undefined && event.pointerId !== e.pointerId) return;
+    stopped = true; cancelAnimationFrame(frame); wake?.(); wake = null;
+  };
+  const events = ['pointerup', 'pointercancel', 'lostpointercapture'];
+  stopFloatResize = () => stop({});
+  S.dragging = true;
+  document.documentElement.setAttribute('data-width-resizing', '');
+  for (const type of events) document.addEventListener(type, stop, true);
+  window.addEventListener('blur', stop);
+  try {
+    grip.setPointerCapture(e.pointerId);
+    applyFloatWidth(await window.tickResizeStart(grip.dataset.resize)); started = true;
+    const deadline = performance.now() + 120000;
+    while (!stopped && performance.now() < deadline) {
+      const width = await window.tickResizeStep();
+      if (stopped) break;
+      applyFloatWidth(width);
+      await new Promise(resolve => { wake = resolve; frame = requestAnimationFrame(() => { wake = null; resolve(); }); });
+    }
+  } catch (err) { failure = err; }
+  finally {
+    if (started) {
+      try { applyFloatWidth(await window.tickResizeEnd()); } catch (err) { failure = err; }
+    }
+    for (const type of events) document.removeEventListener(type, stop, true);
+    window.removeEventListener('blur', stop); cancelAnimationFrame(frame);
+    if (grip.hasPointerCapture(e.pointerId)) grip.releasePointerCapture(e.pointerId);
+    document.documentElement.removeAttribute('data-width-resizing');
+    stopFloatResize = null;
+    S.dragging = false; schedule();
+    if (failure) toast(`调宽未完成：${esc(failure.message || failure)}`);
+  }
+}
+document.addEventListener('pointerdown', resizeFloat);
+
 document.addEventListener('pointerdown', e => {
   if (!(NATIVE || WIN) || e.button !== 0 || e.target.closest('button,a,input,label')) return;
   const zone = dragZone(e.target);
@@ -3872,21 +4169,41 @@ function pulse(doc) {
   const n = (pulseN.set(doc, (pulseN.get(doc) || 0) + 1), pulseN.get(doc));
   if (n % 2) q('.n-card').forEach(c => edgeBeam(c, c.classList.contains('blocked') ? 'var(--red)' : 'var(--orange)', 1400));
 }
-// 来了新通知：悬浮窗外框（完整面板、收成横条、贴边标签都算）绕几圈光，过一阵自己停，平时不绕。
-// 等你 / 受阻绕 12 秒，没做成 8 秒，做完 6 秒，其他提醒绕一圈；勿扰时不绕
-const GLOW = { waiting: [12000, 'var(--orange)'], blocked: [12000, 'var(--red)'], failed: [8000, 'var(--red)'], done: [6000, 'var(--green)'] };
-let glowT = 0;
-function noticeGlow(kind) {
-  if (!FLOAT || S.dnd || RM.matches) return;
-  const [ms, color] = GLOW[kind] || [1700, 'var(--brand-hi)'];
-  const until = Date.now() + ms;
-  clearTimeout(glowT);
-  const run = () => {
-    const f = (pip.root && document.hidden ? pip.root : root).firstElementChild;
-    if (f && !S.fan && !S.idle) edgeBeam(f, color, 1600);
-    if (Date.now() + 1750 < until) glowT = setTimeout(run, 1750);
-  };
-  run();
+// 来了新通知：悬浮窗里这个会话自己的状态图标播一次签名动效（先绕图标画一圈，再把标记“落”进去：
+// 做完 / 完成一项鼓一下，没做成 / 卡住横向抖一下，等你轻轻晃一下），不再让整个外框绕光。勿扰、减少动态时不播
+const SIG = { waiting: 'var(--orange)', blocked: 'var(--red)', failed: 'var(--red)', done: 'var(--green)', item: 'var(--brand)' };
+function noticeGlow(kind, sid) {
+  if (!FLOAT || S.dnd || RM.matches || !sid) return;
+  const color = SIG[kind] || 'var(--blue)';
+  // 会话状态通常和通知一起到：等这一轮渲染完、图标换成新状态再播
+  setTimeout(() => requestAnimationFrame(() => {
+    const host = pip.root && document.hidden ? pip.root : root;
+    const at = `[data-sid="${CSS.escape(sid)}"]`;
+    const icons = new Set([...host.querySelectorAll(`.s${at} > .s-head .s-l1 > svg.ic, .kid${at} > .kid-h > svg.ic, .mini${at} > svg.ic, [data-key="pill-${CSS.escape(sid)}"] > svg.ic`)]);
+    icons.forEach(svg => iconSig(svg, kind, color));
+  }), 80);
+}
+function iconSig(svg, kind, color) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const marks = [...svg.children].filter(c => !c.classList.contains('rp'));
+  const ring = svg.ownerDocument.createElementNS(ns, 'circle');
+  for (const [k, v] of Object.entries({ cx: 7, cy: 7, r: 6.6, fill: 'none', stroke: color, 'stroke-width': 1.4, 'stroke-linecap': 'round', pathLength: 1, 'stroke-dasharray': 1, transform: 'rotate(-90 7 7)', 'data-fx': '' })) ring.setAttribute(k, v);
+  svg.style.overflow = 'visible';
+  svg.appendChild(ring);
+  // 1) 0–360ms 画圈；2) 300ms 起标记从小落进圈里；3) 560ms 起按类型鼓 / 抖 / 晃；圈画完后淡掉
+  ring.animate([{ strokeDashoffset: 1, opacity: 1 }, { strokeDashoffset: 0, opacity: 1, offset: 0.55 }, { strokeDashoffset: 0, opacity: 0 }],
+    { duration: 660, easing: 'cubic-bezier(.65,0,.35,1)' }).finished.finally(() => ring.remove()).catch(() => {});
+  marks.forEach(m => {
+    m.style.transformBox = 'fill-box';
+    m.style.transformOrigin = 'center';
+    m.animate([{ opacity: 0, transform: 'scale(.3)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 300, easing: 'cubic-bezier(.3,1.4,.5,1)', fill: 'backwards' });
+  });
+  const tail = kind === 'failed' || kind === 'blocked'
+    ? [[{ transform: 'none' }, { transform: 'translateX(-1.6px)' }, { transform: 'translateX(1.3px)' }, { transform: 'translateX(-.6px)' }, { transform: 'none' }], 320]
+    : kind === 'waiting'
+      ? [[{ transform: 'none' }, { transform: 'rotate(-12deg)' }, { transform: 'rotate(8deg)' }, { transform: 'none' }], 460]
+      : [[{ transform: 'none' }, { transform: 'scale(1.28)' }, { transform: 'none' }], 300];
+  svg.animate(tail[0], { duration: tail[1], delay: 560, easing: kind === 'failed' || kind === 'blocked' ? 'ease' : 'cubic-bezier(.3,1.35,.5,1)' });
 }
 const pulseN = new WeakMap();
 // 一束光沿元素边框转一圈后自己删掉：容器用遮罩只露出 1px 的边，里面一块锥形渐变旋转（只动 transform）
@@ -3977,6 +4294,8 @@ document.addEventListener('pointerleave', () => tips.get(document)?.classList.re
 // ============ 自绘下拉（不用原生 select：原生弹层是系统样式，和界面对不上） ============
 // pickHtml 画按钮；点开在 body 上挂一个弹层，靠近哪边空间大就往哪边开。选中后调 PICK[name](值)
 const PICK = {};
+PICK['s-appearance'] = changeAppearance;
+for (const name of ['sound', 'lang', 'toastlen']) PICK[`s-${name}`] = val => settingsAct(name, true, val);
 const pk = { el: null, btn: null };
 const CHECK_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg>';
 const CARET_SVG = '<svg class="pk-c" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4l2.5 2.5L7.5 4"/></svg>';
@@ -4206,6 +4525,7 @@ function closeGuide() {
 $('guide').addEventListener('mousedown', e => { if (e.target === $('guide')) closeGuide(); });
 document.addEventListener('keydown', e => {
   // 卡片开着：方向键在牌之间走（上下按一行几张跳），回车 / 空格翻面，Esc 退出
+  if (settings.el) return;
   if (S.deck && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (e.key === 'Escape') { toggleDeck(false); return; }
     const cards = [...$('deck').querySelectorAll('.card:not([data-leaving])')];
@@ -4297,6 +4617,7 @@ setIdle();
 document.addEventListener('visibilitychange', setIdle);
 // 宿主在显示 / 隐藏窗口时调用。藏起来时把“刚结束”和转盘收回去，下次出来是干净的
 window.tickVisible = on => {
+  if (!on) stopFloatResize?.();
   S.hostHidden = !on;
   if (!on) { S.histOpen = false; S.staleOpen = false; S.agentsOpen = false; if (S.fan) { S.fan = false; S.fanRestore?.(); } schedule(); }
   setIdle();
@@ -4313,7 +4634,7 @@ window.tickVisible = on => {
   if (CARD) { document.title = 'Tick Card'; startCard(); return; } // 窗口标题跟着页面标题走；卡片窗口没有标题栏，用不着中文
   if (FLOAT) document.title = tr('Tick 小窗');
   if (NATIVE) {
-    try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }
+    try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; applyFloatWidth(st.width); } catch { /* 用默认值 */ }
   } else if (FLOAT) {
     S.compact = qs.has('pill') || store.get('compact', false);
   }

@@ -24,6 +24,7 @@ import (
 
 	"fyne.io/systray"
 	webview2 "github.com/jchv/go-webview2"
+	"github.com/jchv/go-webview2/pkg/edge"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -42,6 +43,7 @@ var (
 	pShowWindow            = user32.NewProc("ShowWindow")
 	pIsWindowVisible       = user32.NewProc("IsWindowVisible")
 	pGetWindowRect         = user32.NewProc("GetWindowRect")
+	pGetClientRect         = user32.NewProc("GetClientRect")
 	pReleaseCapture        = user32.NewProc("ReleaseCapture")
 	pPostMessage           = user32.NewProc("PostMessageW")
 	pSetForegroundWindow   = user32.NewProc("SetForegroundWindow")
@@ -95,6 +97,7 @@ type deskSettings struct {
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
 	NoStrip          bool      // 贴边收起时默认缩成贯穿屏幕边缘的长条（每个任务一段颜色，悬停出子步骤卡片）；勾掉才用小环标签
 	ToastLen         string    // 右下角提醒卡停留多久："short"（一半）、""（标准）、"long"（两倍）
+	Width            float64   // 正常悬浮面板的用户偏好宽度（CSS px）；0 沿用默认 340
 }
 
 // toastLens 提醒卡停留时长的可选值（页面按倍数算，存进设置前按这个校验）
@@ -153,7 +156,7 @@ func (f *floatWin) dnd() bool {
 }
 
 // setDnd 开关勿扰；开启时持续 1 小时，到点自动关掉并通知页面和托盘
-func (f *floatWin) setDnd(on bool) {
+func (f *floatWin) setDnd(on bool) error {
 	until := int64(0)
 	if on {
 		until = now() + int64(time.Hour/time.Millisecond)
@@ -161,7 +164,7 @@ func (f *floatWin) setDnd(on bool) {
 	f.mu.Lock()
 	f.set.DndUntil = until
 	f.mu.Unlock()
-	f.saveSettings()
+	err := f.saveSettings()
 	f.pushHostState()
 	f.changed()
 	if on {
@@ -172,6 +175,7 @@ func (f *floatWin) setDnd(on bool) {
 			}
 		})
 	}
+	return err
 }
 
 // pushHostState 把宿主侧状态告诉页面：置顶、勿扰、提示音，以及窗口在屏幕哪一半
@@ -181,7 +185,7 @@ func (f *floatWin) pushHostState() {
 	th, _ := json.Marshal(f.theme())
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,toastLen:%q,theme:%s,%s})", pinned, dnd, h, v, glassOn, strip, tl, th, sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,toastLen:%q,theme:%s,width:%g,%s})", pinned, dnd, h, v, glassOn, strip, tl, th, f.floatWidth(), sound))
 	})
 }
 
@@ -230,19 +234,24 @@ func (f *floatWin) side() (string, string) {
 }
 
 type floatWin struct {
-	srv  *Server
-	w    webview2.WebView
-	hwnd uintptr
-	orig uintptr
-	file string
-	mu   sync.Mutex
-	set  deskSettings
-	cssW float64 // 当前内容宽高（CSS 像素）
-	cssH float64
+	srv       *Server
+	w         webview2.WebView
+	hwnd      uintptr
+	orig      uintptr
+	file      string
+	mu        sync.Mutex
+	set       deskSettings
+	cssW      float64 // 当前内容宽高（CSS 像素）
+	cssH      float64
+	widthDrag *floatWidthDrag // 只在悬浮窗 UI 线程读写，见 float_width_windows.go
 	// 环形列表展开期间钉住的屏幕点（鼠标所在处）：页面报尺寸时连同圆心位置一起报，窗口摆到让圆心落在这一点上。
 	// 只在界面线程（页面回调）里读写
 	anchor   point
 	anchorOn bool
+	// 清单展开 / 收起期间预留的 WebView 视口高度（物理像素，0 = 没在预留）和窗口生长方向（见 reserve_windows.go）；只在界面线程读写
+	ctl      *edge.ICoreWebView2Controller
+	resH     int32
+	resUp    bool
 	shown    bool
 	onChange func() // 置顶 / 显示状态变了，托盘菜单跟着改；托盘线程设置，UI 线程调用，用 mu 保护
 	// 停靠：dock 只在 dockLoop 里读写，别的线程通过 dockReq 投递；tucked 页面和 fit 也要读，用原子量
@@ -295,6 +304,7 @@ func runDesktop(srv *Server, serve func()) {
 	if b, err := os.ReadFile(f.file); err == nil {
 		_ = json.Unmarshal(b, &f.set)
 	}
+	f.cssW = f.preferredWidth()
 	theFloat = f
 	srv.showFloat = func() { f.dispatch(f.summon) }
 	srv.showPanel = func(hash string) { openPanel(srv, f, hash) }
@@ -302,7 +312,7 @@ func runDesktop(srv *Server, serve func()) {
 
 	f.w = newGlassWebView(webview2.WebViewOptions{
 		DataPath:      f.dataPath,
-		WindowOptions: webview2.WindowOptions{Title: "Tick", Width: 340, Height: 160},
+		WindowOptions: webview2.WindowOptions{Title: "Tick", Width: uint(math.Round(f.cssW)), Height: 160},
 	})
 	if f.w == nil {
 		fatal(L("没能创建悬浮窗：需要 Microsoft Edge WebView2 运行时。\n服务仍可以用 tick -headless 启动，在浏览器里打开。",
@@ -352,6 +362,7 @@ func (f *floatWin) style() {
 	applyGlass(h, true)
 	f.orig, _, _ = pGetWindowLongPtr.Call(h, uintptr(gwlpWndProcU()))
 	pSetWindowLongPtr.Call(h, uintptr(gwlpWndProcU()), syscall.NewCallback(floatProc))
+	f.cssW = f.floatWidth()
 	x, y := f.defaultPos()
 	if f.set.HasPos {
 		x, y = f.set.X, f.set.Y
@@ -387,6 +398,10 @@ func floatProc(hwnd, msg, wp, lp uintptr) uintptr {
 		return 0
 	case wmExitSizeMove:
 		f.rememberPos()
+	case wmSize:
+		if f.onSize() {
+			return 0
+		}
 	}
 	r, _, _ := pCallWindowProc.Call(f.orig, hwnd, msg, wp, lp)
 	return r
@@ -444,13 +459,15 @@ func (f *floatWin) rememberPos() {
 	f.saveSettings()
 }
 
-func (f *floatWin) saveSettings() {
+func (f *floatWin) saveSettings() error {
 	f.mu.Lock()
 	b, _ := json.Marshal(f.set)
 	f.mu.Unlock()
 	if err := os.WriteFile(f.file, b, 0o644); err != nil {
 		log.Printf("悬浮窗设置没存上：%v", err)
+		return err
 	}
+	return nil
 }
 
 // fit 按内容调窗口大小。窗口在屏幕下半部分时保持底边不动往上长，否则保持顶边
@@ -484,26 +501,41 @@ func (f *floatWin) fitAt(cssW, cssH, ax, ay float64) {
 	pSetWindowPos.Call(f.hwnd, 0, uintptr(x), uintptr(y), uintptr(w), uintptr(h), swpNoZOrder|swpNoActivate)
 }
 
-func (f *floatWin) fit(cssW, cssH float64) {
+func (f *floatWin) fit(cssW, cssH float64) error {
 	// 下限放到 6：长条只有 6px 粗
 	// 上限 720 宽：通知抽屉拉开时是主面板加抽屉的宽度；长条贯穿整条屏幕边缘，上限放到工作区大小
 	wa := f.workArea()
 	limW, limH := 720.0, 720.0
-	edge := f.dockEdge()
+	if d := f.widthDrag; d != nil {
+		wa, cssW = d.work, d.width
+	}
+	f.mu.Lock()
+	edge, compact := f.set.Dock, f.set.Compact
+	f.mu.Unlock()
 	long := edge != "" && f.tucked.Load() && f.strip()
 	if long {
 		s := f.scale()
 		limW, limH = float64(wa.Right-wa.Left)/s, float64(wa.Bottom-wa.Top)/s
 	}
+	if f.widthDrag != nil || !compact && !f.tucked.Load() && !f.anchorOn {
+		limW = math.Min(limW, math.Max(1, float64(wa.Right-wa.Left)/f.scale()))
+	}
 	f.cssW, f.cssH = math.Max(6, math.Min(cssW, limW)), math.Max(6, math.Min(cssH, limH))
 	old := f.windowRect()
 	w, h := f.physical(f.cssW, f.cssH)
 	x, y := old.Left, old.Top
-	if (old.Top+old.Bottom)/2 > (wa.Top+wa.Bottom)/2 {
+	up := (old.Top+old.Bottom)/2 > (wa.Top+wa.Bottom)/2
+	if f.resH > 0 {
+		up = f.resUp // 动画中途窗口中心越过中线也不换生长方向，免得窗口跳一下
+	}
+	if up {
 		y = old.Bottom - h
 	}
 	if right := old.Right; (old.Left+old.Right)/2 > (wa.Left+wa.Right)/2 {
 		x = right - w // 靠右放时保持右边缘不动
+	}
+	if d := f.widthDrag; d != nil {
+		x, y = d.position(w, h)
 	}
 	x = max(wa.Left, min(x, wa.Right-w))
 	y = max(wa.Top, min(y, wa.Bottom-h))
@@ -511,8 +543,11 @@ func (f *floatWin) fit(cssW, cssH float64) {
 	if edge != "" {
 		// 贴边时：顶边固定（左右停靠）或左边固定（上停靠），从标签原地长出面板，再贴齐那条边
 		base := rect{old.Left, old.Top, old.Left + w, old.Top + h}
+		if f.widthDrag != nil {
+			base = rect{x, y, x + w, y + h}
+		}
 		// 从长条展开：面板围着鼠标在长条上的那一点长出来（沿边居中），别从长条的一头冒出来
-		if !long && now() < f.stripAnchorUntil.Load() {
+		if f.useStripAnchor(long) {
 			ax, ay := f.stripAnchorX.Load(), f.stripAnchorY.Load()
 			if edge == "top" || edge == "bottom" {
 				base.Left, base.Right = ax-w/2, ax-w/2+w
@@ -522,7 +557,10 @@ func (f *floatWin) fit(cssW, cssH float64) {
 		}
 		x, y = f.dockPos(edge, base)
 	}
-	pSetWindowPos.Call(f.hwnd, 0, uintptr(x), uintptr(y), uintptr(w), uintptr(h), swpNoZOrder|swpNoActivate)
+	if ok, _, err := pSetWindowPos.Call(f.hwnd, 0, uintptr(x), uintptr(y), uintptr(w), uintptr(h), swpNoZOrder|swpNoActivate); ok == 0 {
+		return fmt.Errorf("调整悬浮窗尺寸失败：%w", err)
+	}
+	return nil
 }
 
 type point struct{ X, Y int32 }
@@ -562,6 +600,11 @@ func (f *floatWin) followCursor() {
 }
 
 func (f *floatWin) ready() {
+	if f.widthDrag != nil {
+		if _, err := f.resizeEnd(); err != nil {
+			log.Printf("重新加载时结束拖宽失败：%v", err)
+		}
+	}
 	f.pushHostState() // 页面每次加载完都要拿到置顶、勿扰、提示音和所在半边
 	if f.shown {
 		return
@@ -596,6 +639,11 @@ func (f *floatWin) show(activate bool) {
 }
 
 func (f *floatWin) hide() {
+	if f.widthDrag != nil {
+		if _, err := f.resizeEnd(); err != nil {
+			log.Printf("隐藏时结束拖宽失败：%v", err)
+		}
+	}
 	pShowWindow.Call(f.hwnd, swHide)
 	f.setHidden(true)
 	f.w.Eval("window.tickVisible && tickVisible(false)") // 看不见就停掉动画和每秒计时，省 CPU
@@ -660,21 +708,31 @@ func (f *floatWin) bind() {
 		go f.followCursor()
 	}))
 	must(f.w.Bind("tickDragEnd", func() { dragEnd.Store(true) }))
+	must(f.w.Bind("tickResizeStart", f.resizeStart))
+	must(f.w.Bind("tickResizeStep", f.resizeStep))
+	must(f.w.Bind("tickResizeEnd", f.resizeEnd))
 	// 点标签：马上展开，并且停留一会儿再按自动隐藏规则收回
 	must(f.w.Bind("tickUntuck", func() { f.inDock(func() { f.peek(false, 1500*time.Millisecond) }) }))
 	must(f.w.Bind("tickFit", func(w, h float64) { f.fit(w, h) }))
 	must(f.w.Bind("tickFitAt", func(w, h, ax, ay float64) { f.fitAt(w, h, ax, ay) }))
+	must(f.w.Bind("tickReserve", func(on bool, h float64) { f.reserve(on, h) }))
 	must(f.w.Bind("tickAnchor", func(x, y float64) map[string]float64 { return f.setAnchor(x, y) }))
 	must(f.w.Bind("tickReady", func() { f.ready() }))
 	must(f.w.Bind("tickHide", func() { f.hide() }))
 	must(f.w.Bind("tickDnd", func(on bool) bool { f.setDnd(on); return on }))
 	must(f.w.Bind("tickPin", func(on bool) bool { f.setPinned(on); return on }))
 	must(f.w.Bind("tickState", func() map[string]any {
+		width := f.floatWidth()
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		return map[string]any{"pinned": f.set.Pinned, "compact": f.set.Compact, "dnd": now() < f.set.DndUntil, "hotkey": f.hotkey}
+		return map[string]any{"pinned": f.set.Pinned, "compact": f.set.Compact, "dnd": now() < f.set.DndUntil, "hotkey": f.hotkey, "width": width}
 	}))
 	must(f.w.Bind("tickCompact", func(on bool) {
+		if f.widthDrag != nil {
+			if _, err := f.resizeEnd(); err != nil {
+				log.Printf("切换紧凑模式时结束拖宽失败：%v", err)
+			}
+		}
 		f.mu.Lock()
 		f.set.Compact = on
 		f.mu.Unlock()
@@ -778,6 +836,8 @@ func runTray(srv *Server, f *floatWin) {
 		f.setOnChange(t.refresh)
 		t.refresh()
 		theTray = t
+		settings := desktopSettingsHandler(t.settings)
+		srv.settings.Store(&settings)
 		systray.SetOnTapped(func() { // 左键开关悬浮窗；点了就是看过了：通知全部算已读，托盘停闪，未读预览收起
 			thePeek.hide()
 			if srv.store.UnreadNotices() > 0 {

@@ -83,6 +83,8 @@ type Session struct {
 	NextItem   int     `json:"nextItem"`
 	Items      []*Item `json:"items"`
 	Events     []Event `json:"events"`
+
+	TitleHistory []string `json:"titleHistory,omitempty"` // 改名前的标题；独立保留供查找，不随动态记录裁剪
 }
 
 type Notice struct {
@@ -479,6 +481,7 @@ func (st *Store) SetOnNotice(fn func(*Notice)) { st.onNotice.Store(&fn) }
 
 func cloneSession(s *Session) *Session {
 	c := *s
+	c.TitleHistory = slices.Clone(s.TitleHistory)
 	c.Items = make([]*Item, len(s.Items))
 	for i, it := range s.Items {
 		x := *it
@@ -902,10 +905,17 @@ func (st *Store) Patch(id string, in PatchInput) (*Session, error) {
 		return nil, err
 	}
 	return st.change(id, func(s *Session) error {
+		if title != nil && *title != s.Title {
+			if !slices.Contains(s.TitleHistory, s.Title) {
+				s.TitleHistory = append(s.TitleHistory, s.Title)
+			}
+			addEvent(s, "rename", fmt.Sprintf("标题：%s → %s", s.Title, *title))
+			s.Title = *title
+		}
 		for _, f := range []struct {
 			src *string
 			dst *string
-		}{{title, &s.Title}, {goal, &s.Goal}, {ws, &s.Workspace}, {link, &s.Link}, {summary, &s.Summary}} {
+		}{{goal, &s.Goal}, {ws, &s.Workspace}, {link, &s.Link}, {summary, &s.Summary}} {
 			if f.src != nil {
 				*f.dst = *f.src
 			}

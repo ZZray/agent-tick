@@ -26,7 +26,8 @@ var agentPatterns = []struct {
 
 const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，用户靠它看进度、接收你的通知。
 - 多步任务（2 步以上或预计超过 5 分钟）必须用：开工前 tick_start 写完整清单，记住返回的 session_id，本对话一直用它。
-- 一个对话只有一个会话：同一对话来了新任务，用 tick_plan mode=append 追加到原会话，不要再 tick_start（原会话 finish 过也照样追加）。确实要开新会话，先把本对话之前的会话 tick_finish；tick_start 返回里列出的“没收尾的会话”是本对话开的就马上处理。
+- 一个对话只有一个会话：同一对话来了新任务，用 tick_plan mode=append 追加到原会话，不要再 tick_start（原会话 finish 过也照样追加）。不要省略或伪造 conversation_id 来另开重复会话；tick_start 返回里列出的“没收尾的会话”只处理本对话自己开的。
+- 目标实质变化时用 tick_rename 更新标题，保留稳定主题，例如 Tick · 展开与标题优化。标题简短，普通步骤和追问不改名；旧名保留供搜索，清单、状态及对话关联不变。
 - 每完成一条马上 done，做完全部（或用户说不用做了）必须 tick_finish，不要让做完的会话挂在进行中。
 - 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块。计划变了用 tick_plan 重发完整清单。
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
@@ -314,6 +315,8 @@ var mcpTools = []map[string]any{
 			"workspace":         map[string]any{"type": "string", "description": "工作目录（可选）"},
 			"parent_session_id": map[string]any{"type": "string", "description": "你是被派出去的子 agent 时，填派你出来的那个会话的 session_id；你的进度会显示在它下面"},
 		}, "title")},
+	{"name": "tick_rename", "description": "更新当前会话标题并保留旧名供搜索。任务目标实质变化时使用，标题保留稳定主题，例如 Tick · 展开与标题优化；普通步骤和追问不改名。不会新建会话或改变清单与状态。",
+		"inputSchema": schema(map[string]any{"session_id": sidProp, "title": map[string]any{"type": "string", "description": "简短标题，保留主题并说明当前目标；最多 200 字"}}, "title")},
 	{"name": "tick_plan", "description": "修改清单。mode=replace（默认）重发完整清单，文字相同的条目保留状态和耗时；mode=append 只追加。",
 		"inputSchema": schema(map[string]any{"session_id": sidProp, "items": strArr, "mode": map[string]any{"type": "string", "enum": []string{"replace", "append"}}}, "items")},
 	{"name": "tick_item", "description": "更新清单条目。开始前 status=doing，做完 status=done（note 写结果或证据），决定不做 status=skipped（note 写原因）。耗时由 Tick 记录。",
@@ -364,6 +367,21 @@ var mcpHandlers = map[string]toolFn{
 			}
 		}
 		return fmt.Sprintf("session_id: %s（%s）。本对话后续调用都用它。\n%s%s", s.ID, how, describe(s), hint), nil
+	},
+	"tick_rename": func(st *Store, c *mcpConn, a toolArgs) (string, error) {
+		id, err := a.session(c)
+		if err != nil {
+			return "", err
+		}
+		title, err := a.need("title")
+		if err != nil {
+			return "", err
+		}
+		s, err := st.Patch(id, PatchInput{Title: title})
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("会话 %s 的标题已更新为「%s」，旧名保留供搜索。", s.ID, s.Title), nil
 	},
 	"tick_plan": func(st *Store, c *mcpConn, a toolArgs) (string, error) {
 		id, err := a.session(c)

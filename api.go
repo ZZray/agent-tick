@@ -3,6 +3,7 @@ package main
 // HTTP 层：REST、SSE、内嵌前端、协议文档。只接受本机访问。
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -34,6 +36,32 @@ type Server struct {
 	showPanel func(hash string)
 	// theme 返回当前主题色（桌面端设置里存的）；没有桌面端时为 nil，页面用默认色
 	theme func() any
+	// settings 在托盘准备好后原子发布；nil 表示 headless 或桌面尚未就绪。
+	settings atomic.Pointer[desktopSettingsHandler]
+}
+
+type desktopSettingsInput struct {
+	Name string  `json:"name"`
+	On   *bool   `json:"on"`
+	Val  *string `json:"val"`
+}
+
+type desktopSettingsHandler func(context.Context, *desktopSettingsInput) (state any, afterReply func(), err error)
+
+func (in desktopSettingsInput) validate() error {
+	switch in.Name {
+	case "float", "dnd", "autostart":
+		if in.On == nil || in.Val != nil {
+			return bad("%s 需要布尔值 on，不接受 val", in.Name)
+		}
+	case "sound", "toastlen", "lang", "theme":
+		if in.Val == nil || in.On != nil {
+			return bad("%s 需要字符串 val，不接受 on", in.Name)
+		}
+	default:
+		return bad("不支持的设置动作：%s", in.Name)
+	}
+	return nil
 }
 
 func (srv *Server) origins() []string {
@@ -240,6 +268,42 @@ func (srv *Server) Handler() http.Handler {
 		s, err := st.Log(r.PathValue("id"), in.Text)
 		return 200, s, err
 	})
+	settings := func(w http.ResponseWriter, r *http.Request) {
+		owner := srv.settings.Load()
+		if !srv.desktop || owner == nil {
+			writeErr(w, &apiError{503, "桌面设置尚未就绪，或服务以 headless 模式运行"})
+			return
+		}
+		var in *desktopSettingsInput
+		if r.Method == http.MethodPost {
+			in = &desktopSettingsInput{}
+			if err := decode(r, in); err != nil {
+				writeErr(w, err)
+				return
+			}
+			if err := in.validate(); err != nil {
+				writeErr(w, err)
+				return
+			}
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		state, afterReply, err := (*owner)(ctx, in)
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, 200, state)
+		if afterReply != nil {
+			if err := http.NewResponseController(w).Flush(); err != nil {
+				log.Printf("设置已应用，但回复未能刷新，未执行后续重启：%v", err)
+				return
+			}
+			afterReply()
+		}
+	}
+	mux.HandleFunc("GET /api/desktop/settings", settings)
+	mux.HandleFunc("POST /api/desktop/settings", settings)
 	handle("POST /api/desktop/panel", func(r *http.Request) (int, any, error) {
 		var in struct{ Session *string }
 		if err := decode(r, &in); err != nil {

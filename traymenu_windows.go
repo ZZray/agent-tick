@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log"
 	"runtime"
-	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -53,6 +52,9 @@ type trayState struct {
 	Done       int          `json:"done"`
 	Total      int          `json:"total"`
 	Glass      bool         `json:"glass"`
+
+	Restart       bool   `json:"restart,omitempty"`
+	EffectiveLang string `json:"effectiveLang"`
 }
 
 func (t *tray) state() trayState {
@@ -67,6 +69,7 @@ func (t *tray) state() trayState {
 	st.Autostart = autostartEnabled()
 	st.Sounds = f.sounds()
 	st.Version, st.Pending, st.Hotkey, st.Glass = version, t.up.pending(), f.hotkey, glassOn
+	st.EffectiveLang = curLang()
 	for _, s := range t.srv.store.Sessions(false) {
 		active := isWaiting(s.Status) || s.Status == "running" || s.Status == "planning"
 		if !active {
@@ -108,11 +111,12 @@ func (t *tray) act(name string, on bool, val string) {
 		}
 	case "fs":
 		setFlag(&f.set.NoFullscreenHide, !on)
-	case "dnd":
-		f.setDnd(on)
-	case "autostart":
-		if err := setAutostart(on); err != nil {
-			log.Printf("开机启动设置失败：%v", err)
+	case "dnd", "autostart", "toastlen", "sound", "lang", "theme":
+		restart, err := t.applySetting(name, on, val)
+		if err != nil {
+			log.Printf("设置 %s 失败：%v", name, err)
+		} else if restart {
+			go t.up.restartWhenIdle(true)
 		}
 	case "autoupdate":
 		setFlag(&f.set.NoAutoUpdate, !on)
@@ -120,14 +124,6 @@ func (t *tray) act(name string, on bool, val string) {
 		setFlag(&f.set.NoStrip, !on)
 		f.inDock(func() { f.applyStripLook(); f.notifyDock() }) // 已经收着时马上在长条和小环之间换
 		f.pushHostState()
-	case "toastlen":
-		if slices.Contains(toastLens, val) {
-			f.mu.Lock()
-			f.set.ToastLen = val
-			f.mu.Unlock()
-			f.saveSettings()
-			f.pushHostState()
-		}
 	case "update":
 		if t.up.pending() != "" {
 			go t.up.restartWhenIdle(true)
@@ -140,27 +136,6 @@ func (t *tray) act(name string, on bool, val string) {
 		_ = openExternal(fmt.Sprintf("http://127.0.0.1:%d/", srv.port))
 	case "mcp":
 		copyText(fmt.Sprintf("http://127.0.0.1:%d/mcp", srv.port))
-	case "sound":
-		f.setSound(val) // 自己会推状态、试听
-	case "lang": // 换语言要重新加载所有页面和系统菜单，直接重启最省事（不等空闲，约 1 秒）
-		if val == "" || val == "zh" || val == "en" {
-			f.mu.Lock()
-			changed := f.set.Lang != val
-			f.set.Lang = val
-			f.mu.Unlock()
-			if changed {
-				f.saveSettings()
-				go t.up.restartWhenIdle(true)
-			}
-		}
-	case "theme":
-		if slices.ContainsFunc(themes, func(t colorTheme) bool { return t.ID == val }) {
-			f.mu.Lock()
-			f.set.Theme = val
-			f.mu.Unlock()
-			f.saveSettings()
-			f.pushHostState()
-		}
 	case "sounddir":
 		f.openSoundDir()
 	case "quit":

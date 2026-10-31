@@ -101,19 +101,20 @@ func play(b []byte) {
 }
 
 // setSound 换提示音并试听一下；"" 表示不响
-func (f *floatWin) setSound(id string) {
+func (f *floatWin) setSound(id string) error {
 	if id != "" && !slices.ContainsFunc(f.sounds(), func(o soundOpt) bool { return o.ID == id }) {
-		return
+		return bad("不支持的提示音：%s", id)
 	}
 	f.mu.Lock()
 	f.set.Sound = id
 	f.mu.Unlock()
-	f.saveSettings()
+	err := f.saveSettings()
 	if id != "" {
 		play(f.soundBytes(id))
 	}
 	f.pushHostState()
 	f.changed()
+	return err
 }
 
 // openSoundDir 在资源管理器里打开自定义声音文件夹，没有就先建一个

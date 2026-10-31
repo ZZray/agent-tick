@@ -6,6 +6,7 @@ package main
 //	tick start "标题" "第1步" "第2步" --agent codex [--ext 对话ID] [--link URL] [--goal 完成标准]
 //	tick doing|done|skip|todo <会话> <序号> [--note 结果]
 //	tick plan|add <会话> "条目" ...
+//	tick rename <会话> "稳定主题 · 当前目标"
 //	tick wait|blocked <会话> --note 问题
 //	tick resume <会话>
 //	tick finish <会话> --summary 总结 [--failed]
@@ -25,7 +26,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"start": true, "plan": true, "add": true, "doing": true, "done": true, "skip": true, "todo": true,
+var cliCommands = map[string]bool{"start": true, "plan": true, "add": true, "rename": true, "doing": true, "done": true, "skip": true, "todo": true,
 	"wait": true, "blocked": true, "resume": true, "finish": true, "notify": true, "show": true, "ls": true, "help": true, "panel": true}
 
 const cliHelp = `Tick 命令行（agent 用；协议见 http://127.0.0.1:7357/protocol）
@@ -34,6 +35,7 @@ const cliHelp = `Tick 命令行（agent 用；协议见 http://127.0.0.1:7357/pr
   tick doing|done|skip|todo <会话> <序号> [--note "结果或原因"]
   tick plan <会话> "条目"...      重发完整清单（文字相同的条目保留状态）
   tick add <会话> "条目"...       追加
+  tick rename <会话> "稳定主题 · 当前目标"    更新标题，保留旧名供搜索
   tick wait <会话> --note "要你决定的问题"      会通知用户
   tick blocked <会话> --note "卡在哪"           会通知用户
   tick resume <会话>
@@ -173,6 +175,11 @@ func runCLI(port int, args []string) int {
 				fmt.Println(s.Hint)
 			}
 		}
+	case "rename":
+		if !need(2, "会话 ID 和标题") {
+			return 1
+		}
+		s, err = call("PATCH", "/api/sessions/"+pos[0], map[string]any{"title": strings.Join(pos[1:], " ")})
 	case "plan", "add":
 		if !need(2, "会话 ID 和条目") {
 			return 1
