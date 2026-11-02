@@ -830,7 +830,7 @@ func TestMCPFlow(t *testing.T) {
 	for _, x := range list["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, x.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "tick_start,tick_plan,tick_item,tick_notify,tick_finish,tick_show" {
+	if strings.Join(names, ",") != "tick_start,tick_rename,tick_plan,tick_item,tick_notify,tick_finish,tick_show" {
 		t.Fatalf("工具列表：%v", names)
 	}
 	if m, _ := h.mcp(sess, "foo/bar", nil, 3); num(m["error"].(map[string]any)["code"]) != -32601 {

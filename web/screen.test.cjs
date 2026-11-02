@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(process.env.TICK_HTML || path.join(__dirname, 'index.html'), 'utf8');
-const source = html.slice(html.indexOf('const SCR_PAGE_MS'), html.indexOf('// ---------- 全屏卡片'));
+const source = html.slice(html.indexOf('const SCR_PAGE_MS'), html.indexOf('// 面板设置留在侧栏 morph 之外'));
 function screen(sessions = []) {
   const ctx = {
     document: { hidden: false, querySelector: () => null },
