@@ -126,3 +126,26 @@ test('stored card spots are used as they are and an empty board shows the clock'
   assert.match(idle.markup, /class="scr-idle"/);
   assert.doesNotMatch(idle.markup, /cv-world/);
 });
+
+function items(flags) {
+  const ctx = {
+    ...flags, ITEMS_LONG: undefined, S: { open: new Set(), justDone: new Set() },
+    esc: s => String(s ?? ''), finished: it => ['done', 'skipped'].includes(it.status), sicon: () => '', modHead: () => '',
+    itemMs: () => ({ ms: 0, approx: false }), dur: () => '0s', IC: { chev: '', copy: '', undoArrow: '', skip: '' },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(html.slice(html.indexOf('const ITEMS_LONG'), html.indexOf('function cardHtml')), ctx);
+  return ctx;
+}
+const longSession = () => ({ id: 's', status: 'running', items: Array.from({ length: 63 }, (_, i) => ({ id: `i${i}`, text: `step ${i}`, status: i < 35 ? 'done' : i === 35 ? 'doing' : 'todo' })) });
+
+test('the canvas folds a long checklist the same way the float window does', () => {
+  for (const flags of [{ FLOAT: true, SCREEN: false }, { FLOAT: false, SCREEN: true }]) {
+    const out = items(flags).itemsHtml(longSession());
+    assert.match(out, /前面 34 项已完成/, JSON.stringify(flags));
+    assert.match(out, /后面还有 \d+ 项/);
+    assert.ok((out.match(/class="it-s /g) || []).length <= 6, 'only the rows around the current step stay open');
+  }
+  const panel = items({ FLOAT: false, SCREEN: false }).itemsHtml(longSession());
+  assert.equal((panel.match(/class="it-s /g) || []).length, 63, 'the panel detail still lists every item');
+});

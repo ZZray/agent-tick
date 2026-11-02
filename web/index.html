@@ -1263,7 +1263,8 @@ html.nocur .scr-esc{opacity:0}
 .cv-card.dead{opacity:.65}
 .cv-card>.s:hover{background:transparent}
 .cv-card>.s.open:hover{background:var(--layer-1)}
-.cv-card .s-quick,.cv-card .s-more{display:none}
+.cv-card .s-quick,.cv-card .s-more,.cv-card .it-acts{display:none}
+.cv-card .it-tick{pointer-events:none} /* 挂着看的大屏：手滑点一下不改任务状态，拖动也能从勾上起手 */
 .cv-card .s-head{cursor:inherit}
 .cv-card .s-l1{padding-right:0!important}
 .cv-card .s-prog{display:block!important}
@@ -3187,7 +3188,7 @@ function itemsHtml(s) {
   const all = s.items;
   const sid = esc(s.id);
   let from = 0, to = all.length;
-  const long = FLOAT && all.length > ITEMS_LONG;
+  const long = (FLOAT || SCREEN) && all.length > ITEMS_LONG; // 悬浮窗和大屏都折叠长清单，只有面板详情显示全部
   if (long && !S.open.has(`all:${s.id}`)) {
     let c = all.findIndex(it => it.status === 'doing');
     if (c < 0) c = all.findIndex(it => it.status === 'blocked');
