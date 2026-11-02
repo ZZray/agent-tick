@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync(process.env.TICK_HTML || path.join(__dirname, 'index.html'), 'utf8');
 function setup(sessions = []) {
   const ctx = {
-    FLOAT: true, NATIVE: false, EN: false, RM: { matches: true }, window: {},
+    FLOAT: true, NATIVE: false, EN: false, RM: { matches: true }, window: {}, SCREEN: false,
     S: { open: new Set(), sessions: new Map(sessions.map(s => [s.id, s])), dock: {}, celebrate: new Set(), justDone: new Set() },
     esc: s => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;'),
     current: s => s.items.find(it => it.status === 'doing'),

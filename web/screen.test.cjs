@@ -34,6 +34,7 @@ function screen(sessions = []) {
 }
 const plain = v => JSON.parse(JSON.stringify(v)); // vm 里造出来的对象原型不同，比较前先转成本地对象
 const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+const apart = (a, b) => a.x + a.w + 24 <= b.x || b.x + b.w + 24 <= a.x || a.y + a.h + 24 <= b.y || b.y + b.h + 24 <= a.y; // 至少隔一个间距
 
 test('new cards fill three columns left to right, then start the next row without overlapping', () => {
   const ctx = screen();
@@ -90,7 +91,7 @@ test('waiting cards come first, long-ended and archived sessions stay off the ca
   assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['wait', 'run', 'fresh']);
 });
 
-test('sub-agents ride on their parent card, but get their own card once the parent has left', () => {
+test('sub-agents are cards of their own; a card whose parent has long left simply has no parent to point to', () => {
   const ctx = screen([
     { id: 'p1', status: 'running', createdAt: 1, updatedAt: NOW, title: 'live parent' },
     { id: 'k1', parentId: 'p1', status: 'running', createdAt: 2, updatedAt: NOW, title: 'kid of live parent' },
@@ -98,7 +99,40 @@ test('sub-agents ride on their parent card, but get their own card once the pare
     { id: 'k2', parentId: 'p2', status: 'running', createdAt: 3, updatedAt: NOW, title: 'kid of old parent' },
     { id: 'k3', parentId: 'p2', status: 'waiting', createdAt: 4, waitSince: NOW, updatedAt: NOW, title: 'waiting kid' },
   ]);
-  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['k3', 'k2', 'p1']);
+  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['k3', 'k2', 'k1', 'p1']);
+});
+
+test('a new sub-agent card lands to the right of its parent, below any card already there', () => {
+  const ctx = screen();
+  const parent = { x: 0, y: 0, w: 380, h: 300 };
+  assert.deepEqual(plain(ctx.cvPlaceNear([parent], parent, 380, 100)), { x: 452, y: 0 });
+  assert.deepEqual(plain(ctx.cvPlaceNear([parent, { x: 452, y: 0, w: 380, h: 100 }], parent, 380, 100)), { x: 452, y: 124 });
+});
+
+test('the edge from a parent to its sub-agent leaves from the side that faces the child', () => {
+  const ctx = screen();
+  const a = { x: 0, y: 0, w: 380, h: 100 };
+  assert.equal(ctx.cvEdgePath(a, { x: 452, y: 0, w: 380, h: 100 }), 'M380 26 C420 26 412 26 452 26');
+  assert.equal(ctx.cvEdgePath(a, { x: -452, y: 0, w: 380, h: 100 }), 'M0 26 C-40 26 -32 26 -72 26');
+  assert.equal(ctx.cvEdgePath(a, { x: 0, y: 140, w: 380, h: 100 }), 'M190 100 C190 140 190 100 190 140');
+  assert.equal(ctx.cvEdgePath(a, { x: 0, y: -140, w: 380, h: 100 }), 'M190 0 C190 -40 190 0 190 -40');
+});
+
+test('tidy layout keeps each parent with its sub-agents and never overlaps', () => {
+  const ctx = screen();
+  const nodes = [
+    { id: 'p', parentId: '', w: 380, h: 300 }, { id: 'k1', parentId: 'p', w: 380, h: 100 }, { id: 'k2', parentId: 'p', w: 380, h: 120 },
+    { id: 'q', parentId: '', w: 380, h: 200 }, { id: 'r', parentId: '', w: 380, h: 200 }, { id: 'lost', parentId: 'gone', w: 380, h: 90 },
+  ];
+  const pos = plain([...ctx.cvArrangeLayout(nodes, 1280)]);
+  const at = Object.fromEntries(pos);
+  assert.deepEqual(at.p, { x: 0, y: 0 });
+  assert.deepEqual(at.k1, { x: 452, y: 0 });
+  assert.deepEqual(at.k2, { x: 452, y: 124 });
+  assert.equal(pos.length, nodes.length, 'every card gets a spot, including one whose parent is not on the canvas');
+  const rects = nodes.map(n => ({ ...at[n.id], w: n.w, h: n.h }));
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.equal(apart(rects[i], rects[j]), true, `${nodes[i].id} is too close to ${nodes[j].id}`);
+  assert.ok(Math.max(...rects.map(r => r.x + r.w)) <= 1260, 'stays inside the window width');
 });
 
 test('the canvas renders one card per session, shows the question on waiting cards and leaves checklists folded like the float window', () => {

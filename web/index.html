@@ -1252,6 +1252,12 @@ html.nocur .scr-esc{opacity:0}
 .cv-world::before{content:"";position:absolute;left:-12000px;top:-12000px;width:24000px;height:24000px;pointer-events:none;
   background-image:radial-gradient(circle,var(--line-strong) 1.1px,transparent 1.6px);background-size:32px 32px;background-position:-4px -4px;opacity:.55}
 .scr[data-grab]{cursor:grabbing}
+/* 父卡指向子卡的箭头层：和世界一起平移缩放，盖在点阵上、卡片下面 */
+.cv-edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;color:var(--text-3)}
+.cv-edges path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-opacity:.5}
+.cv-edges marker path{stroke-opacity:.9}
+/* 整理布局：卡片滑到新位置 */
+.cv-world.arranging>.cv-card{transition:left 420ms var(--ease-out),top 420ms var(--ease-out),box-shadow 240ms var(--ease),opacity 400ms var(--ease)}
 .cv-card{--rc:var(--brand);position:absolute;width:380px;padding:4px;border-radius:var(--r-xl);cursor:grab;overflow:hidden;
   background:var(--bg-2);box-shadow:0 0 0 1px var(--line),0 18px 40px -20px rgba(0,0,0,.7);
   transition:box-shadow 240ms var(--ease),opacity 400ms var(--ease)}
@@ -1279,7 +1285,7 @@ html.nocur .scr-esc{opacity:0}
 .scr-idle b{font-size:5.5em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
 .scr-idle span{font-size:1.2em}
 .scr-idle em{font-style:normal;margin-top:1em;color:var(--text-4)}
-@media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card{transition:none}}
+@media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card,.cv-world.arranging>.cv-card{transition:none}}
 </style>
 </head>
 <body>
@@ -3290,7 +3296,7 @@ function sessionRow(s, live) {
       <button class="ib" data-act="archive" data-sid="${esc(s.id)}" data-tip="${isEnded(s) ? '归档' : '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）'}">${IC.archive}</button>
       ${dead ? `<button class="ib" data-act="end-session" data-sid="${esc(s.id)}" data-tip="结束：标成已取消（能撤销）">${IC.x}</button>` : ''}
     </div>
-    <div class="s-items"><div>${kidsHtml(s, live)}<div class="pad">
+    <div class="s-items"><div>${SCREEN ? '' : kidsHtml(s, live)}<div class="pad">
       ${itemsHtml(s)}
       <div class="s-more">
         ${s.link ? `<button class="btn ghost" data-act="open-link" data-sid="${esc(s.id)}">${IC.link}回到对话</button>` : ''}
@@ -3429,20 +3435,69 @@ function renderPanel() {
 //   刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。
 //   动画只在事件发生时播：卡片升起、等你的卡扫一道光、视图跳转的平滑过渡；没有常驻循环。
 // ======================================================================
-const CV_GAP = 24, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
+const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
 const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-// 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 CV_COLS 列，先靠上再靠左
-function cvPlace(rects, w, h, cols = CV_COLS) {
-  const hit = (x, y) => rects.some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+// 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
+// limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
+function cvPlace(rects, w, h, cols = CV_COLS, limitX) {
+  const hit = (x, y) => rects.some(r => x < r.x + r.w + CV_GAP && x + w + CV_GAP > r.x && y < r.y + r.h + CV_GAP && y + h + CV_GAP > r.y); // 和别的卡至少隔一个间距
   const xs = [0, ...rects.map(r => r.x + r.w + CV_GAP)], ys = [0, ...rects.map(r => r.y + r.h + CV_GAP)];
-  const maxX = (cols - 1) * (w + CV_GAP) + 1;
+  const maxX = limitX ?? (cols - 1) * (w + CV_GAP) + 1;
   let best = null;
   for (const y of ys) for (const x of xs) {
     if (x > maxX || hit(x, y)) continue;
     if (!best || y < best.y || (y === best.y && x < best.x)) best = { x, y };
   }
   return best || { x: 0, y: Math.max(0, ...rects.map(r => r.y + r.h + CV_GAP)) };
+}
+// 新的子卡落在父卡右边（留出画箭头的距离），从父卡顶边往下找第一个不压着别的卡的位置
+function cvPlaceNear(rects, parent, w, h) {
+  const x = parent.x + parent.w + CV_ARROW;
+  const hit = y => rects.some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h + CV_GAP && y + h + CV_GAP > r.y);
+  const ys = [parent.y, ...rects.map(r => r.y + r.h + CV_GAP).filter(y => y > parent.y)].sort((a, b) => a - b);
+  return { x, y: ys.find(y => !hit(y)) ?? Math.max(parent.y, ...rects.map(r => r.y + r.h + CV_GAP)) };
+}
+// 父卡指向子卡的曲线（世界坐标）：子卡在右边就从父卡右边缘到子卡左边缘，在左边反过来，上下重叠时走上下边缘；
+// 横向的端点取卡片头那一行的中间，卡片展开收起时箭头不跟着乱跳
+function cvEdgePath(a, b) {
+  const hy = r => r.y + Math.min(26, r.h / 2), cx = r => r.x + r.w / 2;
+  const curve = (x1, y1, x2, y2, horizontal) => {
+    const k = Math.max(40, (horizontal ? Math.abs(x2 - x1) : Math.abs(y2 - y1)) / 2), sx = Math.sign(horizontal ? x2 - x1 : y2 - y1) || 1;
+    const c = horizontal ? [x1 + k * sx, y1, x2 - k * sx, y2] : [x1, y1 + k * sx, x2, y2 - k * sx];
+    return `M${x1} ${y1} C${c[0]} ${c[1]} ${c[2]} ${c[3]} ${x2} ${y2}`;
+  };
+  if (b.x >= a.x + a.w - 24) return curve(a.x + a.w, hy(a), b.x, hy(b), true);
+  if (b.x + b.w <= a.x + 24) return curve(a.x, hy(a), b.x + b.w, hy(b), true);
+  if (b.y >= a.y) return curve(cx(a), a.y + a.h, cx(b), b.y, false);
+  return curve(cx(a), a.y, cx(b), b.y + b.h, false);
+}
+// 自动整理：每个父卡带着它的子卡成一块（子卡在父卡右边竖着排），块再按"先靠上再靠左"排进窗口宽度能放下的几列里
+// nodes: [{ id, parentId, w, h }]，返回 Map(id → {x, y})
+function cvArrangeLayout(nodes, vw) {
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const top = n => { let t = n; for (let i = 0; i < 5 && t.parentId && byId.has(t.parentId); i++) t = byId.get(t.parentId); return t; };
+  const kids = new Map();
+  for (const n of nodes) {
+    const t = top(n);
+    if (t !== n) (kids.get(t.id) || kids.set(t.id, []).get(t.id)).push(n);
+  }
+  const blocks = nodes.filter(n => top(n) === n).map(root => {
+    const ks = kids.get(root.id) || [];
+    const kh = ks.reduce((sum, k) => sum + k.h, 0) + Math.max(0, ks.length - 1) * CV_GAP;
+    return { root, ks, w: root.w + (ks.length ? CV_ARROW + Math.max(...ks.map(k => k.w)) : 0), h: Math.max(root.h, kh) };
+  });
+  const pitch = (nodes[0]?.w || 380) + CV_GAP;
+  const width = cvClamp(Math.floor(vw / pitch), 2, 5) * pitch + (CV_ARROW - CV_GAP);
+  const out = new Map(), rects = [];
+  for (const b of blocks) {
+    const p = cvPlace(rects, b.w, b.h, 1, Math.max(0, width - CV_GAP - b.w));
+    rects.push({ ...p, w: b.w, h: b.h });
+    out.set(b.root.id, p);
+    let y = p.y;
+    for (const k of b.ks) { out.set(k.id, { x: p.x + b.root.w + CV_ARROW, y }); y += k.h + CV_GAP; }
+  }
+  return out;
 }
 // 把所有卡片收进视野：缩放取刚好放得下、不超过 CV_ZFIT，居中；top 是顶栏高度，卡片不压在它下面
 function cvFit(rects, vw, vh, top = 0, pad = 48) {
@@ -3457,12 +3512,10 @@ function cvZoomAt(v, px, py, factor) {
   const z = cvClamp(v.z * factor, CV_ZMIN, CV_ZMAX), k = z / v.z;
   return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
 }
-// 画布上有哪些卡：子任务跟着父卡走；父卡不在画布上（结束很久了）时，仍在场的子任务自己占一张卡
+// 画布上有哪些卡：每个会话一张，子 agent 也是独立的卡，用箭头连到父卡；父卡不在画布上（结束很久了）时子卡单独放着，没有箭头
 function cvCards() {
-  const t = now(), live = visible();
-  const shown = s => !isEnded(s) || t - s.endedAt < 30 * MIN;
-  const tops = new Set(live.filter(s => !isChild(s) && shown(s)).map(s => s.id));
-  const list = live.filter(s => tops.has(s.id) || (isChild(s) && !tops.has(s.parentId) && shown(s)));
+  const t = now();
+  const list = visible().filter(s => !isEnded(s) || t - s.endedAt < 30 * MIN);
   const waits = list.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
   const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
   const stale = list.filter(s => !isEnded(s) && !isWaiting(s) && isDormant(s)).sort(byOrder);
@@ -3508,25 +3561,92 @@ function cvFitView(anim) {
   cvApply(anim);
   cvSave();
 }
-// 渲染后给还没有位置的卡找位置（量实际高度），第一次还没有视图时把所有卡收进视野
+// 渲染后给还没有位置的卡找位置（量实际高度）：没有父卡的先放，子卡再落到各自父卡右边；第一次还没有视图时把所有卡收进视野
 function cvLayout() {
   const world = document.querySelector('.cv-world');
   if (!world) return;
-  const rects = [], fresh = [];
-  for (const el of world.querySelectorAll(':scope>.cv-card')) {
-    const p = CV.pos.get(el.dataset.cvid);
-    if (p) rects.push({ x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight }); else fresh.push(el);
+  const els = new Map([...world.querySelectorAll(':scope>.cv-card')].map(el => [el.dataset.cvid, el]));
+  const rects = new Map(), fresh = [];
+  for (const [id, el] of els) {
+    const p = CV.pos.get(id);
+    if (p) rects.set(id, { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight }); else fresh.push(el);
   }
-  for (const el of fresh) {
-    const w = el.offsetWidth, h = el.offsetHeight, p = cvPlace(rects, w, h, cvClamp(Math.floor(innerWidth / (w + CV_GAP)), 2, 5)); // 列数跟窗口宽度走
+  const parentOf = el => { const pid = S.sessions.get(el.dataset.cvid)?.parentId; return pid && els.has(pid) ? pid : ''; };
+  const cols = cvClamp(Math.floor(innerWidth / (380 + CV_GAP)), 2, 5); // 列数跟窗口宽度走
+  const place = (el, p) => {
     CV.pos.set(el.dataset.cvid, p);
-    rects.push({ ...p, w, h });
+    rects.set(el.dataset.cvid, { ...p, w: el.offsetWidth, h: el.offsetHeight });
     el.style.left = p.x + 'px';
     el.style.top = p.y + 'px';
     el.style.visibility = '';
+  };
+  if (!rects.size && fresh.length > 1) {
+    // 画布上一张卡都没有位置（第一次打开 / 清过记忆）：一次性按"整理"的排法排好，父子成组、箭头顺畅
+    const pos = cvArrangeLayout(fresh.map(el => ({ id: el.dataset.cvid, parentId: S.sessions.get(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+    for (const el of fresh) place(el, pos.get(el.dataset.cvid));
+  } else {
+    for (const el of [...fresh.filter(e => !parentOf(e)), ...fresh.filter(parentOf)]) {
+      const w = el.offsetWidth, h = el.offsetHeight, parent = rects.get(parentOf(el));
+      place(el, parent ? cvPlaceNear([...rects.values()], parent, w, h) : cvPlace([...rects.values()], w, h, cols));
+    }
   }
   if (fresh.length) cvSave();
-  if (!CV.view) { CV.view = cvFit(rects, innerWidth, innerHeight, cvHeadH()); cvApply(false); cvSave(); }
+  if (!CV.view) { CV.view = cvFit([...rects.values()], innerWidth, innerHeight, cvHeadH()); cvApply(false); cvSave(); }
+  cvWatch(world);
+  cvEdges();
+}
+// 父卡到子卡的箭头：一层 SVG，画在世界坐标里，盖在点阵上、卡片下。用 data-fx 标记，重绘（morph）时不会被清掉
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function cvEdges() {
+  const world = document.querySelector('.cv-world');
+  if (!world) return;
+  let svg = world.querySelector(':scope>.cv-edges');
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'cv-edges');
+    svg.setAttribute('data-fx', '');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<defs><marker id="cv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M1.5 1.5L8.5 5L1.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><g></g>';
+    world.prepend(svg);
+  }
+  const rects = new Map();
+  // 用实际排版位置（offsetLeft / offsetTop）而不是记下的坐标：整理布局的移动动画里，箭头跟着卡片走
+  for (const el of world.querySelectorAll(':scope>.cv-card')) if (CV.pos.has(el.dataset.cvid)) rects.set(el.dataset.cvid, { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+  let d = '';
+  for (const [id, r] of rects) {
+    const parent = rects.get(S.sessions.get(id)?.parentId);
+    if (parent) d += `<path d="${cvEdgePath(parent, r)}" marker-end="url(#cv-arrow)"/>`;
+  }
+  svg.lastChild.innerHTML = d;
+}
+// 卡片展开 / 收起 / 内容变化时高度会变，箭头端点跟着变：用 ResizeObserver 合并到下一帧重画
+let cvRO = null, cvEdgeRaf = 0;
+const cvWatched = new WeakSet();
+function cvEdgesSoon() {
+  if (!cvEdgeRaf) cvEdgeRaf = requestAnimationFrame(() => { cvEdgeRaf = 0; cvEdges(); });
+}
+function cvWatch(world) {
+  cvRO ||= new ResizeObserver(cvEdgesSoon);
+  for (const el of world.querySelectorAll(':scope>.cv-card')) if (!cvWatched.has(el)) { cvWatched.add(el); cvRO.observe(el); }
+}
+// 「整理」：按父子成块重新排布所有卡片（卡片滑到新位置，箭头跟着走），再把全部收进视野
+function cvArrange() {
+  const world = document.querySelector('.cv-world');
+  if (!world) return;
+  const els = [...world.querySelectorAll(':scope>.cv-card')];
+  const pos = cvArrangeLayout(els.map(el => ({ id: el.dataset.cvid, parentId: S.sessions.get(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+  world.classList.add('arranging');
+  for (const el of els) {
+    const p = pos.get(el.dataset.cvid);
+    CV.pos.set(el.dataset.cvid, p);
+    el.style.left = p.x + 'px';
+    el.style.top = p.y + 'px';
+  }
+  const t0 = performance.now();
+  const follow = () => { cvEdges(); if (performance.now() - t0 < 480) requestAnimationFrame(follow); };
+  follow();
+  setTimeout(() => world.classList.remove('arranging'), 480);
+  cvFitView(true);
 }
 // 把这张卡带进视野：已经完整在视野里就不动（force 时一定居中），保持当前缩放
 function cvReveal(id, force) {
@@ -3582,6 +3702,7 @@ function startScreen() {
     CV.pos.set(g.id, p);
     g.card.style.left = p.x + 'px';
     g.card.style.top = p.y + 'px';
+    cvEdgesSoon();
   });
   const end = () => {
     if (!g) return;
@@ -3615,6 +3736,7 @@ function startScreen() {
     if (b.dataset.cv === 'fit') cvFitView(true);
     else if (b.dataset.cv === 'in') zoomBy(1.25);
     else if (b.dataset.cv === 'out') zoomBy(0.8);
+    else if (b.dataset.cv === 'arrange') cvArrange();
     else if (b.dataset.cv === 'wait') {
       const ids = cvCards().filter(isWaiting).map(s => s.id);
       if (!ids.length) return;
@@ -3651,7 +3773,7 @@ function renderScreen() {
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
       <span class="grow"></span>
-      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="把所有卡片收进视野（双击空白也行）">适应</button></span>`}
+      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="把所有卡片收进视野（双击空白也行）">适应</button><button data-cv="arrange" title="自动整理布局：父任务带着子任务成一组，整齐排好">整理</button></span>`}
       <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
       ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
     </header>
