@@ -269,7 +269,7 @@ func (m *menuWin) create(t *tray) {
 		m.mu.Unlock()
 		w.Eval("tickMenuOpen(" + state() + ")")
 	})
-	_ = w.Bind("tickMenuFit", func(cw, ch float64) { m.fit(f, cw, ch) })
+	_ = w.Bind("tickMenuFit", func(cw, ch float64) { m.fit(cw, ch) })
 	_ = w.Bind("tickMenuClose", func() { m.hide() })
 	// 动作执行完回新的状态给页面；会离开菜单的动作（打开面板、退出等）顺手收起
 	_ = w.Bind("tickMenuAct", func(name string, on bool, val string) string {
@@ -294,39 +294,67 @@ func (m *menuWin) create(t *tray) {
 	w.Destroy()
 }
 
-// fit 页面排好版后报尺寸：要显示就摆到光标附近（贴着任务栏上方、靠右对齐光标）并拿到焦点
-func (m *menuWin) fit(f *floatWin, cw, ch float64) {
+// menuBounds keeps the whole popup inside the anchor monitor's work area.
+// Oversized content scrolls in the page; the native window never covers the taskbar.
+func menuBounds(cw, ch, scale float64, c point, wa rect) rect {
+	gap := int32(10*scale + 0.5)
+	pw := min(int32(cw*scale+0.5), max(1, wa.Right-wa.Left-2*gap))
+	ph := min(int32(ch*scale+0.5), max(1, wa.Bottom-wa.Top-2*gap))
+	x := min(max(c.X-pw+gap*3, wa.Left+gap), wa.Right-pw-gap)
+	y := c.Y - ph - gap
+	if y < wa.Top+gap {
+		y = c.Y + gap
+	}
+	y = min(max(y, wa.Top+gap), wa.Bottom-ph-gap)
+	return rect{Left: x, Top: y, Right: x + pw, Bottom: y + ph}
+}
+
+// fit also accepts content changes while visible. Only the opening request shows
+// or activates the window; resize callbacks after hide must not bring it back.
+func (m *menuWin) fit(cw, ch float64) {
 	m.mu.Lock()
-	h, show, c := m.hwnd, m.wantShow, m.anchor
-	m.wantShow = false
+	h, show, c, gen := m.hwnd, m.wantShow, m.anchor, m.gen
 	m.mu.Unlock()
-	if !show || cw <= 0 || ch <= 0 {
+	if h == 0 || cw <= 0 || ch <= 0 {
+		return
+	}
+	if visible, _, _ := pIsWindowVisible.Call(h); !show && visible == 0 {
 		return
 	}
 	mon, _, _ := pMonitorFromPoint.Call(uintptr(uint32(c.X))|uintptr(uint32(c.Y))<<32, 2)
 	mi := monitorInfo{Size: uint32(unsafe.Sizeof(monitorInfo{}))}
-	pGetMonitorInfo.Call(mon, uintptr(unsafe.Pointer(&mi)))
+	if ok, _, _ := pGetMonitorInfo.Call(mon, uintptr(unsafe.Pointer(&mi))); ok == 0 {
+		return
+	}
 	dpi, _, _ := pGetDpiForWindow.Call(h)
 	s := 1.0
 	if dpi > 0 {
 		s = float64(dpi) / 96
 	}
-	pw, ph := int32(cw*s+0.5), int32(ch*s+0.5)
-	gap := int32(10*s + 0.5)
-	wa := mi.Work
-	x := min(max(c.X-pw+gap*3, wa.Left+gap), wa.Right-pw-gap)
-	y := c.Y - ph - gap
-	if y < wa.Top+gap { // 任务栏在上面：往下弹
-		y = c.Y + gap
-	}
-	y = min(max(y, wa.Top+gap), wa.Bottom-ph-gap)
-	pSetWindowPos.Call(h, ^uintptr(0), uintptr(x), uintptr(y), uintptr(pw), uintptr(ph), 0x40) // HWND_TOPMOST, SWP_SHOWWINDOW
-	pSetForegroundWindow.Call(h)
-	pSetFocus.Call(h)
+	r := menuBounds(cw, ch, s, c, mi.Work)
 	m.mu.Lock()
-	gen := m.gen
+	if m.hwnd != h || m.gen != gen {
+		m.mu.Unlock()
+		return
+	}
+	m.wantShow = false
 	m.mu.Unlock()
-	go m.watchOutside(h, gen)
+	flags := uintptr(0x14) // SWP_NOZORDER | SWP_NOACTIVATE
+	if show {
+		flags = 0x40 // SWP_SHOWWINDOW
+	} else {
+		var current rect
+		pGetWindowRect.Call(h, uintptr(unsafe.Pointer(&current)))
+		if current == r {
+			return
+		}
+	}
+	pSetWindowPos.Call(h, ^uintptr(0), uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), flags)
+	if show {
+		pSetForegroundWindow.Call(h)
+		pSetFocus.Call(h)
+		go m.watchOutside(h, gen)
+	}
 }
 
 // watchOutside 后备的“点外面就收起”：系统不给前台权限时（比如别的程序锁着前台），
@@ -361,6 +389,7 @@ func (m *menuWin) watchOutside(h uintptr, gen int) {
 func (m *menuWin) hide() {
 	m.mu.Lock()
 	h, w := m.hwnd, m.w
+	m.wantShow = false
 	m.gen++
 	gen := m.gen
 	m.mu.Unlock()

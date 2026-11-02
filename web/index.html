@@ -612,7 +612,10 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 /* ============ 托盘菜单（view=menu） ============
    头部：logo + 版本 + 会话统计 + 总进度环；六宫格常用操作；开关列表（拨动开关）；底栏 */
 html:not([data-glass]):has(.mn),html:not([data-glass]):has(.mn) body{background:var(--bg-2)}
-.mn{width:300px;display:flex;flex-direction:column;outline:none;user-select:none}
+.mn{width:300px;max-width:100vw;max-height:100vh;display:flex;flex-direction:column;outline:none;user-select:none}
+.mn-h,.mn-f{flex-shrink:0}
+.mn-body{min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.mn-content{display:flow-root}
 .mn-h{display:flex;align-items:center;gap:11px;padding:14px 14px 12px}
 .mn-logo{width:34px;height:34px}
 .mn-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -2294,7 +2297,20 @@ function renderPeek() {
 // 托盘菜单（view=menu）：头部状态 + 六宫格常用操作 + 开关列表 + 提示音 + 底栏
 // ======================================================================
 function startMenu() {
-  document.addEventListener('toggle', e => { if (e.target.matches?.('[data-key=menu-display]')) S.menuDisplay = e.target.open; }, true);
+  // Measure unconstrained content, not the viewport-capped shell: collapsing must shrink again.
+  let fitFrame = 0;
+  window.tickMenuMeasure = () => {
+    if (fitFrame) return;
+    fitFrame = requestAnimationFrame(() => {
+      fitFrame = 0;
+      const el = root.querySelector('.mn'), content = root.querySelector('.mn-content');
+      if (el && content) window.tickMenuFit(el.offsetWidth,
+        root.querySelector('.mn-h').offsetHeight + content.offsetHeight + root.querySelector('.mn-f').offsetHeight);
+    });
+  };
+  document.addEventListener('toggle', e => {
+    if (e.target.matches?.('[data-key=menu-display]')) { S.menuDisplay = e.target.open; window.tickMenuMeasure(); }
+  }, true);
   window.tickMenuOpen = st => {
     S.menu = st;
     render();
@@ -2307,7 +2323,7 @@ function startMenu() {
     }
     root.querySelector('.mn')?.focus();
     // 再次弹出时尺寸没变，ResizeObserver 不会触发：主动报一次，宿主才知道该显示了
-    requestAnimationFrame(() => { const el = root.firstElementChild; if (el?.offsetHeight) window.tickMenuFit(el.offsetWidth, el.offsetHeight); });
+    window.tickMenuMeasure();
   };
   window.tickMenuHidden = () => { pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
   // 开关先在界面上拨过去，再等宿主改；宿主回来的状态和点的不一样就是没改成，拨回去并说一声。
@@ -2342,10 +2358,7 @@ function startMenu() {
   PICK['m-toastlen'] = v => act('toastlen', true, v);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickMenuClose(); });
   // 报布局尺寸（offset*），不受入场动画的缩放影响
-  new ResizeObserver(() => {
-    const el = root.firstElementChild;
-    if (el?.offsetHeight) window.tickMenuFit(el.offsetWidth, el.offsetHeight);
-  }).observe(root);
+  new ResizeObserver(() => window.tickMenuMeasure()).observe(root);
   window.tickMenuReady();
 }
 function renderMenu() {
@@ -2369,6 +2382,7 @@ function renderMenu() {
         <circle cx="18" cy="18" r="15" fill="none" stroke="${m.waiting ? 'var(--orange)' : 'url(#tick-ring)'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(pct * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 18 18)"/>
         <text x="18" y="22" text-anchor="middle" class="num">${Math.round(pct * 100)}</text></svg>
     </header>
+    <div class="mn-body"><div class="mn-content">
     <div class="mn-grid">
       ${tile('float', IC.pip, m.visible ? '收起悬浮窗' : '显示悬浮窗', m.hotkey ? esc(m.hotkey) : '')}
       ${tile('panel', IC.panel, '打开面板', '历史 · 搜索')}
@@ -2394,10 +2408,12 @@ function renderMenu() {
       <div class="mn-row nohov"><span class="grow">主题色</span><span class="mn-cs" role="radiogroup" aria-label="主题色">${(m.themes || []).map(t => { const on = t.id === m.theme?.id; return `<button class="mn-c${on ? ' on' : ''}" data-m="theme" data-v="${esc(t.id)}" style="--c:${esc(t.brand)}" role="radio" aria-checked="${on}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}"></button>`; }).join('')}</span></div>
       ${S.menuErr ? `<div class="mn-err" data-key="mn-err" data-enter="fade">${sicon('blocked')}${esc(S.menuErr.text)}</div>` : ''}
     </details>
+    </div></div>
     <footer class="mn-f"><button data-m="sounddir">${IC.folder}声音文件夹</button><i></i><button data-m="quit" class="quit">${IC.power}退出 Tick</button></footer>
   </div>`;
   morph(root, html);
   setTheme(m.theme);
+  window.tickMenuMeasure?.();
 }
 
 // ======================================================================
