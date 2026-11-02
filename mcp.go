@@ -30,7 +30,7 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 一个对话只有一个会话：同一对话来了新任务，用 tick_plan mode=append 追加到原会话，不要再 tick_start（原会话 finish 过也照样追加）。不要省略或伪造 conversation_id 来另开重复会话；tick_start 返回里列出的“没收尾的会话”只处理本对话自己开的。
 - 目标实质变化时用 tick_rename 更新标题，保留稳定主题，例如 Tick · 展开与标题优化。标题简短，普通步骤和追问不改名；旧名保留供搜索，清单、状态及对话关联不变。
 - 每完成一条马上 done，做完全部（或用户说不用做了）必须 tick_finish，不要让做完的会话挂在进行中。
-- 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块。计划变了用 tick_plan 重发完整清单。
+- 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块；多层流程用 "# 父模块 / 子流程"，模块名保持稳定。计划变了用 tick_plan 重发完整清单。
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
 - 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
 - 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
@@ -334,7 +334,7 @@ func schema(props map[string]any, required ...string) map[string]any {
 var sidProp = map[string]any{"type": "string", "description": "会话 ID（tick_start 返回的 s_ 开头那串）。省略时用本连接最近登记的会话。"}
 
 const itemsDesc = "完整清单：从第一步到验证、提交，按执行顺序把整件事要做的每一步都写上，每条一个能检查的结果，不要只写几个大阶段。" +
-	"涉及多个模块时用 \"# 模块名\" 单独一项开一段，后面的条目归这个模块（例：[\"# 后端\", \"加接口\", \"补测试\", \"# 前端\", \"接页面\"]）；标题行不算条目、不占序号"
+	"涉及多个模块时用 \"# 模块名\" 单独一项开一段，后面的条目归这个模块（例：[\"# 后端\", \"加接口\", \"补测试\", \"# 前端\", \"接页面\"]）；多层流程用 \"# 父模块 / 子流程\"；标题行不算条目、不占序号"
 
 var strArr = map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": itemsDesc}
 

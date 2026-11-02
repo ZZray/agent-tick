@@ -1252,10 +1252,13 @@ html.nocur .scr-esc{opacity:0}
 .cv-world::before{content:"";position:absolute;left:-12000px;top:-12000px;width:24000px;height:24000px;pointer-events:none;
   background-image:radial-gradient(circle,var(--line-strong) 1.1px,transparent 1.6px);background-size:32px 32px;background-position:-4px -4px;opacity:.55}
 .scr[data-grab]{cursor:grabbing}
-/* 父卡指向子卡的箭头层：和世界一起平移缩放，盖在点阵上、卡片下面 */
+/* 细流线与世界一起移动；只有正在执行的分支有短高亮，等待和完成时留下静态连接。 */
 .cv-edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;color:var(--text-3)}
-.cv-edges path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-opacity:.5}
-.cv-edges marker path{stroke-opacity:.9}
+.cv-edges path{fill:none;stroke:currentColor;stroke-width:1.1;stroke-opacity:.52;vector-effect:non-scaling-stroke}
+.cv-edges .cv-flow{stroke:var(--brand);stroke-width:1.6;stroke-opacity:0;stroke-dasharray:9 91;stroke-linecap:round;animation:cv-flow 2.4s linear infinite;animation-play-state:paused}
+.cv-edges .live>.cv-flow{stroke-opacity:.8;animation-play-state:running}
+.cv-edges.paused .cv-flow{animation-play-state:paused}
+@keyframes cv-flow{to{stroke-dashoffset:-100}}
 /* 整理布局：卡片滑到新位置 */
 .cv-world.arranging>.cv-card{transition:left 420ms var(--ease-out),top 420ms var(--ease-out),box-shadow 240ms var(--ease),opacity 400ms var(--ease)}
 .cv-card{--rc:var(--brand);position:absolute;width:380px;padding:4px;border-radius:var(--r-xl);cursor:grab;overflow:hidden;
@@ -1274,6 +1277,25 @@ html.nocur .scr-esc{opacity:0}
 .cv-card .s-head{cursor:inherit}
 .cv-card .s-l1{padding-right:0!important}
 .cv-card .s-prog{display:block!important}
+.cv-module{width:320px;padding:0}
+.cv-mod-head{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;background:none;border:0;color:var(--text-1);text-align:left;cursor:inherit}
+.cv-mod-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--text-4)}
+.cv-module.run .cv-mod-dot{background:var(--brand)}
+.cv-module.wait .cv-mod-dot{background:var(--orange)}
+.cv-module.ok .cv-mod-dot{background:var(--green)}
+.cv-mod-copy{min-width:0;flex:1}
+.cv-mod-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600}
+.cv-mod-meta{display:block;margin-top:3px;font-size:10px;color:var(--text-4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-mod-count{flex:none;font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.cv-mod-current{padding:0 16px 13px 32px;color:var(--text-2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-mod-list{border-top:1px solid var(--line);padding:6px 16px 12px;margin:0;list-style:none}
+.cv-mod-item{display:flex;gap:8px;padding:6px 0;color:var(--text-3);font-size:11px;line-height:1.5}
+.cv-mod-item>span:first-child{flex:none;color:var(--text-4)}
+.cv-mod-item>span:last-child{overflow-wrap:anywhere}
+.cv-mod-item.doing{color:var(--text-1)}
+.cv-mod-item.blocked{color:var(--orange)}
+.cv-mod-fold{padding:5px 0;color:var(--text-4);font-size:10px}
+.cv-mod-fold button{padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer}
 .cv-glow{position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;transform:translateX(-100%);border-radius:inherit;
   background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 20%,transparent),transparent)}
 .cv-q{margin:2px 4px 4px;padding:.7em .9em;border-radius:var(--r-lg);font-size:13px;line-height:1.55;color:var(--text-1);
@@ -1285,7 +1307,7 @@ html.nocur .scr-esc{opacity:0}
 .scr-idle b{font-size:5.5em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
 .scr-idle span{font-size:1.2em}
 .scr-idle em{font-style:normal;margin-top:1em;color:var(--text-4)}
-@media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card,.cv-world.arranging>.cv-card{transition:none}}
+@media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card,.cv-world.arranging>.cv-card{transition:none}.cv-edges .cv-flow{display:none;animation:none}}
 </style>
 </head>
 <body>
@@ -3431,12 +3453,12 @@ function renderPanel() {
 // 无限画布：每个会话一张和悬浮窗里同款的卡片（sessionRow），可以自由拖动。
 //   拖空白处平移，滚轮按光标位置缩放，双击空白或点「适应」把所有卡片收进视野；卡片位置和视图记在本机（localStorage）。
 //   新会话的卡片自动找一块不压着别的卡的空位；等你的卡橙色，问题原文直接摆在卡上，顶光也变橙，
-//   它不在视野里、而且 30 秒内没人动过画布时，视图平滑带过去；顶栏的「N 等你」点一下依次跳到它们。
+//   新任务或模块标题在视野外时自动适应相机；手动操作结束 1.2 秒后再处理，不改卡片位置。顶栏等你入口依次跳转。
 //   刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。
-//   动画只在事件发生时播：卡片升起、等你的卡扫一道光、视图跳转的平滑过渡；没有常驻循环。
+//   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3476,26 +3498,32 @@ function cvEdgePath(a, b) {
 // nodes: [{ id, parentId, w, h }]，返回 Map(id → {x, y})
 function cvArrangeLayout(nodes, vw) {
   const byId = new Map(nodes.map(n => [n.id, n]));
-  const top = n => { let t = n; for (let i = 0; i < 5 && t.parentId && byId.has(t.parentId); i++) t = byId.get(t.parentId); return t; };
   const kids = new Map();
-  for (const n of nodes) {
-    const t = top(n);
-    if (t !== n) (kids.get(t.id) || kids.set(t.id, []).get(t.id)).push(n);
-  }
-  const blocks = nodes.filter(n => top(n) === n).map(root => {
-    const ks = kids.get(root.id) || [];
-    const kh = ks.reduce((sum, k) => sum + k.h, 0) + Math.max(0, ks.length - 1) * CV_GAP;
-    return { root, ks, w: root.w + (ks.length ? CV_ARROW + Math.max(...ks.map(k => k.w)) : 0), h: Math.max(root.h, kh) };
-  });
+  for (const n of nodes) if (byId.has(n.parentId) && n.parentId !== n.id) (kids.get(n.parentId) || kids.set(n.parentId, []).get(n.parentId)).push(n);
+  const claimed = new Set();
+  const measure = n => {
+    claimed.add(n.id);
+    const children = [];
+    for (const k of kids.get(n.id) || []) if (!claimed.has(k.id)) children.push(measure(k));
+    const kh = children.reduce((sum, k) => sum + k.h, 0) + Math.max(0, children.length - 1) * CV_GAP;
+    return { node: n, children, w: n.w + (children.length ? CV_ARROW + Math.max(...children.map(k => k.w)) : 0), h: Math.max(n.h, kh) };
+  };
+  const blocks = [];
+  for (const n of nodes.filter(n => !byId.has(n.parentId) || n.parentId === n.id)) if (!claimed.has(n.id)) blocks.push(measure(n));
+  // 没有根的损坏关系也保留卡片，不让一个环使整组任务消失。
+  for (const n of nodes) if (!claimed.has(n.id)) blocks.push(measure(n));
   const pitch = (nodes[0]?.w || 380) + CV_GAP;
   const width = cvClamp(Math.floor(vw / pitch), 2, 5) * pitch + (CV_ARROW - CV_GAP);
   const out = new Map(), rects = [];
+  const place = (b, x, y) => {
+    out.set(b.node.id, { x, y });
+    let cy = y;
+    for (const k of b.children) { place(k, x + b.node.w + CV_ARROW, cy); cy += k.h + CV_GAP; }
+  };
   for (const b of blocks) {
     const p = cvPlace(rects, b.w, b.h, 1, Math.max(0, width - CV_GAP - b.w));
     rects.push({ ...p, w: b.w, h: b.h });
-    out.set(b.root.id, p);
-    let y = p.y;
-    for (const k of b.ks) { out.set(k.id, { x: p.x + b.root.w + CV_ARROW, y }); y += k.h + CV_GAP; }
+    place(b, p.x, p.y);
   }
   return out;
 }
@@ -3522,13 +3550,52 @@ function cvCards() {
   const recent = list.filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
   return [...waits, ...active, ...stale, ...recent];
 }
+// 模块只投影到画布，不创建会话。分组路径中的 " / " 表示下一层，原单级分组仍然是一张模块卡。
+function cvFlowNodes(sessions = cvCards()) {
+  const nodes = [...sessions];
+  for (const owner of sessions) {
+    const groups = new Map();
+    for (const item of owner.items || []) {
+      const parts = (item.group || '').split(' / ').map(p => p.trim()).filter(Boolean);
+      for (let depth = 1; depth <= parts.length; depth++) {
+        const path = parts.slice(0, depth), key = JSON.stringify(path);
+        let node = groups.get(key);
+        if (!node) {
+          const parent = depth === 1 ? owner.id : `${owner.id}:module:${JSON.stringify(path.slice(0, -1))}`;
+          node = { id: `${owner.id}:module:${key}`, parentId: parent, ownerId: owner.id, modulePath: path.join(' / '), title: path.at(-1), items: [], allItems: [] };
+          groups.set(key, node);
+        }
+        node.allItems.push(item);
+        if (depth === parts.length) node.items.push(item);
+      }
+    }
+    for (const node of groups.values()) {
+      if (!node.allItems.some(it => ['doing', 'done', 'blocked'].includes(it.status) || it.startedAt > 0 || it.spentMs > 0)) continue;
+      node.done = node.allItems.filter(it => ['done', 'skipped'].includes(it.status)).length;
+      node.total = node.allItems.length;
+      node.status = node.done === node.total ? 'done' : node.allItems.some(it => it.status === 'blocked') ? 'blocked' : owner.status === 'running' && node.allItems.some(it => it.status === 'doing') ? 'running' : 'planning';
+      node.updatedAt = owner.updatedAt;
+      nodes.push(node);
+    }
+  }
+  return nodes;
+}
+const cvNode = id => CV.nodes.get(id) || S.sessions.get(id);
+const cvFlowing = node => {
+  const owner = node?.ownerId ? S.sessions.get(node.ownerId) : node;
+  const doing = node?.ownerId ? node.allItems.some(it => it.status === 'doing') : node?.status === 'running';
+  return doing && owner?.status === 'running' && !isDormant(owner);
+};
 const scrDate = () => new Date().toLocaleDateString(EN ? 'en-US' : 'zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
 const scrTime = () => new Date().toTimeString().slice(0, 5);
 const scrGlow = g => g?.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(260%)' }], { duration: 1200, easing: 'cubic-bezier(.45,.05,.55,.95)' });
 let cvSaveT = 0, cvAnimT = 0;
 function cvSave() {
   clearTimeout(cvSaveT);
-  cvSaveT = setTimeout(() => store.set('canvas', { pos: Object.fromEntries([...CV.pos].filter(([k]) => S.sessions.has(k))), view: CV.view }), 300);
+  cvSaveT = setTimeout(() => {
+    const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
+    store.set('canvas', { pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+  }, 300);
 }
 function cvLoad() {
   const d = store.get('canvas', null);
@@ -3561,6 +3628,43 @@ function cvFitView(anim) {
   cvApply(anim);
   cvSave();
 }
+// 新内容的标题需要完整落在画布视口内；只露出卡片底部不能算已经看到了任务。
+function cvHeaderVisible(el) {
+  const p = el && CV.pos.get(el.dataset.cvid), v = CV.view;
+  if (!p || !v) return false;
+  const x = p.x * v.z + v.x, y = p.y * v.z + v.y;
+  return x >= 12 && x + el.offsetWidth * v.z <= innerWidth - 12 && y >= cvHeadH() + 12 && y + Math.min(52, el.offsetHeight) * v.z <= innerHeight - 12;
+}
+function cvRevealPending() {
+  CV.revealT = 0;
+  const els = new Map([...document.querySelectorAll('.cv-world>.cv-card')].map(el => [el.dataset.cvid, el]));
+  for (const id of CV.pendingReveal) if (!CV.nodes.has(id) || !els.has(id) || cvHeaderVisible(els.get(id))) CV.pendingReveal.delete(id);
+  if (!CV.pendingReveal.size || document.hidden) return;
+  const delay = 1200 - (Date.now() - CV.userAt);
+  if (CV.interacting || delay > 0) {
+    CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay);
+    return;
+  }
+  // 适应只调整相机，用户拖过的卡片位置保持不动。
+  cvFitView(true);
+  // 无限画布可能宽到最小缩放也装不下：至少把一张新卡的标题带进视野，不能按巨高卡的整卡中心定位。
+  const target = [...CV.pendingReveal].map(id => els.get(id)).find(el => !cvHeaderVisible(el));
+  if (target) {
+    const p = CV.pos.get(target.dataset.cvid), z = CV.view.z;
+    CV.view = { z, x: innerWidth / 2 - (p.x + target.offsetWidth / 2) * z, y: (innerHeight + cvHeadH()) / 2 - (p.y + Math.min(52, target.offsetHeight) / 2) * z };
+    cvApply(true);
+    cvSave();
+  }
+  CV.pendingReveal.clear();
+}
+function cvNewContent(ids, first) {
+  const els = [...document.querySelectorAll('.cv-world>.cv-card')];
+  const allOutside = first && els.length && !els.some(cvHeaderVisible);
+  for (const el of els) if ((allOutside || !first && ids.has(el.dataset.cvid)) && !cvHeaderVisible(el)) CV.pendingReveal.add(el.dataset.cvid);
+  if (CV.pendingReveal.size && !CV.revealT) {
+    CV.revealT = setTimeout(cvRevealPending, 60); // 合并一小批连着到达的新会话/模块。
+  }
+}
 // 渲染后给还没有位置的卡找位置（量实际高度）：没有父卡的先放，子卡再落到各自父卡右边；第一次还没有视图时把所有卡收进视野
 function cvLayout() {
   const world = document.querySelector('.cv-world');
@@ -3571,7 +3675,7 @@ function cvLayout() {
     const p = CV.pos.get(id);
     if (p) rects.set(id, { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight }); else fresh.push(el);
   }
-  const parentOf = el => { const pid = S.sessions.get(el.dataset.cvid)?.parentId; return pid && els.has(pid) ? pid : ''; };
+  const parentOf = el => { const pid = cvNode(el.dataset.cvid)?.parentId; return pid && els.has(pid) ? pid : ''; };
   const cols = cvClamp(Math.floor(innerWidth / (380 + CV_GAP)), 2, 5); // 列数跟窗口宽度走
   const place = (el, p) => {
     CV.pos.set(el.dataset.cvid, p);
@@ -3582,12 +3686,24 @@ function cvLayout() {
   };
   if (!rects.size && fresh.length > 1) {
     // 画布上一张卡都没有位置（第一次打开 / 清过记忆）：一次性按"整理"的排法排好，父子成组、箭头顺畅
-    const pos = cvArrangeLayout(fresh.map(el => ({ id: el.dataset.cvid, parentId: S.sessions.get(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+    const pos = cvArrangeLayout(fresh.map(el => ({ id: el.dataset.cvid, parentId: parentOf(el), w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
     for (const el of fresh) place(el, pos.get(el.dataset.cvid));
   } else {
-    for (const el of [...fresh.filter(e => !parentOf(e)), ...fresh.filter(parentOf)]) {
-      const w = el.offsetWidth, h = el.offsetHeight, parent = rects.get(parentOf(el));
-      place(el, parent ? cvPlaceNear([...rects.values()], parent, w, h) : cvPlace([...rects.values()], w, h, cols));
+    const pending = new Map(fresh.map(el => [el.dataset.cvid, el]));
+    while (pending.size) {
+      let progressed = false;
+      for (const [id, el] of pending) {
+        if (pending.has(parentOf(el))) continue;
+        const w = el.offsetWidth, h = el.offsetHeight, parent = rects.get(parentOf(el));
+        place(el, parent ? cvPlaceNear([...rects.values()], parent, w, h) : cvPlace([...rects.values()], w, h, cols));
+        pending.delete(id);
+        progressed = true;
+      }
+      if (!progressed) {
+        const [id, el] = pending.entries().next().value;
+        place(el, cvPlace([...rects.values()], el.offsetWidth, el.offsetHeight, cols));
+        pending.delete(id);
+      }
     }
   }
   if (fresh.length) cvSave();
@@ -3595,7 +3711,7 @@ function cvLayout() {
   cvWatch(world);
   cvEdges();
 }
-// 父卡到子卡的箭头：一层 SVG，画在世界坐标里，盖在点阵上、卡片下。用 data-fx 标记，重绘（morph）时不会被清掉
+// SVG 与 path 节点保持身份，任务刷新只改几何/执行状态，不重建正在流动的线。
 const SVG_NS = 'http://www.w3.org/2000/svg';
 function cvEdges() {
   const world = document.querySelector('.cv-world');
@@ -3606,18 +3722,34 @@ function cvEdges() {
     svg.setAttribute('class', 'cv-edges');
     svg.setAttribute('data-fx', '');
     svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = '<defs><marker id="cv-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M1.5 1.5L8.5 5L1.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><g></g>';
     world.prepend(svg);
   }
+  svg.classList.toggle('paused', !!document.hidden);
   const rects = new Map();
   // 用实际排版位置（offsetLeft / offsetTop）而不是记下的坐标：整理布局的移动动画里，箭头跟着卡片走
   for (const el of world.querySelectorAll(':scope>.cv-card')) if (CV.pos.has(el.dataset.cvid)) rects.set(el.dataset.cvid, { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
-  let d = '';
+  const existing = new Map([...svg.children].map(g => [g.getAttribute('data-edge'), g]));
   for (const [id, r] of rects) {
-    const parent = rects.get(S.sessions.get(id)?.parentId);
-    if (parent) d += `<path d="${cvEdgePath(parent, r)}" marker-end="url(#cv-arrow)"/>`;
+    const node = cvNode(id), parent = rects.get(node?.parentId);
+    if (!parent) continue;
+    let edge = existing.get(id);
+    if (!edge) {
+      edge = document.createElementNS(SVG_NS, 'g');
+      edge.setAttribute('data-edge', id);
+      for (const name of ['cv-base', 'cv-flow']) {
+        const path = document.createElementNS(SVG_NS, 'path');
+        path.setAttribute('class', name);
+        path.setAttribute('pathLength', '100');
+        edge.append(path);
+      }
+      svg.append(edge);
+    }
+    existing.delete(id);
+    edge.classList.toggle('live', cvFlowing(node));
+    const d = cvEdgePath(parent, r);
+    for (const path of edge.children) if (path.getAttribute('d') !== d) path.setAttribute('d', d);
   }
-  svg.lastChild.innerHTML = d;
+  for (const edge of existing.values()) edge.remove();
 }
 // 卡片展开 / 收起 / 内容变化时高度会变，箭头端点跟着变：用 ResizeObserver 合并到下一帧重画
 let cvRO = null, cvEdgeRaf = 0;
@@ -3634,7 +3766,7 @@ function cvArrange() {
   const world = document.querySelector('.cv-world');
   if (!world) return;
   const els = [...world.querySelectorAll(':scope>.cv-card')];
-  const pos = cvArrangeLayout(els.map(el => ({ id: el.dataset.cvid, parentId: S.sessions.get(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+  const pos = cvArrangeLayout(els.map(el => ({ id: el.dataset.cvid, parentId: cvNode(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
   clearTimeout(CV.arranging);
   CV.arranging = setTimeout(() => {
     CV.arranging = 0;
@@ -3667,6 +3799,7 @@ function startScreen() {
   const html = document.documentElement;
   html.dataset.scr = '';
   cvLoad();
+  document.addEventListener('visibilitychange', () => { cvEdges(); if (!document.hidden) cvNewContent(new Set(), false); });
   let hideT = 0;
   const wake = () => { html.classList.remove('nocur'); clearTimeout(hideT); hideT = setTimeout(() => html.classList.add('nocur'), 3000); };
   document.addEventListener('mousemove', wake);
@@ -3683,6 +3816,8 @@ function startScreen() {
   let g = null, suppress = false;
   document.addEventListener('pointerdown', e => {
     if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle')) return;
+    touch();
+    CV.interacting = true;
     const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
     if (card) { CV.zi.set(id, ++CV.zTop); card.style.zIndex = CV.zTop; } // 按下的卡片置顶：展开时不被下面的邻卡压住
     g = { id, card, sx: e.clientX, sy: e.clientY, p: p && { ...p }, v: CV.view && { ...CV.view }, moved: false, pid: e.pointerId, pan: !card || e.button === 1 };
@@ -3710,6 +3845,8 @@ function startScreen() {
   });
   const end = () => {
     if (!g) return;
+    CV.interacting = false;
+    touch();
     if (g.moved) {
       g.card?.classList.remove('drag');
       CV.drag = '';
@@ -3722,6 +3859,7 @@ function startScreen() {
   };
   document.addEventListener('pointerup', end);
   document.addEventListener('pointercancel', end);
+  addEventListener('blur', end);
   document.addEventListener('click', e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('wheel', e => {
     if (e.target.closest?.('.scr-h')) return;
@@ -3741,6 +3879,11 @@ function startScreen() {
     else if (b.dataset.cv === 'in') zoomBy(1.25);
     else if (b.dataset.cv === 'out') zoomBy(0.8);
     else if (b.dataset.cv === 'arrange') cvArrange();
+    else if (b.dataset.cv === 'module' || b.dataset.cv === 'module-all') {
+      const open = b.dataset.cv === 'module' ? CV.openModules : CV.allModules, id = b.dataset.moduleId;
+      if (open.has(id)) open.delete(id); else open.add(id);
+      schedule();
+    }
     else if (b.dataset.cv === 'wait') {
       const ids = cvCards().filter(isWaiting).map(s => s.id);
       if (!ids.length) return;
@@ -3751,6 +3894,25 @@ function startScreen() {
   setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
   setInterval(schedule, 30000); // “刚做完”到点离场
   addEventListener('resize', () => schedule());
+}
+function cvModuleCard(node) {
+  const open = CV.openModules.has(node.id), all = CV.allModules.has(node.id);
+  const tone = node.status === 'blocked' ? 'wait' : node.status === 'done' ? 'ok' : node.status === 'running' ? 'run' : 'dead';
+  const label = { blocked: '受阻', done: '已完成', running: '进行中', planning: '待继续' }[node.status];
+  const p = CV.pos.get(node.id), style = p ? `left:${p.x}px;top:${p.y}px;z-index:${CV.zi.get(node.id) || 1}` : 'left:0;top:0;visibility:hidden';
+  const current = node.items.find(it => it.status === 'doing') || node.items.find(it => it.status === 'blocked');
+  let from = 0, to = node.items.length;
+  if (!all && node.items.length > 8) {
+    const pending = node.items.findIndex(it => !['done', 'skipped'].includes(it.status));
+    const at = current ? node.items.indexOf(current) : pending >= 0 ? pending : node.items.length - 1;
+    from = Math.max(0, at - 1); to = Math.min(node.items.length, at + 5);
+  }
+  const fold = text => `<li class="cv-mod-fold"><button data-cv="module-all" data-module-id="${esc(node.id)}">${text}</button></li>`;
+  return `<article class="cv-card ${tone} cv-module${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-enter="fade" data-exit="fade" style="${style}">
+    <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${open}" title="${esc(node.modulePath)}"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
+    ${!open && current ? `<div class="cv-mod-current" title="${esc(current.text)}">${esc(current.text)}</div>` : ''}
+    ${open ? `<ul class="cv-mod-list">${from ? fold(`前面 ${from} 项`) : ''}${node.items.slice(from, to).map(it => `<li class="cv-mod-item ${it.status}"><span>${({ done: '✓', skipped: '−', doing: '●', blocked: '!', todo: '·' })[it.status]}</span><span>${esc(it.text)}</span></li>`).join('')}${to < node.items.length ? fold(`后面还有 ${node.items.length - to} 项`) : ''}${all && node.items.length > 8 ? fold('收起清单') : ''}${!node.items.length ? '<li class="cv-mod-fold">子流程展开在右侧</li>' : ''}</ul>` : ''}
+  </article>`;
 }
 function cvCard(s, live) {
   const tone = isWaiting(s) ? 'wait' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'dead' : 'run';
@@ -3764,7 +3926,13 @@ function cvCard(s, live) {
 }
 function renderScreen() {
   const list = cvCards(), idle = !list.length;
-  const waits = list.filter(isWaiting), running = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
+  const nodes = cvFlowNodes(list);
+  const fresh = new Set(nodes.filter(n => !CV.nodes.has(n.id)).map(n => n.id));
+  CV.nodes = new Map(nodes.map(n => [n.id, n]));
+  const waits = list.filter(isWaiting);
+  const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
+  const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && isWaiting(k)));
+  const runningKids = active.filter(isChild);
   const today = itemsToday(), live = sweeper(3);
   const first = !root.querySelector('.scr');
   const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">
@@ -3772,7 +3940,8 @@ function renderScreen() {
       <span class="scr-brand"><span class="logo">${IC.logo}</span>Tick</span>
       ${idle ? '' : `<span class="scr-sum">
         <span><b class="num" data-roll>${running.length}</b>在跑</span>
-        ${waits.length ? `<button class="cv-wait" data-cv="wait" data-key="cv-wait" title="跳到在等你的卡片"><b class="num" data-roll>${waits.length}</b>等你</button>` : ''}
+        ${runningKids.length ? `<span title="正在执行的子 agent，不重复计入主任务数"><b class="num" data-roll>${runningKids.length}</b>子 agent</span>` : ''}
+        ${waits.length ? `<button class="cv-wait" data-cv="wait" data-key="cv-wait" title="跳到在等你的会话（包含子 agent）"><b class="num" data-roll>${waits.length}</b>项等你</button>` : ''}
         ${today ? `<span>今天勾了 <b class="num" data-roll>${today}</b> 项</span>` : ''}
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
@@ -3783,7 +3952,7 @@ function renderScreen() {
     </header>
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
-      : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${list.map(s => cvCard(s, live)).join('')}</div>`}
+      : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
   </div>`);
   settle(entered);
   cvLayout();
@@ -3791,12 +3960,11 @@ function renderScreen() {
   const wasFirst = !CV.rendered;
   CV.rendered = true;
   if (!RM.matches) cards.forEach((el, k) => {
-    el.animate([{ opacity: 0, transform: 'translateY(1.2em)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay: Math.min(k, 16) * 40, easing: EASE_OUT, fill: 'backwards' });
+    const module = el.classList.contains('cv-module');
+    el.animate([{ opacity: 0, transform: module ? 'translateX(12px)' : 'translateY(1.2em)' }, { opacity: 1, transform: 'none' }], { duration: module ? 220 : 420, delay: module ? 0 : Math.min(k, 16) * 40, easing: EASE_OUT, fill: 'backwards' });
     if (el.classList.contains('wait')) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 250);
   });
-  // 新来一张等你的卡，不在视野里，而且最近没人动过画布：把视图带过去
-  const w = !wasFirst && Date.now() - CV.userAt > 30000 && cards.find(el => el.classList.contains('wait'));
-  if (w) cvReveal(w.dataset.cvid);
+  cvNewContent(fresh, wasFirst);
 }
 
 // 面板设置留在侧栏 morph 之外：任务流更新时不重建弹窗，也不打断控件焦点。

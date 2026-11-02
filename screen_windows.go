@@ -118,6 +118,7 @@ func (f *floatWin) setScreen(on bool) {
 			h := uintptr(w.Window())
 			pShowWindow.Call(h, swHide)
 			pSetWindowLongPtr.Call(h, uintptr(gwlStyleU()), wsPopup|wsClipChildren)
+			pSetWindowLongPtr.Call(h, uintptr(gwlExStyleU()), wsExToolWindow) // 大屏不占任务栏或 Alt+Tab；保留托盘作为入口。
 			dark := int32(1)
 			pDwmSetWindowAttribute.Call(h, 20, uintptr(unsafe.Pointer(&dark)), 4)
 			pSendMessage.Call(h, wmSetIcon, 0, hicon(16))

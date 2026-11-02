@@ -30,6 +30,7 @@ function screen(sessions = []) {
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
   ctx.run = code => vm.runInContext(code, ctx);
+  ctx.flowing = node => { ctx.flowNode = node; return ctx.run('cvFlowing(flowNode)'); };
   return ctx;
 }
 const plain = v => JSON.parse(JSON.stringify(v)); // vm 里造出来的对象原型不同，比较前先转成本地对象
@@ -102,6 +103,132 @@ test('sub-agents are cards of their own; a card whose parent has long left simpl
   assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['k3', 'k2', 'k1', 'p1']);
 });
 
+test('modules appear only after execution reaches that branch, with its ancestors and stable IDs', () => {
+  const owner = { id: 'p', agent: 'codex', status: 'running', updatedAt: NOW, items: [
+    { id: 'i1', group: '后端 / 接口 / 鉴权', text: 'verify', status: 'todo' },
+    { id: 'i2', group: '后端 / 存储', text: 'persist', status: 'todo' },
+    { id: 'i3', group: '部署', text: 'publish', status: 'skipped' },
+  ] };
+  const ctx = screen([owner]);
+  assert.equal(ctx.cvFlowNodes().length, 1, 'future and skipped-only modules stay in the checklist');
+  owner.items[0].status = 'doing';
+  const shown = ctx.cvFlowNodes().filter(n => n.ownerId);
+  assert.deepEqual(plain(shown.map(n => n.modulePath)), ['后端', '后端 / 接口', '后端 / 接口 / 鉴权']);
+  assert.equal(shown[0].parentId, owner.id);
+  assert.equal(shown[1].parentId, shown[0].id);
+  assert.equal(shown[2].parentId, shown[1].id);
+  assert.equal(shown[0].items.length, 0, 'ancestors aggregate descendants without duplicating their checklist rows');
+  const id = shown[2].id;
+  owner.items.unshift({ id: 'i0', group: '准备', text: 'prepare', status: 'done' });
+  assert.equal(ctx.cvFlowNodes().find(n => n.modulePath === '后端 / 接口 / 鉴权').id, id, 'item insertion does not change module identity');
+  const second = { ...owner, id: 'q' };
+  assert.notEqual(ctx.cvFlowNodes([second]).find(n => n.modulePath === '后端 / 接口 / 鉴权').id, id, 'same labels in another conversation have another ID');
+});
+
+test('module progress uses every descendant and flow stops when its owner is not running', () => {
+  const owner = { id: 'p', status: 'running', updatedAt: NOW, endedAt: NOW, items: [
+    { id: 'a', group: '开发', text: 'parent work', status: 'done' },
+    { id: 'b', group: '开发 / 测试', text: 'future test', status: 'todo' },
+    { id: 'c', group: '开发 / 接口', text: 'active work', status: 'doing' },
+  ] };
+  const ctx = screen([owner]);
+  const parent = () => ctx.cvFlowNodes().find(n => n.modulePath === '开发');
+  assert.equal(parent().done, 1);
+  assert.equal(parent().total, 3);
+  assert.equal(parent().status, 'running');
+  assert.equal(ctx.flowing(parent()), true);
+  for (const status of ['waiting', 'blocked', 'planning', 'done', 'cancelled']) {
+    owner.status = status;
+    assert.equal(ctx.flowing(parent()), false, `${status} owner must not leave stale doing items flowing`);
+  }
+  owner.status = 'running';
+  owner.items[2].status = 'blocked';
+  assert.equal(parent().status, 'blocked');
+  assert.equal(ctx.flowing(parent()), false);
+  owner.items[1].status = 'skipped'; owner.items[2].status = 'done';
+  assert.equal(parent().status, 'done');
+  assert.equal(parent().done, 3);
+});
+
+test('historically executed todo groups stay visible without marking them running', () => {
+  const ctx = screen([{ id: 'p', status: 'running', updatedAt: NOW, items: [
+    { id: 'i', group: '已进入模块', status: 'todo', text: 'retry later', spentMs: 1200 },
+  ] }]);
+  const module = ctx.cvFlowNodes().find(n => n.ownerId);
+  assert.equal(module.status, 'planning');
+  assert.equal(ctx.flowing(module), false);
+});
+
+test('an active branch flows through a mixed blocked parent without animating its blocked sibling', () => {
+  const owner = { id: 'p', status: 'running', updatedAt: NOW, items: [
+    { id: 'active', group: '开发 / 接口', status: 'doing', text: 'implement' },
+    { id: 'blocked', group: '开发 / 测试', status: 'blocked', text: 'waiting for fixture' },
+  ] };
+  const ctx = screen([owner]);
+  const nodes = ctx.cvFlowNodes();
+  const parent = nodes.find(n => n.modulePath === '开发');
+  assert.equal(parent.status, 'blocked', 'blocked work remains visible in the aggregate status');
+  assert.equal(ctx.flowing(parent), true, 'running work still has a continuous line from the root');
+  assert.equal(ctx.flowing(nodes.find(n => n.modulePath === '开发 / 接口')), true);
+  assert.equal(ctx.flowing(nodes.find(n => n.modulePath === '开发 / 测试')), false);
+  owner.status = 'waiting';
+  assert.equal(ctx.flowing(parent), false, 'pausing the owner pauses every branch');
+});
+
+test('module projection does not inflate Agent counts, uses safe markup and never creates backend session actions', () => {
+  const ctx = screen([{ id: 'p', agent: 'codex', status: 'running', updatedAt: NOW, title: 'task', items: [
+    { id: 'i', group: '<module> / "child"', status: 'doing', text: '<unsafe>' },
+  ] }]);
+  ctx.renderScreen();
+  assert.equal(ctx.cvCards().length, 1);
+  assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 3);
+  assert.match(ctx.markup, />1<\/b>在跑/);
+  const module = ctx.cvFlowNodes().find(n => n.modulePath === '<module> / "child"');
+  ctx.run(`CV.openModules.add(${JSON.stringify(module.id)})`);
+  const markup = ctx.cvModuleCard(module);
+  assert.match(markup, /&lt;unsafe>/);
+  assert.match(markup, /&quot;child&quot;/);
+  assert.doesNotMatch(markup, /data-sid=|data-act=|<unsafe>|<module>/);
+});
+
+test('screen primary running count matches root tasks and lists child agents separately', () => {
+  const ctx = screen([
+    { id: 'p', status: 'running', updatedAt: NOW, title: 'parent', items: [] },
+    { id: 'k1', parentId: 'p', status: 'running', updatedAt: NOW, title: 'child one', items: [] },
+    { id: 'k2', parentId: 'p', status: 'running', updatedAt: NOW, title: 'child two', items: [] },
+    { id: 'orphan', parentId: 'missing', status: 'running', updatedAt: NOW, title: 'orphan', items: [] },
+    { id: 'wait-parent', status: 'running', updatedAt: NOW, title: 'parent of waiting child', items: [] },
+    { id: 'wait-child', parentId: 'wait-parent', status: 'waiting', waitSince: NOW, updatedAt: NOW, title: 'waiting child', items: [] },
+  ]);
+  ctx.renderScreen();
+  assert.match(ctx.markup, />2<\/b>在跑/, 'only parent and orphan count as running roots');
+  assert.match(ctx.markup, />2<\/b>子 agent/, 'child agents have a separate count');
+  assert.match(ctx.markup, />1<\/b>项等你/, 'waiting jump includes actual waiting child sessions');
+  assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 6, 'count grouping never removes a child card');
+});
+
+test('module checklist follows its active row and module coordinates survive save and reload', () => {
+  const owner = { id: 'p', status: 'running', updatedAt: NOW, items: Array.from({ length: 30 }, (_, i) => ({ id: `i${i}`, group: '开发', text: `step ${i}`, status: i === 20 ? 'doing' : i === 0 ? 'blocked' : 'todo' })) };
+  const ctx = screen([owner]);
+  const module = ctx.cvFlowNodes().find(n => n.ownerId);
+  ctx.run(`CV.openModules.add(${JSON.stringify(module.id)});CV.pos.set(${JSON.stringify(module.id)}, {x:123,y:456});CV.pos.set('deleted', {x:0,y:0})`);
+  const markup = ctx.cvModuleCard(module);
+  assert.match(markup, /step 20/);
+  assert.doesNotMatch(markup, /step 0</);
+  assert.equal((markup.match(/class="cv-mod-item /g) || []).length, 6);
+  let saved;
+  ctx.setTimeout = fn => { fn(); return 1; };
+  ctx.clearTimeout = () => {};
+  ctx.store.set = (_, value) => { saved = value; };
+  ctx.cvSave();
+  assert.deepEqual(plain(saved.pos[module.id]), { x: 123, y: 456 });
+  assert.equal(saved.pos.deleted, undefined);
+  const restored = screen([owner]);
+  restored.store.get = () => saved;
+  restored.cvLoad();
+  assert.match(restored.cvModuleCard(module), /left:123px;top:456px/);
+});
+
 test('a new sub-agent card lands to the right of its parent, below any card already there', () => {
   const ctx = screen();
   const parent = { x: 0, y: 0, w: 380, h: 300 };
@@ -135,6 +262,21 @@ test('tidy layout keeps each parent with its sub-agents and never overlaps', () 
   assert.ok(Math.max(...rects.map(r => r.x + r.w)) <= 1260, 'stays inside the window width');
 });
 
+test('tidy lays out full recursive branches with spacing and keeps even a cyclic component visible', () => {
+  const ctx = screen();
+  const nodes = [
+    { id: 'leaf', parentId: 'child', w: 320, h: 180 }, { id: 'child', parentId: 'p', w: 320, h: 140 },
+    { id: 'sibling', parentId: 'p', w: 320, h: 100 }, { id: 'p', w: 380, h: 80 }, { id: 'q', w: 380, h: 130 },
+    { id: 'cycle-a', parentId: 'cycle-b', w: 320, h: 100 }, { id: 'cycle-b', parentId: 'cycle-a', w: 320, h: 100 },
+  ];
+  const pos = Object.fromEntries(plain([...ctx.cvArrangeLayout(nodes, 1280)]));
+  assert.equal(Object.keys(pos).length, nodes.length);
+  assert.ok(pos.child.x >= pos.p.x + 380 + 72);
+  assert.ok(pos.leaf.x >= pos.child.x + 320 + 72);
+  const rects = nodes.map(n => ({ ...pos[n.id], w: n.w, h: n.h }));
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.equal(apart(rects[i], rects[j]), true, `${nodes[i].id} overlaps ${nodes[j].id}`);
+});
+
 test('the canvas renders one card per session, shows the question on waiting cards and leaves checklists folded like the float window', () => {
   const ctx = screen([
     { id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] },
@@ -159,6 +301,84 @@ test('stored card spots are used as they are and an empty board shows the clock'
   idle.renderScreen();
   assert.match(idle.markup, /class="scr-idle"/);
   assert.doesNotMatch(idle.markup, /cv-world/);
+});
+
+function cameraScreen() {
+  const ctx = screen([
+    { id: 'a', status: 'running', updatedAt: NOW, items: [] },
+    { id: 'b', status: 'running', updatedAt: NOW, items: [] },
+  ]);
+  const els = ['a', 'b'].map(id => ({ dataset: { cvid: id }, offsetWidth: 380, offsetHeight: 180 }));
+  ctx.document.querySelectorAll = () => els;
+  ctx.document.querySelector = selector => selector === '.scr-h' ? { offsetHeight: 56 } : null;
+  let clock = 10000, nextId = 0;
+  const timers = new Map();
+  ctx.Date = { now: () => clock };
+  ctx.setTimeout = (fn, delay) => { const id = ++nextId; timers.set(id, { fn, at: clock + delay }); return id; };
+  ctx.clearTimeout = id => timers.delete(id);
+  ctx.cvApply = ctx.cvSave = () => {};
+  ctx.run("CV.nodes=new Map(cvFlowNodes().map(n=>[n.id,n]));CV.pos.set('a',{x:0,y:0});CV.pos.set('b',{x:2200,y:0});CV.view={x:100,y:100,z:1}");
+  return {
+    ctx, els, timers,
+    time: value => { clock = value; },
+    fire: () => { const [id, t] = [...timers].sort((a, b) => a[1].at - b[1].at)[0]; timers.delete(id); clock = t.at; t.fn(); },
+  };
+}
+
+test('new off-screen tasks adjust only the camera without requiring tidy', () => {
+  const { ctx, els, fire } = cameraScreen();
+  const before = plain(ctx.run('[...CV.pos]'));
+  assert.equal(ctx.cvHeaderVisible(els[1]), false);
+  ctx.cvNewContent(new Set(['b']), false);
+  fire();
+  assert.equal(ctx.cvHeaderVisible(els[1]), true, 'the new task title is visible after camera fit');
+  assert.deepEqual(plain(ctx.run('[...CV.pos]')), before, 'all hand-placed cards keep their exact positions');
+});
+
+test('very distant new cards keep their title visible at minimum zoom, including a very tall card', () => {
+  for (const height of [180, 20000]) {
+    const { ctx, els, fire } = cameraScreen();
+    els[1].offsetHeight = height;
+    ctx.run("CV.pos.set('b',{x:20000,y:20000})");
+    const before = plain(ctx.run('[...CV.pos]'));
+    ctx.cvNewContent(new Set(['b']), false);
+    fire();
+    assert.equal(ctx.run('CV.view.z'), .25, 'minimum zoom remains unchanged');
+    assert.equal(ctx.cvHeaderVisible(els[1]), true, `the ${height}px card is framed by its header`);
+    assert.deepEqual(plain(ctx.run('[...CV.pos]')), before, 'fallback never rearranges user positions');
+  }
+});
+
+test('new content waits for manual pan/drag/zoom to stop and coalesces incoming updates', () => {
+  const { ctx, els, timers, fire, time } = cameraScreen();
+  ctx.run('CV.interacting=true;CV.userAt=10000');
+  ctx.cvNewContent(new Set(['b']), false);
+  ctx.cvNewContent(new Set(['b']), false);
+  assert.equal(timers.size, 1, 'one pending timer handles repeated data updates');
+  fire();
+  assert.equal(ctx.cvHeaderVisible(els[1]), false, 'a held drag must not be interrupted');
+  time(10500); ctx.run('CV.interacting=false;CV.userAt=10500');
+  fire();
+  assert.equal(ctx.cvHeaderVisible(els[1]), false, 'recent pointer/scroll activity keeps its view for 1.2 seconds');
+  fire();
+  assert.equal(ctx.cvHeaderVisible(els[1]), true);
+});
+
+test('restored empty views recover while an existing useful view is retained and stale pending cards are ignored', () => {
+  const { ctx, els, timers, fire } = cameraScreen();
+  const useful = plain(ctx.run('CV.view'));
+  ctx.cvNewContent(new Set(['a', 'b']), true);
+  assert.equal(timers.size, 0, 'a restored view with a visible task is not replaced');
+  assert.deepEqual(plain(ctx.run('CV.view')), useful);
+  ctx.run('CV.view={x:-5000,y:-5000,z:2.5}');
+  ctx.cvNewContent(new Set(), true);
+  fire();
+  assert.equal(els.some(ctx.cvHeaderVisible), true, 'a blank restored camera recovers without tidy');
+  ctx.run('CV.view={x:100,y:100,z:1}');
+  ctx.cvNewContent(new Set(['b']), false);
+  ctx.run("CV.nodes.delete('b')");
+  fire();
+  assert.deepEqual(plain(ctx.run('CV.view')), useful, 'a task removed before the deferred fit does not move the camera');
 });
 
 test('task refresh preserves tidy animation and a repeated tidy replaces its cleanup timer', () => {
