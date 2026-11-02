@@ -3436,7 +3436,7 @@ function renderPanel() {
 //   动画只在事件发生时播：卡片升起、等你的卡扫一道光、视图跳转的平滑过渡；没有常驻循环。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, drag: '', rendered: false, waitIdx: -1 };
+const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3635,6 +3635,11 @@ function cvArrange() {
   if (!world) return;
   const els = [...world.querySelectorAll(':scope>.cv-card')];
   const pos = cvArrangeLayout(els.map(el => ({ id: el.dataset.cvid, parentId: S.sessions.get(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+  clearTimeout(CV.arranging);
+  CV.arranging = setTimeout(() => {
+    CV.arranging = 0;
+    document.querySelector('.cv-world')?.classList.remove('arranging');
+  }, 480);
   world.classList.add('arranging');
   for (const el of els) {
     const p = pos.get(el.dataset.cvid);
@@ -3645,7 +3650,6 @@ function cvArrange() {
   const t0 = performance.now();
   const follow = () => { cvEdges(); if (performance.now() - t0 < 480) requestAnimationFrame(follow); };
   follow();
-  setTimeout(() => world.classList.remove('arranging'), 480);
   cvFitView(true);
 }
 // 把这张卡带进视野：已经完整在视野里就不动（force 时一定居中），保持当前缩放
@@ -3779,7 +3783,7 @@ function renderScreen() {
     </header>
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
-      : `<div class="cv-world${CV.anim ? ' anim' : ''}" data-key="world" style="transform:${cvTransform()}">${list.map(s => cvCard(s, live)).join('')}</div>`}
+      : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${list.map(s => cvCard(s, live)).join('')}</div>`}
   </div>`);
   settle(entered);
   cvLayout();

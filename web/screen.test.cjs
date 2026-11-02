@@ -161,6 +161,47 @@ test('stored card spots are used as they are and an empty board shows the clock'
   assert.doesNotMatch(idle.markup, /cv-world/);
 });
 
+test('task refresh preserves tidy animation and a repeated tidy replaces its cleanup timer', () => {
+  const ctx = screen([{ id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] }]);
+  const timers = new Map();
+  let timerId = 0, clock = 0;
+  const card = { dataset: { cvid: 'a' }, offsetWidth: 380, offsetHeight: 100, style: {} };
+  const makeWorld = () => {
+    const classes = new Set(['cv-world']);
+    return { classes, classList: { add: c => classes.add(c), remove: c => classes.delete(c) }, querySelectorAll: () => [card] };
+  };
+  let world = makeWorld();
+  ctx.document.querySelector = selector => selector === '.cv-world' ? world : null;
+  ctx.performance = { now: () => clock };
+  ctx.requestAnimationFrame = () => 1;
+  ctx.setTimeout = (fn, delay) => { const id = ++timerId; timers.set(id, { fn, at: clock + delay }); return id; };
+  ctx.clearTimeout = id => timers.delete(id);
+  ctx.cvEdges = ctx.cvFitView = ctx.cvLayout = () => {};
+  ctx.morph = (_, markup) => {
+    ctx.markup = markup;
+    // A task refresh applies the newly rendered class, as patchNode does.
+    const renderedClass = markup.match(/class="(cv-world[^\"]*)"/)[1];
+    world.classes.clear();
+    renderedClass.split(' ').forEach(c => world.classes.add(c));
+    return [];
+  };
+  ctx.cvArrange();
+  ctx.renderScreen();
+  assert.equal(world.classes.has('arranging'), true, 'a task refresh must not cancel the card transition');
+  clock = 200;
+  ctx.cvArrange();
+  assert.equal(timers.size, 1, 'the previous cleanup must not stop a newer tidy');
+  assert.equal([...timers.values()][0].at, 680);
+  // If all cards leave and the canvas is rebuilt, cleanup targets the current world.
+  world = makeWorld();
+  ctx.renderScreen();
+  assert.equal(world.classes.has('arranging'), true);
+  [...timers.values()][0].fn();
+  assert.equal(world.classes.has('arranging'), false, 'the current canvas is cleaned up');
+  ctx.renderScreen();
+  assert.doesNotMatch(ctx.markup, /cv-world[^\"]*arranging/, 'later task updates must not restore a finished animation');
+});
+
 function items(flags) {
   const ctx = {
     ...flags, ITEMS_LONG: undefined, S: { open: new Set(), justDone: new Set() },
