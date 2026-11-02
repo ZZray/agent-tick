@@ -1238,14 +1238,33 @@ button.cv-wait{font:inherit;color:var(--orange);padding:.15em .7em;border-radius
   transition:background-color var(--t-hover) var(--ease)}
 button.cv-wait:hover{background:color-mix(in srgb,var(--orange) 22%,transparent)}
 button.cv-wait b{font-weight:600;margin-right:.2em}
-.cv-tools{display:flex;align-items:center;gap:.15em;padding:.15em;border-radius:.7em;background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
-.cv-tools button{font:inherit;min-width:2em;height:2em;padding:0 .6em;border-radius:.5em;color:var(--text-3);transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
-.cv-tools button:hover{background:var(--hover);color:var(--text-1)}
-.cv-tools .cv-zl{min-width:3.4em;text-align:center;color:var(--text-2);font-size:.92em}
+.cv-hud{position:absolute;z-index:115;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;max-width:calc(100vw - 32px)}
+.cv-hud[data-compact] .cv-minimap,.cv-hud:has(.cv-more) .cv-minimap{display:none}
+.cv-tools{position:relative;display:flex;align-items:center;gap:2px;width:max-content;max-width:100%;padding:4px;border:1px solid var(--line);border-radius:14px;background:var(--bg-2);box-shadow:0 8px 28px #0002;pointer-events:auto}
+.cv-tool-row{display:flex;align-items:center;gap:2px;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.cv-tool-row::-webkit-scrollbar{display:none}
+.cv-tools button{display:grid;place-items:center;flex:none;font:inherit;width:32px;height:32px;padding:0;border-radius:9px;background:none;color:var(--text-3);cursor:pointer;transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.cv-tools button:hover,.cv-tools button[aria-pressed=true],.cv-tools button[aria-expanded=true]{background:var(--hover);color:var(--text-1)}
+.cv-tools button[aria-pressed=true]{color:var(--brand)}
+.cv-tools button:focus-visible,.cv-more button:focus-visible,.cv-minimap:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.cv-tools svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.cv-tools .cv-zl{width:48px;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-2)}
+.cv-tool-sep{width:1px;height:16px;margin:0 3px;background:var(--line)}
+.cv-more{position:absolute;right:0;bottom:calc(100% + 8px);width:196px;max-width:calc(100vw - 32px);padding:5px;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);box-shadow:0 12px 36px #0003;pointer-events:auto}
+.cv-more button{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;padding:0 10px;border-radius:7px;background:none;color:var(--text-2);font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.cv-more button:hover{background:var(--hover)}
+.cv-more button small{color:var(--text-3);font-size:11px}
+.cv-minimap{display:block;width:200px;height:120px;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);box-shadow:0 8px 28px #0002;overflow:hidden;pointer-events:auto;cursor:crosshair;touch-action:none}
+.cv-minimap svg{display:block;width:100%;height:100%}
+.cv-map-node{fill:var(--text-4);opacity:.45}
+.cv-map-node.selected{fill:var(--brand);opacity:.8}
+.cv-map-view{fill:color-mix(in srgb,var(--brand) 8%,transparent);stroke:var(--brand);stroke-width:1.5;vector-effect:non-scaling-stroke;cursor:grab}
+.cv-minimap[data-drag] .cv-map-view{cursor:grabbing}
+@media(max-width:800px),(max-height:600px){.cv-minimap{display:none}}
 .scr-esc{font-size:.85em;color:var(--text-4);transition:opacity 300ms var(--ease)}
 html.nocur .scr-esc{opacity:0}
-.scr-clk{display:flex;align-items:baseline;gap:.6em;color:var(--text-4)}
-.scr-clk b{font-size:1.5em;font-weight:500;color:var(--text-1)}
+.scr-clk{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none;min-width:130px;color:var(--text-3);font-size:11px;line-height:1.35}
+.scr-clk b{font-size:24px;line-height:1.1;font-weight:500;color:var(--text-1);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
 /* 画布：世界坐标原点在左上角，整体做 translate + scale；点阵背景画在世界里，跟着一起移动缩放 */
 .cv-world{position:absolute;left:0;top:0;transform-origin:0 0}
 .cv-world.anim{transition:transform 320ms var(--ease-out)}
@@ -1328,11 +1347,30 @@ html.nocur .scr-esc{opacity:0}
 .cv-result.failed{color:var(--red)}.cv-result.unknown{color:var(--orange)}.cv-result.passed{color:var(--green)}
 .cv-result-summary{padding:8px 14px;color:var(--text-3);line-height:1.7}
 .cv-child-summary{padding:0 12px 10px}.cv-child-summary button{border:0;background:none;color:var(--text-2);font:inherit;font-size:12px;cursor:pointer}
-.cv-root-switch{display:flex;gap:4px;max-width:35vw;overflow:auto;scrollbar-width:thin}
-.cv-root-switch button{max-width:180px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;background:none;color:var(--text-3);font:inherit;font-size:11px;cursor:pointer}
-.cv-root-switch button[aria-pressed=true]{color:var(--text-1);background:var(--active)}
+.cv-rail{position:absolute;z-index:90;left:10px;top:70px;bottom:16px;width:96px;display:flex;flex-direction:column;gap:8px;padding:5px;overflow:auto;scrollbar-width:thin;background:var(--bg-2);border:1px solid var(--line-soft);border-radius:var(--r-lg)}
+.cv-rail-task{flex:none;min-width:0;padding:8px 3px;border:1px solid transparent;border-radius:var(--r-md);background:none;color:var(--text-3);font:inherit;text-align:center;cursor:pointer}
+.cv-rail-task[aria-pressed=true]{background:var(--active);color:var(--text-1);border-color:var(--line)}
+.cv-rail-task:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.cv-rail-ring{width:48px;height:48px;margin:0 auto 7px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(var(--rail-color) var(--rail-progress),var(--line) 0);position:relative}
+.cv-rail-ring::before{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--bg-2)}
+.cv-rail-ring>span{position:relative;font-size:10px;font-variant-numeric:tabular-nums;color:var(--text-2)}
+.cv-rail-label{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;line-height:1.4;font-size:11px}
+.cv-rail-task small{display:block;margin-top:4px;font-size:10px;color:var(--text-3)}
 .cv-total{font-size:11px;white-space:nowrap;color:var(--text-3)}
-.scr-h{flex-wrap:wrap;min-height:48px;height:auto;padding-top:9px;padding-bottom:9px;gap:10px}
+.scr-h{flex-wrap:nowrap;min-height:76px;height:auto;padding:12px 18px;gap:18px;align-items:center;background:var(--bg)}
+.scr-heading{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.scr-heading-line{display:flex;align-items:center;gap:12px;min-width:0}
+.scr-brand{flex:none;font-size:13px}
+.scr-title{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:550;line-height:1.35}
+.scr-title-state{flex:none;font-size:11px;color:var(--text-3)}
+.scr-title-state.waiting,.scr-title-state.blocked{color:var(--orange)}
+.scr-title-state.failed{color:var(--red)}
+.scr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:7px 14px;min-width:0;font-size:11px;color:var(--text-3)}
+.scr-meta .scr-sum{gap:14px;flex-wrap:wrap}
+.scr-meta .cv-ended,.scr-meta .cv-total{font-size:11px}
+.scr-meta button.cv-wait{padding:1px 6px}
+.scr-esc{flex:none;font-size:11px}
+@media(max-width:800px){.scr-h{padding:10px 12px;gap:12px}.scr-clk{min-width:98px;font-size:10px}.scr-clk b{font-size:22px}.scr-title{font-size:13px}.scr-title-state,.scr-esc{display:none}.scr-heading-line{gap:9px}.scr-meta,.scr-meta .scr-sum{gap:5px 10px}}
 .cv-q .q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
 .cv-history p{max-height:150px;overflow:auto;color:var(--text-3);overflow-wrap:anywhere}
 .cv-history small{color:var(--text-4)}
@@ -3649,7 +3687,7 @@ function renderPanel() {
 //   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { direction: 'horizontal', follow: true, overview: false, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { direction: 'horizontal', follow: true, overview: false, minimap: true, more: false, mapBounds: null, mapDrag: null, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, focusTopology: null, needsFocus: false, migrateLayout: false, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3740,14 +3778,14 @@ function cvCards() {
   const stale = list.filter(s => !isEnded(s) && !isWaiting(s) && isDormant(s)).sort(byOrder);
   const parents = all.filter(s => isEnded(s) && branchActive(s)).map(s => ({ ...s, canvasContext: true }));
   const ordered = [...waits, ...active, ...stale, ...parents];
-  if (CV.overview) return ordered;
   const roots = ordered.filter(s => !isChild(s));
   if (!roots.some(s => s.id === CV.focusSid)) CV.focusSid = roots.find(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id || roots[0]?.id || '';
-  const kept = new Set(CV.focusSid ? [CV.focusSid] : []);
+  const kept = new Set(roots.map(s => s.id));
   const visit = owner => {
     const children = ordered.filter(s => s.parentId === owner.id).sort((a, b) => a.createdAt - b.createdAt);
     const current = children.filter(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'));
-    const chosen = current.length ? current : children.filter(s => s.status === 'waiting').slice(0, 1);
+    const chosen = current.length ? current : children.filter(s => (s.status === 'running' || s.status === 'planning') && !isDormant(s));
+    for (const child of children.filter(waitingForUser)) if (chosen.length < 3 && !chosen.includes(child)) chosen.push(child);
     if (!chosen.length && children.length) chosen.push(children.find(s => !isDormant(s)) || children[0]);
     if (CV.forcedSession) {
       const forced = children.find(s => s.id === CV.forcedSession || sessionBranch(s).some(k => k.id === CV.forcedSession));
@@ -3755,8 +3793,7 @@ function cvCards() {
     }
     for (const child of chosen.slice(0, 3)) { kept.add(child.id); visit(child); }
   };
-  const root = roots.find(s => s.id === CV.focusSid);
-  if (root) visit(root);
+  for (const root of roots) visit(root);
   return ordered.filter(s => kept.has(s.id));
 }
 // 分组窗口跟随真实当前条目，历史和未来只作为有界的折叠列表，不再变成整片画布卡。
@@ -3828,15 +3865,17 @@ function cvSave() {
   clearTimeout(cvSaveT);
   cvSaveT = setTimeout(() => {
     const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
-    store.set('canvas', { layoutVersion: CV.needsArrange ? 0 : 2, direction: CV.direction, follow: CV.follow, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+    store.set('canvas', { layoutVersion: 3, direction: CV.direction, follow: CV.follow, minimap: CV.minimap, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
   }, 300);
 }
 function cvLoad() {
   const d = store.get('canvas', null);
   CV.direction = d?.direction === 'vertical' ? 'vertical' : 'horizontal';
   CV.follow = d?.follow !== false;
+  CV.minimap = d?.minimap !== false;
   CV.focusSid = typeof d?.focusSid === 'string' ? d.focusSid : '';
-  if (d?.layoutVersion === 2 && typeof d.topology === 'string') CV.topology = d.topology;
+  CV.migrateLayout = !!d && d.layoutVersion !== 3;
+  if (d?.layoutVersion === 3 && typeof d.topology === 'string') CV.topology = d.topology;
   for (const [k, v] of Object.entries(d?.pos || {})) if (Number.isFinite(v?.x) && Number.isFinite(v?.y)) CV.pos.set(k, { x: v.x, y: v.y });
   const v = d?.view;
   if (v && [v.x, v.y, v.z].every(Number.isFinite) && v.z >= CV_ZMIN && v.z <= CV_ZMAX) CV.view = { x: v.x, y: v.y, z: v.z };
@@ -3854,6 +3893,7 @@ function cvApply(anim) {
   if (CV.anim) cvAnimT = setTimeout(() => { CV.anim = false; w.classList.remove('anim'); }, 380);
   const zl = document.querySelector('[data-cv-zl]');
   if (zl) zl.textContent = Math.round(CV.view.z * 100) + '%';
+  cvMapUpdate();
 }
 function cvRects() {
   return [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid)).map(el => {
@@ -3861,76 +3901,162 @@ function cvRects() {
     return p && { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight };
   }).filter(Boolean);
 }
+// 导航只改变镜头：所有根任务始终共处同一个世界坐标系。
+function cvRootId(node, nodes = CV.nodes) {
+  const seen = new Set();
+  let current = node?.ownerId ? nodes.get(node.ownerId) : node;
+  while (current?.parentId && nodes.has(current.parentId) && !seen.has(current.id)) { seen.add(current.id); current = nodes.get(current.parentId); }
+  return current?.id || '';
+}
+function cvViewport() {
+  const rail = document.querySelector('.cv-rail'), detail = document.querySelector('.cv-detail');
+  const left = rail ? rail.offsetWidth + 20 : 12;
+  const right = detail ? detail.offsetWidth + 32 : 12;
+  const top = cvHeadH() + 16;
+  const hud = document.querySelector('.cv-hud');
+  const bottom = hud ? hud.offsetHeight + 32 : 16;
+  return { x: left, y: top, w: Math.max(160, innerWidth - left - right), h: Math.max(160, innerHeight - top - bottom) };
+}
+// 缩略图与主画布共用坐标；当前视口指可阅读安全区，连同离屏节点一起纳入地图范围。
+function cvMapGeometry(rects, view, area) {
+  const viewport = { x: (area.x - view.x) / view.z, y: (area.y - view.y) / view.z, w: area.w / view.z, h: area.h / view.z };
+  const all = [...rects, viewport];
+  const x = Math.min(...all.map(r => r.x)) - 40, y = Math.min(...all.map(r => r.y)) - 40;
+  return { viewport, bounds: { x, y, w: Math.max(...all.map(r => r.x + r.w)) - x + 40, h: Math.max(...all.map(r => r.y + r.h)) - y + 40 } };
+}
+function cvMapPoint(clientX, clientY, rect, bounds) {
+  const scale = Math.min(rect.width / bounds.w, rect.height / bounds.h);
+  return { x: bounds.x + (clientX - rect.left - (rect.width - bounds.w * scale) / 2) / scale, y: bounds.y + (clientY - rect.top - (rect.height - bounds.h * scale) / 2) / scale };
+}
+function cvHudLayout() {
+  const top = cvHeadH() + 12;
+  for (const panel of document.querySelectorAll('.cv-detail, .cv-history, .cv-history-error')) panel.style.top = `${top}px`;
+  const hud = document.querySelector('.cv-hud');
+  if (!hud) return;
+  const detail = document.querySelector('.cv-detail');
+  const left = document.querySelector('.cv-rail') ? 126 : 16;
+  const right = Math.min(detail ? detail.offsetWidth + 32 : 16, Math.max(16, innerWidth - left - 72));
+  const available = Math.max(72, innerWidth - right - left);
+  hud.style.right = `${right}px`; hud.style.maxWidth = `${available}px`;
+  hud.toggleAttribute('data-compact', available < 282);
+  const toggle = document.querySelector('[data-cv="minimap"]');
+  if (toggle) {
+    const reason = CV.minimap && (innerWidth <= 800 || innerHeight <= 600 || available < 282) ? '空间不足，暂时隐藏' : CV.minimap && CV.more ? '使用更多选项时暂时隐藏' : '';
+    toggle.setAttribute('title', reason ? `小地图已开启；${reason}，点击关闭` : CV.minimap ? '收起小地图' : '展开小地图');
+    toggle.setAttribute('aria-label', reason ? `小地图：${reason}` : '小地图');
+  }
+}
+function cvMapUpdate() {
+  const map = document.querySelector('.cv-minimap');
+  if (!map || !CV.view) return;
+  const cards = [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid));
+  const rects = cards.map(el => { const p = CV.pos.get(el.dataset.cvid); return p && { id: el.dataset.cvid, ...p, w: el.offsetWidth, h: el.offsetHeight }; }).filter(Boolean);
+  const { viewport, bounds } = cvMapGeometry(rects, CV.view, cvViewport());
+  const b = CV.mapDrag?.bounds || bounds;
+  CV.mapBounds = b;
+  const svg = map.querySelector('svg'), nodes = map.querySelector('.cv-map-nodes'), frame = map.querySelector('.cv-map-view');
+  svg.setAttribute('viewBox', `${b.x} ${b.y} ${b.w} ${b.h}`);
+  // 平移缩放只更新视口框；节点尺寸/选择变化才更新这组轻量矩形，不触发页面 morph。
+  const markup = rects.map(r => `<rect class="cv-map-node${cvRootId(CV.nodes.get(r.id)) === CV.focusSid ? ' selected' : ''}" data-map-node="${esc(r.id)}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="12"/>`).join('');
+  if (nodes.getAttribute('data-geometry') !== markup) { nodes.innerHTML = markup; nodes.setAttribute('data-geometry', markup); }
+  for (const [key, value] of Object.entries({ x: viewport.x, y: viewport.y, width: viewport.w, height: viewport.h })) frame.setAttribute(key, value);
+}
+function cvHudHtml() {
+  const icon = paths => `<svg viewBox="0 0 20 20" aria-hidden="true">${paths}</svg>`;
+  return `<aside class="cv-hud" aria-label="画布导航">
+    ${CV.minimap ? `<div class="cv-minimap" role="application" tabindex="0" aria-label="小地图：点击定位，拖动视口框，方向键平移画布" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"><svg preserveAspectRatio="xMidYMid meet" aria-hidden="true"><g class="cv-map-nodes"></g><rect class="cv-map-view"/></svg></div>` : ''}
+    <div class="cv-tools" role="toolbar" aria-label="画布工具"><div class="cv-tool-row">
+      <button data-cv="out" aria-label="缩小" title="缩小（−）">${icon('<path d="M4 10h12"/>')}</button>
+      <button class="cv-zl num" data-cv="reset-zoom" data-cv-zl aria-label="恢复100%缩放" title="恢复100%缩放">${Math.round((CV.view?.z || 1) * 100)}%</button>
+      <button data-cv="in" aria-label="放大" title="放大（+）">${icon('<path d="M4 10h12M10 4v12"/>')}</button><span class="cv-tool-sep" aria-hidden="true"></span>
+      <button data-cv="fit" aria-label="适应当前流程" title="适应当前流程（F）">${icon('<path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/><rect x="7" y="7" width="6" height="6" rx="1"/>')}</button>
+      <button data-cv="follow" aria-label="跟随执行" title="${CV.follow ? '暂停跟随执行' : '恢复跟随执行'}" aria-pressed="${CV.follow}">${icon('<circle cx="10" cy="10" r="5"/><path d="M10 2v3m0 10v3M2 10h3m10 0h3"/>')}</button>
+      <button data-cv="minimap" aria-label="小地图" title="${CV.minimap ? '收起小地图' : '展开小地图'}" aria-pressed="${CV.minimap}">${icon('<path d="M3 5l4-2 6 2 4-2v12l-4 2-6-2-4 2zM7 3v12m6-10v12"/>')}</button>
+      <button data-cv="more" aria-label="更多画布选项" title="更多画布选项" aria-expanded="${CV.more}" aria-controls="cv-more">${icon('<circle cx="4" cy="10" r=".8"/><circle cx="10" cy="10" r=".8"/><circle cx="16" cy="10" r=".8"/>')}</button>
+      </div>
+      ${CV.more ? `<div class="cv-more" id="cv-more" aria-label="更多画布选项"><button data-cv="overview" aria-pressed="${CV.overview}">全局概览<small>${CV.overview ? '已开启' : '所有任务'}</small></button><button data-cv="direction">流程方向<small>${CV.direction === 'vertical' ? '竖向 ↓' : '横向 →'}</small></button><button data-cv="arrange" title="按父子流程整理布局">整理布局<small>父子成组</small></button></div>` : ''}
+    </div></aside>`;
+}
+function cvCloseMore() {
+  if (!CV.more) return;
+  CV.more = false;
+  // 恢复地图的实际高度后才能测量适应区，不能等下一次 morph 才让 :has(.cv-more) 失效。
+  document.querySelector('.cv-more')?.remove();
+  document.querySelector('[data-cv="more"]')?.setAttribute('aria-expanded', 'false');
+  cvHudLayout(); cvMapUpdate(); schedule();
+}
+function cvFocusRoot(id, anim = true) {
+  if (!CV.nodes.has(id)) return;
+  clearTimeout(CV.revealT); CV.revealT = 0; CV.pendingReveal.clear(); CV.needsFocus = false; CV.needsArrange = false;
+  CV.focusSid = id; CV.focusOwner = ''; CV.overview = false;
+  CV.focusTopology = JSON.stringify([...CV.nodes.values()].filter(n => cvRootId(n) === id).map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
+  cvFitView(anim); schedule();
+}
+function cvFitCurrent(anim) {
+  CV.overview = false; clearTimeout(CV.revealT); CV.revealT = 0; CV.pendingReveal.clear(); CV.needsFocus = false;
+  cvFitView(anim); schedule();
+}
 function cvFitView(anim) {
-  let rects = cvRects();
+  const area = cvViewport();
+  const els = [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid));
+  let selected = els;
+  let target;
   if (!CV.overview) {
-    const owner = CV.focusOwner || [...CV.nodes.values()].find(s => !s.ownerId && s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id;
-    if (owner) {
-      const related = new Set([owner]);
-      let at = CV.nodes.get(owner);
-      while (at?.parentId && CV.nodes.has(at.parentId) && !related.has(at.parentId)) { related.add(at.parentId); at = CV.nodes.get(at.parentId); }
-      for (const node of CV.nodes.values()) if (node.ownerId === owner || node.parentId === owner) related.add(node.id);
-      const els = [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => related.has(el.dataset.cvid));
-      const focused = els.map(el => { const p = CV.pos.get(el.dataset.cvid); return p && { ...p, w: el.offsetWidth, h: el.offsetHeight }; }).filter(Boolean);
-      if (focused.length) rects = focused;
+    const family = [...CV.nodes.values()].filter(n => cvRootId(n) === CV.focusSid);
+    const owner = CV.focusOwner && family.find(n => n.id === CV.focusOwner);
+    target = owner || family.find(n => n.focusLeaf && (n.items || []).some(it => it.status === 'doing')) || family.find(n => !n.ownerId && n.status === 'running' && (n.items || []).some(it => it.status === 'doing')) || CV.nodes.get(CV.focusSid);
+    const path = new Set(); let at = target;
+    while (at && !path.has(at.id)) { path.add(at.id); at = CV.nodes.get(at.parentId); }
+    selected = els.filter(el => path.has(el.dataset.cvid));
+  }
+  const rects = selected.map(el => { const p = CV.pos.get(el.dataset.cvid); return p && { ...p, w: el.offsetWidth, h: el.offsetHeight }; }).filter(Boolean);
+  if (!rects.length) return;
+  const fit = cvFit(rects, area.w, area.h, 0, 24);
+  CV.view = { x: fit.x + area.x, y: fit.y + area.y, z: fit.z };
+  if (!CV.overview && CV.view.z < 1) {
+    const el = selected.find(e => e.dataset.cvid === target?.id), p = target && CV.pos.get(target.id);
+    CV.view.z = 1;
+    if (el && p) {
+      CV.view.x = area.x + (area.w - el.offsetWidth) / 2 - p.x;
+      CV.view.y = (CV.direction === 'vertical' ? Math.max(area.y + 24, area.y + area.h - 24 - el.offsetHeight) : area.y + 24) - p.y;
     }
   }
-  CV.view = cvFit(rects, innerWidth, innerHeight, cvHeadH());
-  if (!CV.overview && CV.view.z < .65) {
-    const current = [...CV.nodes.values()].find(n => n.focusLeaf && (n.items || []).some(it => it.status === 'doing')) || CV.nodes.get(CV.focusOwner || CV.focusSid);
-    const el = [...document.querySelectorAll('.cv-world>.cv-card')].find(e => e.dataset.cvid === current?.id), p = current && CV.pos.get(current.id);
-    CV.view.z = .65;
-    if (el && p) { CV.view.x = innerWidth / 2 - (p.x + el.offsetWidth / 2) * .65; CV.view.y = cvHeadH() + 40 - p.y * .65; }
-  }
-  cvApply(anim);
-  cvSave();
+  cvApply(anim); cvSave();
 }
 // 新内容的标题需要完整落在画布视口内；只露出卡片底部不能算已经看到了任务。
 function cvHeaderVisible(el) {
   const p = el && CV.pos.get(el.dataset.cvid), v = CV.view;
   if (!p || !v) return false;
   const x = p.x * v.z + v.x, y = p.y * v.z + v.y;
-  return x >= 12 && x + el.offsetWidth * v.z <= innerWidth - 12 && y >= cvHeadH() + 12 && y + Math.min(52, el.offsetHeight) * v.z <= innerHeight - 12;
+  const a = cvViewport();
+  return x >= a.x && x + el.offsetWidth * v.z <= a.x + a.w && y >= a.y && y + Math.min(52, el.offsetHeight) * v.z <= a.y + a.h;
 }
 function cvRevealPending() {
   CV.revealT = 0;
-  const els = new Map([...document.querySelectorAll('.cv-world>.cv-card')].map(el => [el.dataset.cvid, el]));
-  for (const id of CV.pendingReveal) if (!CV.nodes.has(id) || !els.has(id) || cvHeaderVisible(els.get(id))) CV.pendingReveal.delete(id);
-  if ((!CV.pendingReveal.size && !CV.needsArrange) || document.hidden || !CV.follow) return;
+  for (const id of CV.pendingReveal) if (!CV.nodes.has(id) || cvRootId(CV.nodes.get(id)) !== CV.focusSid) CV.pendingReveal.delete(id);
+  if ((!CV.pendingReveal.size && !CV.needsArrange && !CV.needsFocus) || document.hidden || !CV.follow || CV.overview && !CV.needsArrange) return;
   const delay = 1200 - (Date.now() - CV.userAt);
-  if (CV.interacting || delay > 0) {
-    CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay);
-    return;
-  }
-  if (CV.needsArrange) {
-    CV.needsArrange = false;
-    cvArrange();
-    CV.pendingReveal.clear();
-    return;
-  }
-  // 只有标题超出视口时调整相机，普通内容更新不改用户摆放。
-  cvFitView(true);
-  // 无限画布可能宽到最小缩放也装不下：至少把一张新卡的标题带进视野，不能按巨高卡的整卡中心定位。
-  const target = [...CV.pendingReveal].map(id => els.get(id)).find(el => !cvHeaderVisible(el));
-  if (target) {
-    const p = CV.pos.get(target.dataset.cvid), z = CV.view.z;
-    CV.view = { z, x: innerWidth / 2 - (p.x + target.offsetWidth / 2) * z, y: (innerHeight + cvHeadH()) / 2 - (p.y + Math.min(52, target.offsetHeight) / 2) * z };
-    cvApply(true);
-    cvSave();
-  }
-  CV.pendingReveal.clear();
+  if (CV.interacting || delay > 0) { CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay); return; }
+  if (CV.needsArrange) cvArrange();
+  else cvFitView(true);
+  CV.needsFocus = false; CV.pendingReveal.clear();
 }
 function cvNewContent(ids, first) {
   const els = [...document.querySelectorAll('.cv-world>.cv-card')];
   const allOutside = first && els.length && !els.some(cvHeaderVisible);
-  for (const el of els) if ((allOutside || !first && ids.has(el.dataset.cvid)) && !cvHeaderVisible(el)) CV.pendingReveal.add(el.dataset.cvid);
-  if ((CV.pendingReveal.size || CV.needsArrange) && !CV.revealT) {
+  for (const el of els) if (cvRootId(CV.nodes.get(el.dataset.cvid)) === CV.focusSid && (allOutside || !first && ids.has(el.dataset.cvid)) && !cvHeaderVisible(el)) CV.pendingReveal.add(el.dataset.cvid);
+  if ((CV.pendingReveal.size || CV.needsArrange || CV.needsFocus) && !CV.revealT) {
     CV.revealT = setTimeout(cvRevealPending, 60); // 合并一小批连着到达的新会话/模块。
   }
 }
-// 显式展开/收起和主动归档也会改变可用空间；与拓扑更新共用一条延后整理队列。
+// 归档沿用自动整理；普通展开/收起仅请求局部避让后的镜头更新。
 function cvRequestArrange() {
   CV.needsArrange = true;
+  CV.userAt = Date.now();
+  cvNewContent(new Set(), false);
+}
+function cvRequestFocus() {
+  CV.needsFocus = true;
   CV.userAt = Date.now();
   cvNewContent(new Set(), false);
 }
@@ -3939,7 +4065,9 @@ function cvLayout() {
   const world = document.querySelector('.cv-world');
   if (!world) return;
   const els = new Map([...world.querySelectorAll(':scope>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid)).map(el => [el.dataset.cvid, el]));
-  const rects = new Map(), fresh = [];
+  const rail = document.querySelector('.cv-rail');
+  if (rail) rail.style.top = `${cvHeadH() + 10}px`;
+  const rects = new Map(), fresh = [], migrating = CV.migrateLayout;
   for (const [id, el] of els) {
     const p = CV.pos.get(id);
     if (p) rects.set(id, { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight }); else fresh.push(el);
@@ -3955,8 +4083,10 @@ function cvLayout() {
   };
   if (!rects.size && fresh.length > 1) {
     // 画布上一张卡都没有位置（第一次打开 / 清过记忆）：一次性按"整理"的排法排好，父子成组、箭头顺畅
-    const pos = cvArrangeLayout(fresh.map(el => ({ id: el.dataset.cvid, parentId: parentOf(el), w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
-    for (const el of fresh) place(el, pos.get(el.dataset.cvid));
+    const arranged = fresh;
+    const pos = cvArrangeLayout(arranged.map(el => ({ id: el.dataset.cvid, parentId: parentOf(el), w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
+    for (const el of arranged) place(el, pos.get(el.dataset.cvid));
+    CV.migrateLayout = false; CV.needsArrange = false; cvSave();
   } else {
     const pending = new Map(fresh.map(el => [el.dataset.cvid, el]));
     while (pending.size) {
@@ -3964,7 +4094,12 @@ function cvLayout() {
       for (const [id, el] of pending) {
         if (pending.has(parentOf(el))) continue;
         const w = el.offsetWidth, h = el.offsetHeight, parent = rects.get(parentOf(el));
-        place(el, parent ? cvPlaceNear([...rects.values()], parent, w, h) : cvPlace([...rects.values()], w, h, cols));
+        const existing = [...rects.values()];
+        if (CV.direction === 'vertical') {
+          const swap = r => ({ x: r.y, y: r.x, w: r.h, h: r.w });
+          const p = parent ? cvPlaceNear(existing.map(swap), swap(parent), h, w) : cvPlace(existing.map(swap), h, w, 1);
+          place(el, { x: p.y, y: p.x });
+        } else place(el, parent ? cvPlaceNear(existing, parent, w, h) : cvPlace(existing, w, h, 1));
         pending.delete(id);
         progressed = true;
       }
@@ -3975,8 +4110,31 @@ function cvLayout() {
       }
     }
   }
+  // 同 ID 卡片长高时只避让实际碰撞的子树，不为刷新或导航重排全图。
+  const sizes = CV.sizes || new Map();
+  const changed = [...els].filter(([id, el]) => migrating || sizes.has(id) && (sizes.get(id).w !== el.offsetWidth || sizes.get(id).h !== el.offsetHeight));
+  for (const [changedId] of changed) for (const [otherId] of rects) {
+    const a = rects.get(changedId), b = rects.get(otherId);
+    if (changedId === otherId || !a || !b || !(a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y)) continue;
+    const rootA = cvRootId(CV.nodes.get(changedId)), rootB = cvRootId(CV.nodes.get(otherId));
+    let moveId = rootA !== rootB ? (rootB === CV.focusSid ? rootA : rootB) : otherId;
+    const branch = id => { const ids = new Set([id]), queue = [id]; for (let i = 0; i < queue.length; i++) for (const node of CV.nodes.values()) if (node.parentId === queue[i] && !ids.has(node.id)) { ids.add(node.id); queue.push(node.id); } return ids; };
+    let ids = branch(moveId);
+    if (rootA === rootB && ids.has(changedId)) { moveId = changedId; ids = branch(moveId); }
+    const moving = [...rects].filter(([id]) => ids.has(id)).map(([, r]) => r), obstacles = [...rects].filter(([id]) => !ids.has(id)).map(([, r]) => r);
+    const x = Math.min(...moving.map(r => r.x)), y = Math.min(...moving.map(r => r.y));
+    const box = { x, y, w: Math.max(...moving.map(r => r.x + r.w)) - x, h: Math.max(...moving.map(r => r.y + r.h)) - y };
+    const parent = rects.get(CV.nodes.get(moveId)?.parentId);
+    let p;
+    if (CV.direction === 'vertical') { const swap = r => ({ x: r.y, y: r.x, w: r.h, h: r.w }); const q = parent && !ids.has(CV.nodes.get(moveId)?.parentId) ? cvPlaceNear(obstacles.map(swap), swap(parent), box.h, box.w) : cvPlace(obstacles.map(swap), box.h, box.w, 1); p = { x: q.y, y: q.x }; }
+    else p = parent && !ids.has(CV.nodes.get(moveId)?.parentId) ? cvPlaceNear(obstacles, parent, box.w, box.h) : cvPlace(obstacles, box.w, box.h, 1);
+    for (const id of ids) { const r = rects.get(id), el = els.get(id); if (r && el) place(el, { x: r.x + p.x - box.x, y: r.y + p.y - box.y }); }
+  }
+  CV.sizes = new Map([...els].map(([id, el]) => [id, { w: el.offsetWidth, h: el.offsetHeight }]));
+  CV.migrateLayout = false;
   if (fresh.length) cvSave();
-  if (!CV.view) { CV.view = cvFit([...rects.values()], innerWidth, innerHeight, cvHeadH()); cvApply(false); cvSave(); }
+  if (changed.length) cvSave();
+  if (!CV.view || migrating && CV.follow) cvFitView(false);
   cvWatch(world);
   cvEdges();
 }
@@ -4024,7 +4182,7 @@ function cvEdges() {
 let cvRO = null, cvEdgeRaf = 0;
 const cvWatched = new WeakSet();
 function cvEdgesSoon() {
-  if (!cvEdgeRaf) cvEdgeRaf = requestAnimationFrame(() => { cvEdgeRaf = 0; cvEdges(); });
+  if (!cvEdgeRaf) cvEdgeRaf = requestAnimationFrame(() => { cvEdgeRaf = 0; cvEdges(); cvMapUpdate(); });
 }
 function cvWatch(world) {
   cvRO ||= new ResizeObserver(cvEdgesSoon);
@@ -4060,8 +4218,9 @@ function cvReveal(id, force) {
   const el = document.querySelector(`.cv-world>.cv-card[data-cvid="${CSS.escape(id)}"]`), p = CV.pos.get(id);
   if (!el || !p || !CV.view) return;
   const { x, y, z } = CV.view, w = el.offsetWidth * z, h = el.offsetHeight * z, sx = p.x * z + x, sy = p.y * z + y;
-  if (!force && sx >= 0 && sy >= cvHeadH() && sx + w <= innerWidth && sy + h <= innerHeight) return;
-  CV.view = { z, x: innerWidth / 2 - (p.x + el.offsetWidth / 2) * z, y: (innerHeight + cvHeadH()) / 2 - (p.y + el.offsetHeight / 2) * z };
+  const area = cvViewport();
+  if (!force && sx >= area.x && sy >= area.y && sx + w <= area.x + area.w && sy + h <= area.y + area.h) return;
+  CV.view = { z, x: area.x + area.w / 2 - (p.x + el.offsetWidth / 2) * z, y: area.y + area.h / 2 - (p.y + Math.min(el.offsetHeight, area.h / z)) / 2 * z };
   cvApply(true);
   cvSave();
   if (!RM.matches) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 200);
@@ -4107,17 +4266,51 @@ function startScreen() {
   const touch = () => { CV.userAt = Date.now(); };
   const stopFollow = () => { CV.follow = false; cvSave(); schedule(); };
   document.addEventListener('scroll', e => { if (e.target.closest?.('.cv-detail')) stopFollow(); }, true);
-  const zoomBy = f => { if (!CV.view) return; touch(); stopFollow(); CV.view = cvZoomAt(CV.view, innerWidth / 2, innerHeight / 2, f); cvApply(true); cvSave(); };
+  const interruptCamera = () => { const world = document.querySelector('.cv-world'); if (CV.anim && world) { const m = new DOMMatrixReadOnly(getComputedStyle(world).transform); CV.view = { x: m.m41, y: m.m42, z: m.a }; cvApply(false); } };
+  const zoomBy = f => { if (!CV.view) return; touch(); stopFollow(); interruptCamera(); const a = cvViewport(); CV.view = cvZoomAt(CV.view, a.x + a.w / 2, a.y + a.h / 2, f); cvApply(true); cvSave(); };
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { if (CV.detail) { CV.detail = null; schedule(); } else window.tickScreenClose?.(); }
-    else if (e.key === '0' || e.key === 'f' || e.key === 'F') { touch(); cvFitView(true); }
+    if (e.key === 'Escape') {
+      if (CV.more) { cvCloseMore(); requestAnimationFrame(() => document.querySelector('[data-cv="more"]')?.focus()); }
+      else if (CV.mapDrag) end();
+      else if (CV.detail) { CV.detail = null; schedule(); }
+      else window.tickScreenClose?.();
+      e.preventDefault(); e.stopPropagation(); return;
+    }
+    if (e.target.closest?.('.cv-minimap') && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+      if (!CV.view) return;
+      e.preventDefault(); touch(); stopFollow(); interruptCamera();
+      const delta = (e.shiftKey ? 160 : 64) * CV.view.z;
+      if (e.key === 'ArrowLeft') CV.view.x += delta;
+      else if (e.key === 'ArrowRight') CV.view.x -= delta;
+      else if (e.key === 'ArrowUp') CV.view.y += delta;
+      else CV.view.y -= delta;
+      cvApply(false); cvSave(); return;
+    }
+    if (e.target.closest?.('input,textarea,select,[contenteditable=true]')) return;
+    if (CV.more && ['0', 'f', 'F', '+', '=', '-'].includes(e.key)) cvCloseMore();
+    if (e.key === '0' || e.key === 'f' || e.key === 'F') { touch(); cvFitCurrent(false); }
     else if (e.key === '+' || e.key === '=') zoomBy(1.25);
     else if (e.key === '-') zoomBy(0.8);
   });
   // 拖动：按在卡片上拖 = 移动这张卡；按在空白处（或中键）拖 = 平移画布。移动不到 4px 当点击，卡片照常展开 / 收起
   let g = null, suppress = false;
   document.addEventListener('pointerdown', e => {
-    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle, .cv-history, .cv-scope, .s-items, .cv-mod-list, .cv-detail')) return;
+    const map = e.target.closest?.('.cv-minimap');
+    if (map && e.button === 0 && CV.view && CV.mapBounds) {
+      e.preventDefault(); touch(); stopFollow(); interruptCamera();
+      const bounds = { ...CV.mapBounds }, rect = map.querySelector('svg').getBoundingClientRect();
+      const point = cvMapPoint(e.clientX, e.clientY, rect, bounds);
+      if (!e.target.closest?.('.cv-map-view')) {
+        const area = cvViewport();
+        CV.view = { ...CV.view, x: area.x + area.w / 2 - point.x * CV.view.z, y: area.y + area.h / 2 - point.y * CV.view.z };
+      }
+      CV.mapDrag = { bounds, rect, point, view: { ...CV.view }, pid: e.pointerId };
+      CV.interacting = true; map.setAttribute('data-drag', ''); map.focus();
+      try { document.documentElement.setPointerCapture(e.pointerId); } catch { /* 指针已经抬起 */ }
+      cvApply(false); cvSave(); return;
+    }
+    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .cv-hud, .cv-rail, .scr-idle, .cv-history, .cv-scope, .s-items, .cv-mod-list, .cv-detail')) return;
+    interruptCamera();
     touch();
     CV.interacting = true;
     const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
@@ -4125,6 +4318,11 @@ function startScreen() {
     g = { id, card, sx: e.clientX, sy: e.clientY, p: p && { ...p }, v: CV.view && { ...CV.view }, moved: false, pid: e.pointerId, pan: !card || e.button === 1 };
   });
   document.addEventListener('pointermove', e => {
+    if (CV.mapDrag && e.pointerId === CV.mapDrag.pid) {
+      const drag = CV.mapDrag, point = cvMapPoint(e.clientX, e.clientY, drag.rect, drag.bounds);
+      CV.view = { ...drag.view, x: drag.view.x - (point.x - drag.point.x) * drag.view.z, y: drag.view.y - (point.y - drag.point.y) * drag.view.z };
+      cvApply(false); return;
+    }
     if (!g || e.pointerId !== g.pid || !CV.view) return;
     const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
     if (!g.moved) {
@@ -4144,8 +4342,13 @@ function startScreen() {
     g.card.style.left = p.x + 'px';
     g.card.style.top = p.y + 'px';
     cvEdgesSoon();
+    cvMapUpdate();
   });
   const end = () => {
+    if (CV.mapDrag) {
+      CV.mapDrag = null; CV.interacting = false; touch(); cvSave();
+      document.querySelector('.cv-minimap')?.removeAttribute('data-drag'); cvMapUpdate();
+    }
     if (!g) return;
     CV.interacting = false;
     touch();
@@ -4164,31 +4367,36 @@ function startScreen() {
   addEventListener('blur', end);
   document.addEventListener('click', e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('wheel', e => {
-    if (e.target.closest?.('.scr-h, .cv-history, .cv-scope, .cv-mod-list, .s-items, .cv-detail')) return;
+    if (e.target.closest?.('.scr-h, .cv-hud, .cv-rail, .cv-history, .cv-scope, .cv-mod-list, .s-items, .cv-detail')) return;
     e.preventDefault();
     if (!CV.view) return;
     touch();
     stopFollow();
+    interruptCamera();
     CV.view = cvZoomAt(CV.view, e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
     cvApply(false);
     cvSave();
   }, { passive: false });
-  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle, .cv-history, .cv-detail')) { touch(); cvFitView(true); } });
+  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .cv-hud, .cv-rail, .scr-idle, .cv-history, .cv-detail')) { touch(); cvFitCurrent(true); } });
   document.addEventListener('click', e => {
     const b = e.target.closest?.('[data-cv]');
+    if (CV.more && (!e.target.closest?.('.cv-tools') || ['fit', 'follow', 'in', 'out', 'reset-zoom', 'overview', 'direction', 'arrange'].includes(b?.dataset.cv))) cvCloseMore();
     if (!b) return;
     touch();
-    if (b.dataset.cv === 'fit') { CV.overview = false; schedule(); requestAnimationFrame(() => cvFitView(true)); }
-    else if (b.dataset.cv === 'root') { CV.focusSid = b.dataset.ownerId; CV.focusOwner = CV.focusSid; CV.forcedSession = ''; CV.overview = false; cvSave(); schedule(); requestAnimationFrame(() => cvFitView(true)); }
-    else if (b.dataset.cv === 'overview') { CV.overview = !CV.overview; schedule(); requestAnimationFrame(() => cvFitView(true)); }
+    if (b.dataset.cv === 'fit') cvFitCurrent(e.detail !== 0);
+    else if (b.dataset.cv === 'root') cvFocusRoot(b.dataset.ownerId, e.detail !== 0);
+    else if (b.dataset.cv === 'overview') { CV.overview = !CV.overview; CV.pendingReveal.clear(); clearTimeout(CV.revealT); CV.revealT = 0; CV.needsFocus = false; cvFitView(true); schedule(); }
     else if (b.dataset.cv === 'direction') { CV.direction = CV.direction === 'vertical' ? 'horizontal' : 'vertical'; cvArrange(); cvSave(); schedule(); }
-    else if (b.dataset.cv === 'follow') { CV.follow = !CV.follow; CV.overview = false; cvSave(); schedule(); if (CV.follow) { CV.needsArrange = true; cvNewContent(new Set(), false); } }
+    else if (b.dataset.cv === 'follow') { CV.follow = !CV.follow; CV.overview = false; cvSave(); schedule(); if (CV.follow) { CV.needsFocus = true; cvNewContent(new Set(), false); } }
     else if (b.dataset.cv === 'details') cvOpenDetails(b.dataset.ownerId);
     else if (b.dataset.cv === 'children') cvOpenDetails(b.dataset.ownerId, true);
     else if (b.dataset.cv === 'detail-close') { CV.detail = null; schedule(); }
     else if (b.dataset.cv === 'detail-filter') { CV.detailFilter = b.dataset.filter; schedule(); }
     else if (b.dataset.cv === 'in') zoomBy(1.25);
     else if (b.dataset.cv === 'out') zoomBy(0.8);
+    else if (b.dataset.cv === 'reset-zoom') zoomBy(1 / (CV.view?.z || 1));
+    else if (b.dataset.cv === 'minimap') { CV.minimap = !CV.minimap; cvSave(); schedule(); }
+    else if (b.dataset.cv === 'more') { if (CV.more) cvCloseMore(); else { CV.more = true; schedule(); } }
     else if (b.dataset.cv === 'arrange') cvArrange();
     else if (b.dataset.cv === 'history') { CV.history = !CV.history; CV.cleanup = false; schedule(); }
     else if (b.dataset.cv === 'cleanup') { CV.cleanup = !CV.cleanup; CV.history = false; schedule(); }
@@ -4201,14 +4409,14 @@ function startScreen() {
     else if (b.dataset.cv === 'scope') {
       const id = b.dataset.ownerId, part = b.dataset.part;
       if (CV.moduleLists.get(id) === part) CV.moduleLists.delete(id); else CV.moduleLists.set(id, part);
-      cvRequestArrange();
+      cvRequestFocus();
       schedule();
     }
     else if (b.dataset.cv === 'module' || b.dataset.cv === 'module-all') {
       if (b.dataset.cv === 'module') { cvOpenDetails(b.dataset.moduleId); return; }
       const open = CV.allModules, id = b.dataset.moduleId;
       if (open.has(id)) open.delete(id); else open.add(id);
-      cvRequestArrange();
+      cvRequestFocus();
       schedule();
     }
     else if (b.dataset.cv === 'wait') {
@@ -4219,7 +4427,11 @@ function startScreen() {
       requestAnimationFrame(() => { cvReveal(ids[CV.waitIdx], true); cvOpenDetails(ids[CV.waitIdx]); });
     }
   });
-  setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
+  setInterval(() => {
+    const time = scrTime(), date = scrDate();
+    for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== time) el.textContent = time;
+    for (const el of document.querySelectorAll('[data-scr-date]')) if (el.textContent !== date) el.textContent = date;
+  }, 1000);
   setInterval(schedule, 30000); // 更新随时间变化的活跃状态。
   addEventListener('resize', () => schedule());
 }
@@ -4268,8 +4480,11 @@ function renderScreen() {
   const nodes = cvFlowNodes(list);
   const fresh = new Set(nodes.filter(n => !CV.nodes.has(n.id)).map(n => n.id));
   const topology = JSON.stringify(nodes.map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
-  if (CV.topology !== topology) { CV.topology = topology; CV.needsArrange = true; }
-  CV.nodes = new Map(nodes.map(n => [n.id, n]));
+  const nextNodes = new Map(nodes.map(n => [n.id, n]));
+  const focusTopology = JSON.stringify(nodes.filter(n => cvRootId(n, nextNodes) === CV.focusSid).map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
+  if (CV.topology !== topology && CV.focusTopology !== focusTopology) CV.needsFocus = true;
+  CV.topology = topology; CV.focusTopology = focusTopology;
+  CV.nodes = nextNodes;
   for (const node of nodes) {
     const items = node.items || [];
     const at = items.filter(it => it.status === 'doing').map(it => it.id).join(',') || items.find(it => !['done', 'skipped'].includes(it.status))?.id || '';
@@ -4290,11 +4505,14 @@ function renderScreen() {
   const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && waitingForUser(k)));
   const runningKids = active.filter(isChild);
   const today = itemsToday(), live = sweeper(3);
+  const focused = roots.find(s => s.id === CV.focusSid) || roots[0];
   const first = !root.querySelector('.scr');
   const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">
     <header class="scr-h">
-      <span class="scr-brand"><span class="logo">${IC.logo}</span>Tick</span>
-      ${idle ? '' : `<span class="scr-sum">
+      <div class="scr-heading"><div class="scr-heading-line"><span class="scr-brand"><span class="logo">${IC.logo}</span>Tick</span>
+      <strong class="scr-title" title="${esc(focused?.title || '任务画布')}">${esc(focused?.title || '任务画布')}</strong>
+      ${focused ? `<span class="scr-title-state ${esc(focused.status)}">${esc(STATUS[focused.status] || focused.status)}</span>` : ''}</div>
+      <div class="scr-meta">${idle ? '' : `<span class="scr-sum">
         <span><b class="num" data-roll>${running.length}</b>在跑</span>
         ${runningKids.length ? `<span title="正在执行的子 agent，不重复计入主任务数"><b class="num" data-roll>${runningKids.length}</b>子 agent</span>` : ''}
         ${waits.length ? `<button class="cv-wait" data-cv="wait" data-key="cv-wait" title="跳到在等你的会话（包含子 agent）"><b class="num" data-roll>${waits.length}</b>项等你</button>` : ''}
@@ -4302,24 +4520,27 @@ function renderScreen() {
         ${today ? `<span>今天勾了 <b class="num" data-roll>${today}</b> 项</span>` : ''}
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
-      <span class="grow"></span>
-      ${roots.length ? `<span class="cv-root-switch">${roots.map(s => `<button data-cv="root" data-owner-id="${esc(s.id)}" aria-pressed="${CV.focusSid === s.id}" title="${esc(s.title)}">${esc(s.title)} · ${(s.items || []).filter(it => it.status === 'done' || it.status === 'skipped').length}/${(s.items || []).length}</button>`).join('')}</span><span class="cv-total">总进度 ${overallDone}/${overallItems.length}</span>` : ''}
+      ${roots.length ? `<span class="cv-total">总进度 ${overallDone}/${overallItems.length}</span>` : ''}
       ${cleanup.length ? `<button class="cv-ended cv-cleanup" data-cv="cleanup" aria-expanded="${!!CV.cleanup}">待清理 ${cleanup.length}</button>` : ''}
       ${history.length ? `<button class="cv-ended" data-cv="history" aria-expanded="${CV.history}">已结束 ${history.length}</button>` : ''}
-      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="适应当前分支">适应</button><button data-cv="overview" aria-pressed="${CV.overview}">全局概览</button><button data-cv="direction">${CV.direction === 'vertical' ? '竖向' : '横向'}</button><button data-cv="follow" aria-pressed="${CV.follow}">${CV.follow ? '跟随执行' : '恢复跟随'}</button><button data-cv="arrange" title="自动整理布局：父任务带着子任务成一组，整齐排好">整理</button></span>`}
+      </div></div>
       <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
-      ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
+      ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span data-scr-date>${esc(scrDate())}</span></span>`}
     </header>
+    ${idle ? '' : cvHudHtml()}
+    ${roots.length ? `<nav class="cv-rail" aria-label="任务进度导航">${roots.map(s => { const p = progress(s), percent = p.total ? Math.round(p.done / p.total * 100) : 0; const tone = s.status === 'failed' ? 'var(--red)' : s.status === 'waiting' || s.status === 'blocked' ? 'var(--orange)' : s.status === 'paused' || isDormant(s) ? 'var(--text-3)' : 'var(--brand)'; return `<button class="cv-rail-task" data-cv="root" data-owner-id="${esc(s.id)}" aria-pressed="${CV.focusSid === s.id}" title="${esc(s.title)} · ${esc(STATUS[s.status] || s.status)} · ${p.done}/${p.total}" aria-label="${esc(s.title)}，${percent}%"><span class="cv-rail-ring" style="--rail-color:${tone};--rail-progress:${percent}%"><span>${p.total ? `${percent}%` : '0%'}</span></span><span class="cv-rail-label">${esc(s.title)}</span><small>${p.done}/${p.total}</small></button>`; }).join('')}</nav>` : ''}
     ${ARCHIVE.error ? `<p class="cv-history-error" role="alert">${esc(ARCHIVE.error)}</p>` : ''}
     ${CV.cleanup ? `<section class="cv-history" aria-label="待清理任务"><small>主任务已结束，子任务未收尾且超过 30 分钟没有进展。归档保留记录，新进度会自动恢复。</small>${cleanup.map(s => `<div class="cleanup-entry"><span class="cleanup-title" title="${esc(s.title)}"><span>${esc(s.title)}</span><small>${esc(cleanupNote(s))}</small></span><button class="cleanup-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></div>`).join('')}</section>` : ''}
     ${CV.history ? `<section class="cv-history" aria-label="已结束任务"><small>已从主画布移除，保留最近 ${Math.min(20, history.length)} 个结果</small>${history.slice(0, 20).map(s => `<div class="cv-history-entry"><div class="cv-history-head"><button data-cv="history-item" data-owner-id="${esc(s.id)}" aria-expanded="${CV.historyOpen.has(s.id)}" title="${esc(s.title)}">${esc(s.title)}</button><button class="cv-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></div>${CV.historyOpen.has(s.id) ? `<p>${esc(s.summary || '任务已结束。')}</p><small>${({ done: '已完成', failed: '未完成', cancelled: '已取消' })[s.status]} · ${(s.items || []).filter(it => ['done', 'skipped'].includes(it.status)).length}/${(s.items || []).length} 项已处理</small>` : ''}</div>`).join('')}</section>` : ''}
     ${cvDetailHtml()}
     ${idle
-      ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
+      ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span data-scr-date>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
       : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
   </div>`);
   settle(entered);
+  cvHudLayout();
   cvLayout();
+  cvMapUpdate();
   const cards = entered.filter(el => el.classList?.contains('cv-card'));
   const wasFirst = !CV.rendered;
   CV.rendered = true;
@@ -4881,7 +5102,7 @@ async function onClick(e) {
       row.classList.toggle('open', open); // 就地切换，保留展开过渡
       el.setAttribute('aria-expanded', String(open));
       foldSlide(row, open);
-      if (SCREEN) cvRequestArrange();
+      if (SCREEN) cvRequestFocus();
       break;
     }
     case 'read':
@@ -4937,7 +5158,7 @@ async function onClick(e) {
       e.stopPropagation();
       const k = `all:${sid}`;
       if (S.open.has(k)) S.open.delete(k); else S.open.add(k);
-      if (SCREEN) cvRequestArrange();
+      if (SCREEN) cvRequestFocus();
       schedule();
       break;
     }
