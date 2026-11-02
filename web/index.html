@@ -2245,7 +2245,7 @@ function renderMenu() {
       ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
       ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
       ${sw('autostart', '开机启动', m.autostart)}
-      ${sw('screen', '大屏模式', m.screen, '全屏总览，给扩展屏挂着看：等你的置顶放大，放不下自动翻页，不用操作；有扩展屏铺扩展屏，Esc 退出')}
+      ${sw('screen', '大屏模式', m.screen, '全屏无限画布，给扩展屏挂着看：每个会话一张卡，可以拖动、缩放；有扩展屏铺扩展屏，Esc 退出')}
       ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
