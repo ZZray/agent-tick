@@ -23,15 +23,16 @@ import (
 const (
 	maxAgent, maxID, maxTitle, maxText = 40, 200, 200, 300
 	maxNote, maxSummary, maxPath       = 2000, 4000, 500
-	maxItems, maxEvents, maxEventText  = 100, 300, 300
+	maxItems, maxEvents, maxEventText  = 1000, 300, 300
 	maxNotices, maxGroup               = 300, 60
 )
 
 var (
-	sessionStatus = []string{"planning", "running", "waiting", "blocked", "done", "failed", "cancelled"}
+	sessionStatus = []string{"planning", "running", "waiting", "blocked", "paused", "done", "failed", "cancelled"}
 	itemStatus    = []string{"todo", "doing", "done", "skipped", "blocked"}
+	itemResults   = []string{"passed", "failed", "unknown", "unverified"}
 	noticeKinds   = []string{"info", "success", "warning"} // agent 主动发；waiting / blocked / done / failed 随状态自动生成
-	statusText    = map[string]string{"planning": "回到写清单", "running": "继续执行", "waiting": "等你", "blocked": "受阻", "done": "完成", "failed": "失败", "cancelled": "取消"}
+	statusText    = map[string]string{"planning": "回到写清单", "running": "继续执行", "waiting": "等你", "blocked": "受阻", "paused": "待续", "done": "完成", "failed": "失败", "cancelled": "取消"}
 	itemText      = map[string]string{"todo": "重开", "doing": "开始", "done": "勾选", "skipped": "跳过", "blocked": "卡住"}
 	noticeDefault = map[string]string{"waiting": "等你回复", "blocked": "卡住了", "done": "做完了", "failed": "没做成"}
 )
@@ -40,17 +41,47 @@ func isWaiting(s string) bool { return s == "waiting" || s == "blocked" }
 func isEnded(s string) bool   { return s == "done" || s == "failed" || s == "cancelled" }
 
 // 等待和结束时，进行中条目的计时暂停：条目耗时只算 agent 干活的时间
-func isPaused(s string) bool { return isWaiting(s) || isEnded(s) }
+func isPaused(s string) bool { return s == "paused" || isWaiting(s) || isEnded(s) }
 
 type Item struct {
-	ID        string `json:"id"`
-	Text      string `json:"text"`
-	Group     string `json:"group,omitempty"` // 所属模块：清单里 "# 模块名" 那一行之后的条目都归它，界面按模块分段显示
-	Status    string `json:"status"`
-	Note      string `json:"note"`
-	SpentMs   int64  `json:"spentMs"`
-	StartedAt int64  `json:"startedAt"`
-	DoneAt    int64  `json:"doneAt"`
+	ID            string       `json:"id"`
+	Text          string       `json:"text"`
+	Group         string       `json:"group,omitempty"` // 所属模块：清单里 "# 模块名" 那一行之后的条目都归它，界面按模块分段显示
+	Status        string       `json:"status"`
+	Note          string       `json:"note"`
+	SpentMs       int64        `json:"spentMs"`
+	StartedAt     int64        `json:"startedAt"`
+	DoneAt        int64        `json:"doneAt"`
+	Result        string       `json:"result,omitempty"`   // 显式验收结果；done 仅表示执行结束，不能推出 passed
+	Evidence      string       `json:"evidence,omitempty"` // Run 或证据入口，不存独立 Run 台账
+	ResultHistory []ItemResult `json:"resultHistory,omitempty"`
+	UpdatedAt     int64        `json:"updatedAt,omitempty"` // 单项实际内容/状态更新；重复同值不刷新
+}
+
+func recordItemUpdate(it *Item, before Item) {
+	if it.Text != before.Text || it.Group != before.Group || it.Status != before.Status || it.Note != before.Note || it.Result != before.Result || it.Evidence != before.Evidence {
+		it.UpdatedAt = now()
+	}
+}
+
+type ItemResult struct {
+	At       int64  `json:"at"`
+	Result   string `json:"result"`
+	Evidence string `json:"evidence,omitempty"`
+	Note     string `json:"note,omitempty"`
+}
+
+// Explicit result reports preserve summaries; identical reports are idempotent.
+func reportItemResult(it *Item, result string) {
+	it.Result = result
+	report := ItemResult{At: now(), Result: result, Evidence: it.Evidence, Note: it.Note}
+	if n := len(it.ResultHistory); n > 0 {
+		last := it.ResultHistory[n-1]
+		if last.Result == report.Result && last.Evidence == report.Evidence && last.Note == report.Note {
+			return
+		}
+	}
+	it.ResultHistory = append(it.ResultHistory, report)
 }
 
 type Event struct {
@@ -191,10 +222,12 @@ func linkField(p *string) (*string, error) {
 }
 
 type itemInput struct {
-	Text   string
-	Group  string
-	Status string
-	Note   *string
+	ID               string
+	Text             string
+	Group            string
+	Status           string
+	Note             *string
+	Result, Evidence *string
 }
 
 // moduleHead 清单里的模块标题行："# 后端"、"## 前端"。返回模块名；不是标题行返回 ok=false
@@ -213,6 +246,7 @@ func parseItems(raw []json.RawMessage) ([]itemInput, error) {
 		return nil, bad("items 最多 %d 条", maxItems)
 	}
 	out := make([]itemInput, 0, len(raw))
+	ids := map[string]bool{}
 	group := ""
 	for i, r := range raw {
 		name := fmt.Sprintf("items[%d]", i)
@@ -230,7 +264,7 @@ func parseItems(raw []json.RawMessage) ([]itemInput, error) {
 			continue
 		}
 		var o struct {
-			Text, Group, Status, Note *string
+			ID, Text, Group, Status, Note, Result, Evidence *string
 		}
 		if err := json.Unmarshal(r, &o); err != nil {
 			return nil, bad("%s 必须是字符串或 {text, group, status, note}", name)
@@ -251,7 +285,31 @@ func parseItems(raw []json.RawMessage) ([]itemInput, error) {
 		if err != nil {
 			return nil, err
 		}
-		x := itemInput{Text: t, Group: group, Status: st, Note: note}
+		id, err := field(o.ID, name+".id", maxID)
+		if err != nil {
+			return nil, err
+		}
+		if id != nil {
+			if *id == "" || ids[*id] {
+				return nil, bad("%s.id 为空或重复", name)
+			}
+			ids[*id] = true
+		}
+		result, err := oneOf(o.Result, name+".result", itemResults)
+		if err != nil {
+			return nil, err
+		}
+		evidence, err := field(o.Evidence, name+".evidence", maxNote)
+		if err != nil {
+			return nil, err
+		}
+		x := itemInput{Text: t, Group: group, Status: st, Note: note, Evidence: evidence}
+		if id != nil {
+			x.ID = *id
+		}
+		if o.Result != nil {
+			x.Result = &result
+		}
 		if g != nil {
 			x.Group = *g
 		}
@@ -266,11 +324,12 @@ func parseItems(raw []json.RawMessage) ([]itemInput, error) {
 // ---------- Store ----------
 
 type Store struct {
-	mu       sync.Mutex
-	file     string
-	sessions map[string]*Session
-	notices  []*Notice
-	pending  []*Notice // 本次修改中新建或改动的通知，落盘后推送
+	mu             sync.Mutex
+	file           string
+	sessions       map[string]*Session
+	notices        []*Notice
+	pending        []*Notice                     // 本次修改中新建或改动的通知，落盘后推送
+	agentReminders map[string]agentReminderState // 仅请求响应内提示的内存节流，不是用户通知或会话状态
 
 	subMu    sync.Mutex
 	subs     map[chan Frame]struct{}
@@ -535,6 +594,7 @@ func cloneSession(s *Session) *Session {
 	c.Items = make([]*Item, len(s.Items))
 	for i, it := range s.Items {
 		x := *it
+		x.ResultHistory = slices.Clone(it.ResultHistory)
 		c.Items[i] = &x
 	}
 	c.Events = slices.Clone(s.Events)
@@ -609,6 +669,7 @@ func setItemStatus(s *Session, it *Item, status string) bool {
 		it.DoneAt = t
 	}
 	it.Status = status
+	it.UpdatedAt = t
 	return true
 }
 
@@ -679,10 +740,16 @@ func (st *Store) autoRun(s *Session) {
 }
 
 func newItem(s *Session, x itemInput) *Item {
-	it := &Item{ID: "i" + strconv.Itoa(s.NextItem), Text: x.Text, Group: x.Group, Status: "todo"}
+	it := &Item{ID: "i" + strconv.Itoa(s.NextItem), Text: x.Text, Group: x.Group, Status: "todo", UpdatedAt: now()}
 	s.NextItem++
 	if x.Note != nil {
 		it.Note = *x.Note
+	}
+	if x.Evidence != nil {
+		it.Evidence = *x.Evidence
+	}
+	if x.Result != nil {
+		reportItemResult(it, *x.Result)
 	}
 	if x.Status != "" {
 		setItemStatus(s, it, x.Status)
@@ -812,6 +879,11 @@ func (st *Store) Start(in StartInput) (s *Session, attached bool, err error) {
 	items, err := parseItems(in.Items)
 	if err != nil {
 		return nil, false, err
+	}
+	for _, x := range items {
+		if x.ID != "" {
+			return nil, false, bad("登记条目不能指定已有 id，请用完整清单更新")
+		}
 	}
 	parent, err := field(in.ParentID, "parentId", maxID)
 	if err != nil {
@@ -1039,24 +1111,47 @@ func (st *Store) ReplacePlan(id string, raw []json.RawMessage, byUser bool) (*Se
 	}
 	return st.change(id, func(s *Session) error {
 		pool := slices.Clone(s.Items)
+		reserved := map[string]bool{}
+		for _, x := range inputs {
+			if x.ID != "" {
+				if !slices.ContainsFunc(s.Items, func(it *Item) bool { return it.ID == x.ID }) {
+					return bad("未知条目 id：%s", x.ID)
+				}
+				reserved[x.ID] = true
+			}
+		}
 		next := make([]*Item, 0, len(inputs))
 		added := 0
 		for _, x := range inputs {
-			k := slices.IndexFunc(pool, func(it *Item) bool { return it.Text == x.Text })
+			k := slices.IndexFunc(pool, func(it *Item) bool {
+				if x.ID != "" {
+					return it.ID == x.ID
+				}
+				return it.Text == x.Text && !reserved[it.ID]
+			})
 			if k < 0 {
 				next = append(next, newItem(s, x))
 				added++
 				continue
 			}
 			it := pool[k]
+			before := *it
 			pool = slices.Delete(pool, k, k+1)
 			it.Group = x.Group // 重发清单时可以重新分模块
+			it.Text = x.Text
 			if x.Status != "" {
 				setItemStatus(s, it, x.Status)
 			}
 			if x.Note != nil {
 				it.Note = *x.Note
 			}
+			if x.Evidence != nil {
+				it.Evidence = *x.Evidence
+			}
+			if x.Result != nil {
+				reportItemResult(it, *x.Result)
+			}
+			recordItemUpdate(it, before)
 			next = append(next, it)
 		}
 		first := len(s.Items) == 0
@@ -1079,6 +1174,11 @@ func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string, byU
 		var err error
 		if inputs, err = parseItems(raw); err != nil {
 			return nil, err
+		}
+		for _, x := range inputs {
+			if x.ID != "" {
+				return nil, bad("追加条目不能指定已有 id，请用完整清单更新")
+			}
 		}
 	} else {
 		t, err := required(text, "text", maxText)
@@ -1108,14 +1208,15 @@ func (st *Store) AppendItems(id string, raw []json.RawMessage, text *string, byU
 }
 
 type ItemPatch struct {
-	Status, Note, Text *string
-	ByUser             bool `json:"-"` // 用户在界面上手动改的（请求带 X-Tick-User），不算 agent 回来干活
+	Status, Note, Text, Result, Evidence *string
+	ExactID                              bool `json:"-"`
+	ByUser                               bool `json:"-"` // 用户在界面上手动改的（请求带 X-Tick-User），不算 agent 回来干活
 }
 
 // resumeOnProgress agent 在“等你 / 受阻”时又报了进度（勾完、跳过一条，改了清单）：说明用户已经回答、它接着干了，
 // 会话回到进行中。用户在界面上手动改的不算。只认 agent 实打实的进度，通知之类的不算（它可能是在催用户）
 func (st *Store) resumeOnProgress(s *Session, byUser bool) {
-	if !byUser && isWaiting(s.Status) {
+	if !byUser && (isWaiting(s.Status) || s.Status == "paused") {
 		st.wake(s)
 	}
 }
@@ -1136,9 +1237,20 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 	if text != nil && *text == "" {
 		return nil, bad("text 不能为空")
 	}
+	result, err := oneOf(in.Result, "result", itemResults)
+	if err != nil {
+		return nil, err
+	}
+	evidence, err := field(in.Evidence, "evidence", maxNote)
+	if err != nil {
+		return nil, err
+	}
+	if in.Status == nil && note == nil && text == nil && in.Result == nil && evidence == nil {
+		return nil, bad("至少更新 status、note、text、result 或 evidence 一项")
+	}
 	return st.change(id, func(s *Session) error {
 		var it *Item
-		if n, err := strconv.Atoi(ref); err == nil {
+		if n, err := strconv.Atoi(ref); err == nil && !in.ExactID {
 			if n >= 1 && n <= len(s.Items) {
 				it = s.Items[n-1]
 			}
@@ -1148,6 +1260,7 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 		if it == nil {
 			return &apiError{404, fmt.Sprintf("没有条目 %s（清单共 %d 项）", ref, len(s.Items))}
 		}
+		before := *it
 		// agent 开始做某条，说明它已经回到工作状态；等你的时候直接勾完 / 跳过一条也是
 		if status == "doing" && isPaused(s.Status) {
 			st.wake(s)
@@ -1166,6 +1279,12 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 		if note != nil {
 			it.Note = *note
 		}
+		if evidence != nil {
+			it.Evidence = *evidence
+		}
+		if in.Result != nil {
+			reportItemResult(it, result)
+		}
 		if status != "" && setItemStatus(s, it, status) {
 			n := slices.Index(s.Items, it) + 1
 			msg := fmt.Sprintf("%s #%d %s", itemText[status], n, it.Text)
@@ -1177,6 +1296,10 @@ func (st *Store) PatchItem(id, ref string, in ItemPatch) (*Session, error) {
 			}
 			addEvent(s, "item-"+status, msg)
 		}
+		recordItemUpdate(it, before)
+		if status == "doing" {
+			it.UpdatedAt = now()
+		} // 显式重复 doing 是 agent 确认仍执行
 		return nil
 	})
 }

@@ -27,17 +27,18 @@ import (
 )
 
 var cliCommands = map[string]bool{"start": true, "plan": true, "add": true, "rename": true, "doing": true, "done": true, "skip": true, "todo": true,
-	"wait": true, "blocked": true, "resume": true, "finish": true, "notify": true, "show": true, "ls": true, "help": true, "panel": true}
+	"wait": true, "blocked": true, "pause": true, "resume": true, "finish": true, "notify": true, "show": true, "ls": true, "help": true, "panel": true}
 
 const cliHelp = `Tick 命令行（agent 用；协议见 http://127.0.0.1:7357/protocol）
   tick start "标题" "第1步" "第2步" --agent <名称> [--ext <对话ID>] [--parent <主会话ID>] [--link <URL>] [--goal <完成标准>]
        子 agent 用 --parent 挂到派它出来的会话下；--agent 可用环境变量 TICK_AGENT 代替
-  tick doing|done|skip|todo <会话> <序号> [--note "结果或原因"]
+  tick doing|done|skip|todo <会话> <序号或稳定ID> [--note "结果或原因"] [--result passed|failed|unknown|unverified] [--evidence "证据入口"]
   tick plan <会话> "条目"...      重发完整清单（文字相同的条目保留状态）
   tick add <会话> "条目"...       追加
   tick rename <会话> "稳定主题 · 当前目标"    更新标题，保留旧名供搜索
   tick wait <会话> --note "要你决定的问题"      会通知用户
   tick blocked <会话> --note "卡在哪"           会通知用户
+  tick pause <会话> --note "待续原因与下一步"    暂停计时，保留结果，不表示等用户
   tick resume <会话>
   tick finish <会话> --summary "改动、验证、没覆盖的部分" [--failed]
   tick notify <会话> "文字" [--kind info|success|warning]
@@ -107,6 +108,7 @@ func runCLI(port int, args []string) int {
 			return 2
 		}
 	}
+	responseReminder := ""
 	call := func(method, path string, body any) (*Session, error) {
 		var r io.Reader
 		if body != nil {
@@ -115,11 +117,13 @@ func runCLI(port int, args []string) int {
 		}
 		req, _ := http.NewRequest(method, base+path, r)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Tick-Agent-Request", "1")
 		res, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
 		if err != nil {
 			return nil, err
 		}
 		defer res.Body.Close()
+		responseReminder, _ = url.QueryUnescape(res.Header.Get("X-Tick-Reminder"))
 		raw, _ := io.ReadAll(res.Body)
 		if res.StatusCode >= 300 {
 			var e struct{ Error string }
@@ -201,8 +205,13 @@ func runCLI(port int, args []string) int {
 		} else if len(pos) > 2 {
 			body["note"] = strings.Join(pos[2:], " ")
 		}
+		for _, key := range []string{"result", "evidence"} {
+			if value := opt(key); value != nil {
+				body[key] = *value
+			}
+		}
 		s, err = call("PATCH", "/api/sessions/"+pos[0]+"/items/"+pos[1], body)
-	case "wait", "blocked":
+	case "wait", "blocked", "pause":
 		if !need(1, "会话 ID") {
 			return 1
 		}
@@ -213,7 +222,7 @@ func runCLI(port int, args []string) int {
 		if note == "" {
 			return fail("写清要用户做什么：--note \"…\"")
 		}
-		status := map[string]string{"wait": "waiting", "blocked": "blocked"}[cmd]
+		status := map[string]string{"wait": "waiting", "blocked": "blocked", "pause": "paused"}[cmd]
 		s, err = call("PATCH", "/api/sessions/"+pos[0], map[string]any{"status": status, "note": note})
 	case "resume":
 		if !need(1, "会话 ID") {
@@ -289,12 +298,18 @@ func runCLI(port int, args []string) int {
 	}
 	if cmd == "start" {
 		fmt.Println(describe(s))
+		if responseReminder != "" {
+			fmt.Println(responseReminder)
+		}
 		return 0
 	}
 	// 写操作只回一行（会话、状态、进度），不把整张清单再打一遍，省 agent 的上下文；要看全貌用 tick show
 	if s != nil {
 		head, _, _ := strings.Cut(describe(s), "\n  ")
 		fmt.Println(strings.Replace(head, "\n", "  ", 1))
+	}
+	if responseReminder != "" {
+		fmt.Println(responseReminder)
 	}
 	return 0
 }

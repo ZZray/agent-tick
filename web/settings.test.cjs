@@ -72,6 +72,29 @@ test('write failure retains actual state and visible error, without automatic re
   assert.equal(ctx.settings.state.dnd,false);assert.match(ctx.settings.error,/disk full/);assert.equal(ctx.settings.busy,false);assert.equal(calls,1);
   assert.match(ctx.settings.el.markup,/role="alert"/);
 });
+test('automatic residual archive is an opt-in boolean setting with the retention policy visible',async()=>{
+  const calls=[];
+  const {ctx}=setup(async(url,input)=>{calls.push({url,input});return response(state({autoArchive:true}));});
+  ctx.settings.state=state();ctx.renderSettings();
+  assert.match(ctx.settings.el.markup,/data-setting="autoarchive" aria-pressed="false"/);
+  assert.match(ctx.settings.el.markup,/默认关闭。整组结束 30 分钟后/);
+  assert.match(ctx.settings.el.markup,/近期对话活动、等待、受阻和待续任务会保留/);
+  await ctx.settingsAct('autoarchive',true);
+  assert.deepEqual(JSON.parse(calls[0].input.body),{name:'autoarchive',on:true});
+  assert.equal(ctx.settings.state.autoArchive,true);
+  assert.match(ctx.settings.el.markup,/data-setting="autoarchive" aria-pressed="true"/);
+});
+test('notification display toggles preserve boolean settings contract and default enabled',async()=>{
+  const calls=[];const {ctx}=setup(async(url,input)=>{calls.push(JSON.parse(input.body));return response(state({trayFlash:false,notificationBadge:false}));});
+  ctx.settings.state=state();ctx.renderSettings();
+  assert.match(ctx.settings.el.markup,/data-setting="trayflash" aria-pressed="true"/);
+  assert.match(ctx.settings.el.markup,/data-setting="notificationbadge" aria-pressed="true"/);
+  await ctx.settingsAct('trayflash',false);await ctx.settingsAct('notificationbadge',false);
+  assert.deepEqual(calls,[{name:'trayflash',on:false},{name:'notificationbadge',on:false}]);
+  assert.match(html,/<details class="mn-list"[^>]*>[\s\S]*?<summary class="mn-row">显示与通知/);
+  assert.match(html,/nUnread && S.notificationBadge !== false/);
+  assert.doesNotMatch(html,/name:\s*'不响'/);
+});
 test('setting writes follow boolean or value HTTP contract without mixing fields',async()=>{
   const sent=[];const {ctx}=setup(async(url,opts)=>{sent.push(JSON.parse(opts.body));return response(state());});
   await ctx.settingsAct('dnd',true);await ctx.settingsAct('sound',true,'chime');

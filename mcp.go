@@ -30,16 +30,18 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 一个对话只有一个会话：同一对话来了新任务，用 tick_plan mode=append 追加到原会话，不要再 tick_start（原会话 finish 过也照样追加）。不要省略或伪造 conversation_id 来另开重复会话；tick_start 返回里列出的“没收尾的会话”只处理本对话自己开的。
 - 目标实质变化时用 tick_rename 更新标题，保留稳定主题，例如 Tick · 展开与标题优化。标题简短，普通步骤和追问不改名；旧名保留供搜索，清单、状态及对话关联不变。
 - 每完成一条马上 done，做完全部（或用户说不用做了）必须 tick_finish，不要让做完的会话挂在进行中。
-- 清单要完整：从第一步到验证、提交，整件事要做的每一步都写上，每条一个能检查的结果，验证单独成条；不要只写“分析 / 实现 / 测试”几个大阶段。跨多个模块时用 "# 模块名" 一项分段，后面的条目归这个模块；多层流程用 "# 父模块 / 子流程"，模块名保持稳定。计划变了用 tick_plan 重发完整清单。
+- 清单要完整：从第一步到验证、提交，每条一个能检查的结果。多个流程或职责必须用 "# 模块名"、"# 父流程 / 子流程" 分段；按实际工作单元划分，通常一至三层足够，简单短任务可不分组，不要每条步骤造一个模块。模块名简短稳定，让大屏能显示当前流程；计划变了用 tick_plan。
 - 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
 - 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
 - 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
 - 一条预计超过 10 分钟（全量编译、长测试）：doing 时在 note 写预计多久，跑完马上 done。Tick 30 分钟收不到更新会标成“可能掉线了”。
 - 做完了只想问接下来做什么：只发一次 kind=waiting（先一句结论再给选项），不要先 tick_finish 再问，用户会收到两条矛盾的提醒。用户选完再 doing 或 tick_finish。
 - 你是被派出去的子 agent：tick_start 必须带 parent_session_id；不要自己 kind=waiting 问用户，要问的写进返回给主 agent 的结果；返回前 tick_finish 自己的会话，否则它会一直挂在“等你”。
+- 主 agent 收尾前核对本次已返回的子任务已 tick_finish，取消项说明原因；只有实际并行的步骤同时 doing，不通过归档冒充完成。
 - 报“没有会话”：用户在 Tick 里删掉了它；只有接着做同一件事时才重新 tick_start（同样的 conversation_id）。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
-- 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。
+- 结束本轮回复前，会话状态必须和实际一致：完成才 tick_finish；需要用户回答才 kind=waiting；等待依赖用 kind=blocked；暂时停下待续用 tick_pause 写恢复条件，暂停步骤计时。执行器确实仍在后台运行时保留 running 并给真实执行证据，不为结束回复误标完成或制造“等你”。
+- 收到遗漏更新或收尾核对提醒时，先核真实执行证据，再确认 doing、blocked 依赖、done 与显式结果或 skipped 原因；不要为消除提醒编造进度，也不要转成没有实际问题的 waiting。
 - 其他值得用户知道的事用 tick_notify kind=info / success / warning。不要写密钥。Tick 连不上不影响主任务。`
 
 // 每个 MCP 连接记住客户端名（推断 agent）和最近登记的会话；同一连接可能并发调用
@@ -218,6 +220,9 @@ func (srv *Server) mcpCall(c *mcpConn, req rpcRequest, remote string) *rpcRespon
 		if err != nil {
 			return reply(map[string]any{"content": []map[string]string{{"type": "text", "text": "Tick：" + err.Error()}}, "isError": true})
 		}
+		if reminder := srv.store.AgentReminder(sid, p.Name == "tick_finish", now()); reminder != "" {
+			text += "\n\n" + reminder
+		}
 		return reply(map[string]any{"content": []map[string]string{{"type": "text", "text": text}}})
 	}
 	if !isRequest {
@@ -270,11 +275,12 @@ func (a toolArgs) items() ([]json.RawMessage, error) {
 	}
 	out := make([]json.RawMessage, len(list))
 	for i, x := range list {
-		s, ok := x.(string)
-		if !ok {
-			return nil, fmt.Errorf("items[%d] 必须是字符串", i)
+		switch x.(type) {
+		case string, map[string]any:
+		default:
+			return nil, fmt.Errorf("items[%d] 必须是字符串或条目对象", i)
 		}
-		out[i], _ = json.Marshal(s)
+		out[i], _ = json.Marshal(x)
 	}
 	return out, nil
 }
@@ -310,7 +316,13 @@ func describe(s *Session) string {
 			group = it.Group
 			fmt.Fprintf(&b, "\n  # %s", group)
 		}
-		fmt.Fprintf(&b, "\n  %s %d. %s", marks[it.Status], i+1, it.Text)
+		fmt.Fprintf(&b, "\n  %s %d. %s (id=%s)", marks[it.Status], i+1, it.Text, it.ID)
+		if it.Result != "" {
+			fmt.Fprintf(&b, " · result=%s", it.Result)
+		}
+		if it.Evidence != "" {
+			b.WriteString("\n        evidence: " + it.Evidence)
+		}
 		if it.Note != "" {
 			b.WriteString("\n        " + it.Note)
 		}
@@ -321,7 +333,7 @@ func describe(s *Session) string {
 	return b.String()
 }
 
-var statusLabel = map[string]string{"planning": "写清单", "running": "进行中", "waiting": "等你", "blocked": "受阻", "done": "完成", "failed": "失败", "cancelled": "已取消"}
+var statusLabel = map[string]string{"planning": "写清单", "running": "进行中", "waiting": "等你", "blocked": "受阻", "paused": "待续", "done": "完成", "failed": "失败", "cancelled": "已取消"}
 
 func schema(props map[string]any, required ...string) map[string]any {
 	s := map[string]any{"type": "object", "properties": props}
@@ -334,15 +346,19 @@ func schema(props map[string]any, required ...string) map[string]any {
 var sidProp = map[string]any{"type": "string", "description": "会话 ID（tick_start 返回的 s_ 开头那串）。省略时用本连接最近登记的会话。"}
 
 const itemsDesc = "完整清单：从第一步到验证、提交，按执行顺序把整件事要做的每一步都写上，每条一个能检查的结果，不要只写几个大阶段。" +
-	"涉及多个模块时用 \"# 模块名\" 单独一项开一段，后面的条目归这个模块（例：[\"# 后端\", \"加接口\", \"补测试\", \"# 前端\", \"接页面\"]）；多层流程用 \"# 父模块 / 子流程\"；标题行不算条目、不占序号"
+	"多个流程或职责必须用 \"# 模块名\" 或 \"# 父流程 / 子流程\" 分段（例：[\"# 导出 / 后端\", \"加接口\", \"补测试\", \"# 导出 / 界面\", \"接页面\"]）。按实际工作单元分组，通常一至三层足够，简单短任务可不分组，不要每条步骤建一个模块；doing 标识当前流程，标题行不算条目、不占序号"
 
-var strArr = map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": itemsDesc}
+var itemSchema = map[string]any{"oneOf": []any{map[string]any{"type": "string"}, schema(map[string]any{
+	"id":   map[string]any{"type": "string", "description": "完整清单重命名/移动时填写已有稳定ID，新条目省略"},
+	"text": map[string]any{"type": "string"}, "group": map[string]any{"type": "string"}, "status": map[string]any{"type": "string", "enum": itemStatus}, "note": map[string]any{"type": "string"}, "result": map[string]any{"type": "string", "enum": itemResults}, "evidence": map[string]any{"type": "string"},
+}, "text")}}
+var strArr = map[string]any{"type": "array", "items": itemSchema, "description": itemsDesc + "，最多1000条。对象可显式记录result/evidence，done不等于passed；重排改名用已有id保留结果与耗时。"}
 
 var mcpTools = []map[string]any{
 	{"name": "tick_start", "description": "登记一个任务会话并写下清单，用户的 Tick 小窗会立刻显示。多步任务开工前调用一次；同一对话里的后续任务用 tick_plan 追加，不另开会话。返回 session_id。",
 		"inputSchema": schema(map[string]any{
 			"title":             map[string]any{"type": "string", "description": "任务标题，一句话"},
-			"items":             map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": itemsDesc},
+			"items":             strArr,
 			"goal":              map[string]any{"type": "string", "description": "完成标准（可选）"},
 			"conversation_id":   map[string]any{"type": "string", "description": "你所在对话的 ID（能拿到就给）。同一 ID 再次调用会拿回原会话"},
 			"link":              map[string]any{"type": "string", "description": "能回到这个对话的链接（可选），例如 codex://threads/<id>"},
@@ -357,9 +373,13 @@ var mcpTools = []map[string]any{
 		"inputSchema": schema(map[string]any{
 			"session_id": sidProp,
 			"n":          map[string]any{"type": "integer", "minimum": 1, "description": "条目序号，从 1 开始"},
+			"item_id":    map[string]any{"type": "string", "description": "稳定条目ID，与n二选一；清单重排后仍指同一条"},
 			"status":     map[string]any{"type": "string", "enum": []string{"doing", "done", "skipped", "todo", "blocked"}},
 			"note":       map[string]any{"type": "string", "description": "结果、证据或原因，一句话"},
-		}, "n", "status")},
+			"result":     map[string]any{"type": "string", "enum": itemResults, "description": "显式验收结果；done仅执行结束，不自动通过。可不改status只更新result/evidence"},
+			"evidence":   map[string]any{"type": "string", "description": "证据或Run链接/路径，最多2000字符"},
+		})},
+	{"name": "tick_pause", "description": "本轮暂停、稍后待续；保留清单和显式结果，暂停条目计时，不表示等用户或依赖受阻。继续执行doing时恢复。", "inputSchema": schema(map[string]any{"session_id": sidProp, "note": map[string]any{"type": "string", "description": "待续原因与下一步"}}, "note")},
 	{"name": "tick_notify", "description": "给用户发通知：弹出系统通知，并在 Tick 小窗置顶显示。kind=waiting：需要用户决定或操作（会话转为“等你”）；kind=blocked：卡在环境、权限或依赖上；info / success / warning：其他值得知道的事。",
 		"inputSchema": schema(map[string]any{
 			"message":    map[string]any{"type": "string", "description": "通知内容。waiting 时写成用户一眼能答的问题"},
@@ -448,19 +468,37 @@ var mcpHandlers = map[string]toolFn{
 		if err != nil {
 			return "", err
 		}
-		n, ok := a["n"].(float64)
-		if !ok || n < 1 || n != float64(int(n)) {
-			return "", fmt.Errorf("n 是从 1 开始的整数")
+		n, hasN := a["n"].(float64)
+		itemID := a.str("item_id")
+		if (itemID == nil) == !hasN {
+			return "", fmt.Errorf("n 和 item_id 必须且只能填一个")
 		}
-		status, err := a.need("status")
+		ref := ""
+		if itemID != nil {
+			if strings.TrimSpace(*itemID) == "" {
+				return "", fmt.Errorf("item_id不能为空")
+			}
+			ref = *itemID
+		} else {
+			if n < 1 || n != float64(int(n)) {
+				return "", fmt.Errorf("n 是从 1 开始的整数")
+			}
+			ref = fmt.Sprint(int(n))
+		}
+		for _, key := range []string{"status", "note", "result", "evidence"} {
+			if _, exists := a[key]; exists && a.str(key) == nil {
+				return "", fmt.Errorf("%s 必须是字符串", key)
+			}
+		}
+		s, err := st.PatchItem(id, ref, ItemPatch{ExactID: itemID != nil, Status: a.str("status"), Note: a.str("note"), Result: a.str("result"), Evidence: a.str("evidence")})
 		if err != nil {
 			return "", err
 		}
-		s, err := st.PatchItem(id, fmt.Sprint(int(n)), ItemPatch{Status: status, Note: a.str("note")})
-		if err != nil {
-			return "", err
+		index := int(n) - 1
+		if itemID != nil {
+			index = slices.IndexFunc(s.Items, func(it *Item) bool { return it.ID == ref })
 		}
-		it := s.Items[int(n)-1]
+		it := s.Items[index]
 		done := 0
 		next := -1
 		for i, x := range s.Items {
@@ -471,11 +509,33 @@ var mcpHandlers = map[string]toolFn{
 				next = i
 			}
 		}
-		out := fmt.Sprintf("#%d %s → %s · 清单 %d/%d · %s", int(n), it.Text, it.Status, done, len(s.Items), statusLabel[s.Status])
+		out := fmt.Sprintf("#%d %s → %s · 清单 %d/%d · %s · id=%s", index+1, it.Text, it.Status, done, len(s.Items), statusLabel[s.Status], it.ID)
+		if it.Result != "" {
+			out += " · result=" + it.Result
+		}
+		if it.Evidence != "" {
+			out += "\nevidence: " + it.Evidence
+		}
 		if next >= 0 && it.Status == "done" {
 			out += fmt.Sprintf("\n下一条：#%d %s", next+1, s.Items[next].Text)
 		}
 		return out, nil
+	},
+	"tick_pause": func(st *Store, c *mcpConn, a toolArgs) (string, error) {
+		id, err := a.session(c)
+		if err != nil {
+			return "", err
+		}
+		note, err := a.need("note")
+		if err != nil {
+			return "", err
+		}
+		status := "paused"
+		s, err := st.Patch(id, PatchInput{Status: &status, Note: note})
+		if err != nil {
+			return "", err
+		}
+		return describe(s), nil
 	},
 	"tick_notify": func(st *Store, c *mcpConn, a toolArgs) (string, error) {
 		msg, err := a.need("message")

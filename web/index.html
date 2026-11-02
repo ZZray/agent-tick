@@ -1283,6 +1283,18 @@ html.nocur .scr-esc{opacity:0}
 .cv-parent-context{padding:12px 14px}
 .cv-parent-context strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-2)}
 .cv-parent-context span{display:block;margin-top:5px;font-size:12px;color:var(--text-2)}
+.cv-parent-context .cleanup-archive{position:absolute;right:12px;top:12px}
+.cv-parent-context strong{padding-right:78px}
+.cleanup-entry{position:relative;display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:12px;border-top:1px solid var(--line-soft)}
+.cleanup-title{min-width:0;flex:1;padding:0;border:0;background:none;color:var(--text-2);font:inherit;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cleanup-title>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cleanup-title>small{display:block;margin-top:4px;font-size:11px;color:var(--text-3)}
+.cleanup-archive{flex:none;padding:4px 6px;border:0;border-radius:var(--r);background:var(--bg-3);color:var(--text-2);font:inherit;font-size:11px;cursor:pointer;opacity:0;pointer-events:none}
+.cleanup-entry:hover .cleanup-archive,.cleanup-entry:focus-within .cleanup-archive,.cv-parent-context:hover .cleanup-archive,.cv-parent-context:focus-within .cleanup-archive,.cleanup-archive:disabled{opacity:1;pointer-events:auto}
+.cleanup-list{max-height:240px;overflow:auto}
+.archive-error{margin:8px 12px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);color:var(--red);font-size:12px;overflow-wrap:anywhere}
+.drawer-return{margin:0;padding:5px 14px;font-size:11px;color:var(--text-3);white-space:nowrap;border-bottom:1px solid var(--line-soft)}
+@media (hover:none){.cleanup-archive,.cv-history .cv-history-head .cv-archive{opacity:1;pointer-events:auto}}
 .cv-scope{padding:3px 12px 10px;border-top:1px solid var(--line-soft)}
 .cv-scope-tools{display:flex;gap:12px;flex-wrap:wrap}
 .cv-scope-tools button{padding:5px 0;border:0;background:none;font:inherit;font-size:12px;color:var(--text-2);cursor:pointer}
@@ -1301,6 +1313,27 @@ html.nocur .scr-esc{opacity:0}
 .cv-history-error{position:absolute;z-index:101;top:64px;left:18px;max-width:min(480px,calc(100vw - 36px));margin:0;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg-2);color:var(--red);font-size:12px;overflow-wrap:anywhere}
 .cv-ended{border:0;background:none;color:var(--text-2);font:inherit;font-size:12px;cursor:pointer}
 .cv-ended::before{content:'✓';margin-right:6px;color:var(--green)}
+.cv-cleanup::before{content:'·';color:var(--text-3)}
+.cv-detail{position:absolute;z-index:110;right:16px;top:60px;bottom:16px;width:min(470px,calc(100vw - 32px));display:flex;flex-direction:column;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 20px 60px #0005;color:var(--text-2);font-size:12px}
+.cv-detail header{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--line-soft)}
+.cv-detail h2{font-size:14px;line-height:1.5;margin:0;flex:1;min-width:0;overflow-wrap:anywhere}
+.cv-detail-tools{display:flex;gap:5px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.cv-detail-tools button{padding:5px 9px;border:1px solid var(--line);border-radius:var(--r);background:none;color:var(--text-2);font:inherit;cursor:pointer}
+.cv-detail-tools button[aria-pressed=true]{background:var(--active);color:var(--text-1)}
+.cv-detail-body{overflow:auto;min-height:0;padding:0 14px 14px;overscroll-behavior:contain}
+.cv-detail-item{padding:12px 0;border-bottom:1px solid var(--line-soft);overflow-wrap:anywhere}
+.cv-detail-item>summary{cursor:pointer;line-height:1.6}
+.cv-detail-item pre{font:inherit;white-space:pre-wrap;line-height:1.65;padding:9px;background:var(--bg-3);border-radius:var(--r);overflow-wrap:anywhere}
+.cv-result{font-size:11px;color:var(--text-3);margin-left:6px}
+.cv-result.failed{color:var(--red)}.cv-result.unknown{color:var(--orange)}.cv-result.passed{color:var(--green)}
+.cv-result-summary{padding:8px 14px;color:var(--text-3);line-height:1.7}
+.cv-child-summary{padding:0 12px 10px}.cv-child-summary button{border:0;background:none;color:var(--text-2);font:inherit;font-size:12px;cursor:pointer}
+.cv-root-switch{display:flex;gap:4px;max-width:35vw;overflow:auto;scrollbar-width:thin}
+.cv-root-switch button{max-width:180px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid var(--line);border-radius:var(--r);padding:5px 8px;background:none;color:var(--text-3);font:inherit;font-size:11px;cursor:pointer}
+.cv-root-switch button[aria-pressed=true]{color:var(--text-1);background:var(--active)}
+.cv-total{font-size:11px;white-space:nowrap;color:var(--text-3)}
+.scr-h{flex-wrap:wrap;min-height:48px;height:auto;padding-top:9px;padding-bottom:9px;gap:10px}
+.cv-q .q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
 .cv-history p{max-height:150px;overflow:auto;color:var(--text-3);overflow-wrap:anywhere}
 .cv-history small{color:var(--text-4)}
 .cv-mod-list{max-height:220px;overflow:auto}
@@ -1381,6 +1414,7 @@ const esc = v => {
 };
 // 带数字的句子先按整句换（语序不同），其余按词组从长到短替换
 const TR_RE = [
+  [/(\d+) 个会话，轮流显示/g, '$1 sessions, rotating'], [/(\d+) 个等依赖/g, '$1 waiting on dependencies'], [/(\d+) 个待续/g, '$1 paused'],
   [/今天勾了 (\d+) 项/g, '$1 checked today'], [/勾了 (\d+) 项 · 干活 /g, '$1 checked · worked '], [/勾了 (\d+) 项/g, 'checked $1'],
   [/勾了 #(\d+)/g, 'checked #$1'], [/完成了第 (\d+) 项/g, 'finished step $1'], [/完成了 (\d+) 项/g, 'finished $1 steps'], [/勾选 #(\d+)/g, 'check #$1'], [/还剩 (\d+) 分钟/g, '$1 min left'], [/(\d+) 条未读通知/g, '$1 unread'],
   [/还有 (\d+) 个没铺开，回列表里看/g, '$1 more in the list'], [/还有 (\d+) 条，点开悬浮窗的通知看全部/g, '$1 more in the notifications'], [/(\d+) 个进行中/g, '$1 running'], [/(\d+) 个在等你/g, '$1 waiting on you'],
@@ -1448,6 +1482,13 @@ const TR = {
   '详情': 'Details', '项已完成': 'done', '项 · 干活': 'items · worked', '项': 'items', '小窗没打开：': 'Window did not open: ', '写清单': 'Planning',
   '新通知时响的提示音': 'Sound for new notifications', '修改': 'Edit', '悬浮窗置顶': 'Keep window on top', '悬浮窗': 'Window', '演示数据': 'Demo data',
   '已放回': 'Restored', '已复制这一条': 'Item copied', '已复制': 'Copied', '已归档里': 'in Archived', '已归档': 'Archived', '已结束': 'Ended', '已连接': 'Connected',
+  '当前任务': 'Current tasks', '等依赖': 'Waiting on dependencies', '待续': 'Paused', '显示与通知': 'Display and notifications', '静音': 'Mute', '托盘闪烁': 'Tray flashing', '悬浮窗未读角标': 'Unread badges',
+  '待清理': 'Needs cleanup', '归档整组': 'Archive group', '归档中…': 'Archiving…', '子任务未收尾': 'Child tasks unfinished', '无更新': 'without updates',
+  '主任务已结束 · 子任务在等你': 'Parent finished · Child tasks need you', '主任务已结束 · 子任务有近期活动': 'Parent finished · Recent child activity',
+  '自动归档残留任务': 'Automatically archive inactive groups',
+  '默认关闭。整组结束 30 分钟后，或主任务已结束且所有子任务 60 分钟无更新后归档；近期对话活动、等待、受阻和待续任务会保留。新进度会自动恢复。': 'Off by default. Archive completed groups after 30 minutes, or finished parents whose children have been inactive for 60 minutes. Recent chat activity, waiting, blocked and paused tasks stay visible. New progress restores the session.',
+  '主任务已结束，子任务超过 30 分钟没有进展，点开后可归档整组': 'The parent finished and its children have had no progress for over 30 minutes. Open to archive the group.',
+  '主任务已结束，子任务未收尾且超过 30 分钟没有进展。归档保留记录，新进度会自动恢复。': 'The parent finished, but its unfinished children have had no progress for over 30 minutes. Archiving keeps their records; new progress restores the session.',
   '已取消': 'Cancelled', '已删除「': 'Deleted “', '永久删除': 'Delete permanently', '游戏、视频、演示全屏时自动隐藏': 'Hide while games, videos or slides are fullscreen',
   '再点删除': 'Click again to delete', '再点一次永久删除（连同子任务）': 'Click again to delete permanently (with sub-tasks)', '在等你': 'is waiting for you',
   '在面板里看完整清单、动态，可以编辑': 'See the full checklist and activity in the panel, with editing', '在面板里看完整清单和动态': 'See the full checklist and activity in the panel',
@@ -1510,7 +1551,7 @@ const byOrder = (a, b) => (S.order === 'old' ? a.createdAt - b.createdAt : b.cre
 
 // ============ 词汇 ============
 const trMap = m => (EN ? Object.fromEntries(Object.entries(m).map(([k, v]) => [k, trText(v)])) : m);
-const STATUS = trMap({ planning: '写清单', running: '进行中', waiting: '等你', blocked: '受阻', done: '完成', failed: '没做成', cancelled: '已取消' });
+const STATUS = trMap({ planning: '写清单', running: '进行中', waiting: '等你', blocked: '等依赖', done: '完成', failed: '没做成', cancelled: '已取消', paused: '待续' });
 const ITEM = trMap({ todo: '待办', doing: '进行中', done: '完成', skipped: '跳过', blocked: '卡住' });
 const VIEWS = trMap({ active: '进行中', waiting: '等你', idle: '可能掉线了', history: '历史', all: '全部', archived: '已归档' });
 const AGENTS = {
@@ -1550,6 +1591,7 @@ const finished = it => it.status === 'done' || it.status === 'skipped';
 const progress = s => ({ done: s.items.filter(finished).length, total: s.items.length });
 const isEnded = s => s.status === 'done' || s.status === 'failed' || s.status === 'cancelled';
 const isWaiting = s => s.status === 'waiting' || s.status === 'blocked';
+const waitingForUser = s => s.status === 'waiting';
 const current = s => s.items.find(it => it.status === 'doing') || null;
 // 10 分钟没报；子 agent 在动时不算（主会话在等子任务，没有“没动静”）
 const isStale = s => s.status === 'running' && now() - s.updatedAt > 10 * MIN && !childrenOf(s).some(c => !isEnded(c) && now() - c.updatedAt <= 10 * MIN);
@@ -1747,7 +1789,7 @@ function ingestNotice(n) {
     sendToast(toastCard(s, n.kind, { agentId: n.agent, text: n.kind === 'done' || n.kind === 'failed' ? (s?.summary || n.text || n.title) : n.text, sub: s?.title || n.title || '' }));
     noticeGlow(n.kind, n.sessionId);
     if (NATIVE && S.dock.tucked && !S.strip) speakFor(n);
-    if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked')) { S.drawerWant = true; S.pillSid = n.sessionId; } // 胶囊先换到提问的那个
+    if (FLOAT && (n.kind === 'waiting' || n.kind === 'blocked') && drawerCanAuto(n)) { S.drawerWant = true; S.pillSid = n.sessionId; } // 同一轮等待只自动打开一次；通知与提醒卡仍照常保留。
     // 铃铛摆一下（画完这一帧之后）。用 WAAPI，不靠 class：重绘会按新 HTML 改掉 class
     if (FLOAT && !RM.matches) {
       setTimeout(() => {
@@ -1773,6 +1815,7 @@ async function connect() {
   const es = new EventSource('/api/stream');
   es.addEventListener('hello', () => { if (S.conn === 'lost') reload(); S.conn = 'live'; schedule(); });
   es.addEventListener('session', e => { ingest(JSON.parse(e.data)); scheduleData(); });
+  es.addEventListener('sessions', e => { for (const session of JSON.parse(e.data)) ingest(session); scheduleData(); });
   es.addEventListener('notice', e => { ingestNotice(JSON.parse(e.data)); scheduleData(); });
   es.addEventListener('notices-cleared', () => { S.notices = []; S.fresh = new Set(); schedule(); }); // 托盘预览或别的页面清空了
   es.addEventListener('deleted', e => {
@@ -2213,6 +2256,7 @@ function renderPeek() {
 // 托盘菜单（view=menu）：头部状态 + 六宫格常用操作 + 开关列表 + 提示音 + 底栏
 // ======================================================================
 function startMenu() {
+  document.addEventListener('toggle', e => { if (e.target.matches?.('[data-key=menu-display]')) S.menuDisplay = e.target.open; }, true);
   window.tickMenuOpen = st => {
     S.menu = st;
     render();
@@ -2230,7 +2274,7 @@ function startMenu() {
   window.tickMenuHidden = () => { pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
   // 开关先在界面上拨过去，再等宿主改；宿主回来的状态和点的不一样就是没改成，拨回去并说一声。
   // 只核对同步生效的两项（写注册表 / 存设置）；置顶、贴边这些宿主排队异步改，回来时可能还是旧值
-  const CHECKED = { autostart: ['autostart', '开机启动没设上'], autoupdate: ['autoUpdate', '自动更新没改成'] };
+  const CHECKED = { trayflash: ['trayFlash', '托盘闪烁没改成'], notificationbadge: ['notificationBadge', '未读角标没改成'], autoarchive: ['autoArchive', '自动归档没改成'], autostart: ['autostart', '开机启动没设上'], autoupdate: ['autoUpdate', '自动更新没改成'] };
   const act = async (name, on, val = '') => {
     let st = '';
     try { st = await window.tickMenuAct(name, on, val); } catch { /* 宿主异常时按没改成处理 */ }
@@ -2295,20 +2339,23 @@ function renderMenu() {
       ${tile('mcp', IC.copy, '复制 MCP', '接入 agent')}
       ${tile('browser', IC.globe, '浏览器打开', '127.0.0.1')}
     </div>
-    <div class="mn-list">
+    <details class="mn-list" data-key="menu-display"${S.menuDisplay ? ' open' : ''}><summary class="mn-row">显示与通知</summary>
       ${sw('pin', '悬浮窗置顶', m.pinned)}
       ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
       ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
       ${sw('autostart', '开机启动', m.autostart)}
       ${sw('screen', '大屏模式', m.screen, '全屏无限画布，给扩展屏挂着看：每个会话一张卡，可以拖动、缩放；有扩展屏铺扩展屏，Esc 退出')}
       ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
+      ${sw('trayflash', '托盘闪烁', m.trayFlash !== false)}
+      ${sw('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}
+      ${sw('autoarchive', '自动归档残留任务', m.autoArchive)}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
-      <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
+      <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '静音' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
       <div class="mn-row nohov"><span class="grow">提醒停留</span>${pickHtml('m-toastlen', [{ id: 'short', name: '短（一半）' }, { id: '', name: '标准' }, { id: 'long', name: '长（两倍）' }], m.toastLen || '', '提醒停留')}</div>
       <div class="mn-row nohov"><span class="grow">界面语言</span>${pickHtml('m-lang', [{ id: '', name: '跟随系统' }, { id: 'zh', name: '中文' }, { id: 'en', name: 'English' }], m.lang || '', '界面语言')}</div>
       <div class="mn-row nohov"><span class="grow">主题色</span><span class="mn-cs" role="radiogroup" aria-label="主题色">${(m.themes || []).map(t => { const on = t.id === m.theme?.id; return `<button class="mn-c${on ? ' on' : ''}" data-m="theme" data-v="${esc(t.id)}" style="--c:${esc(t.brand)}" role="radio" aria-checked="${on}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}"></button>`; }).join('')}</span></div>
       ${S.menuErr ? `<div class="mn-err" data-key="mn-err" data-enter="fade">${sicon('blocked')}${esc(S.menuErr.text)}</div>` : ''}
-    </div>
+    </details>
     <footer class="mn-f"><button data-m="sounddir">${IC.folder}声音文件夹</button><i></i><button data-m="quit" class="quit">${IC.power}退出 Tick</button></footer>
   </div>`;
   morph(root, html);
@@ -2318,6 +2365,49 @@ function renderMenu() {
 // ======================================================================
 // 悬浮窗
 // ======================================================================
+// 会话树与归档：悬浮窗、面板和大屏共用同一个真实会话树和后台动作。
+const ARCHIVE = { busy: new Set(), error: '' };
+function sessionBranch(owner) {
+  const list = [owner], seen = new Set([owner.id]);
+  for (let i = 0; i < list.length; i++) for (const child of childrenOf(list[i])) if (!seen.has(child.id)) { seen.add(child.id); list.push(child); }
+  return list;
+}
+function branchActive(owner) {
+  return sessionBranch(owner).some(s => !isEnded(s) && (isWaiting(s) || !isDormant(s)));
+}
+function cleanupRoots() {
+  return visible().filter(s => !isChild(s) && isEnded(s) && sessionBranch(s).some(x => !isEnded(x)) && !branchActive(s)).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+function parentContextNote(owner) {
+  const branch = sessionBranch(owner);
+  return branch.some(waitingForUser) ? '主任务已结束 · 子任务在等你' : branch.some(s => s.status === 'blocked') ? '主任务已结束 · 子任务等待依赖' : branch.some(s => s.status === 'paused') ? '主任务已结束 · 子任务待续' : '主任务已结束 · 子任务有近期活动';
+}
+function cleanupNote(owner) {
+  const last = Math.max(...sessionBranch(owner).filter(s => !isEnded(s)).map(lastSign));
+  return `子任务未收尾 · ${short(now() - last)} 无更新`;
+}
+async function archiveTree(id, archived = true) {
+  if (ARCHIVE.busy.has(id)) return null;
+  ARCHIVE.busy.add(id); ARCHIVE.error = ''; schedule();
+  try {
+    const response = await fetch(`/api/sessions/${encodeURIComponent(id)}/archive`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Tick-User': '1' }, body: JSON.stringify({ archived }) });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `HTTP ${response.status}`);
+    const result = await response.json();
+    for (const session of result.sessions) ingest(session);
+    if (archived && result.sessions.some(s => s.id === S.sel)) S.sel = null;
+    if (SCREEN) cvRequestArrange();
+    return result;
+  } catch (err) { ARCHIVE.error = `归档没成功：${err.message}`; throw err; }
+  finally { ARCHIVE.busy.delete(id); schedule(); }
+}
+async function undoArchiveChange(ids, archived) {
+  try {
+    await Promise.all(ids.map(id => post(`/api/sessions/${encodeURIComponent(id)}`, { archived }, 'PATCH')));
+    await reload();
+    if (SCREEN) cvRequestArrange();
+  } catch (err) { ARCHIVE.error = `归档没成功：${err.message}`; if (!FLOAT && !SCREEN) toast(esc(ARCHIVE.error)); schedule(); }
+}
+// 共享归档结束。
 function floatData(all = false) { // all：大屏用，不隐藏分离成子窗口的任务
   const t = now();
   const unread = S.notices.filter(n => !n.read);
@@ -2337,19 +2427,22 @@ function floatData(all = false) { // all：大屏用，不隐藏分离成子窗�
   const live = visible().filter(s => all || !S.detached.has(s.id)); // 分离成子窗口的任务，在子窗口关掉前不在主窗口里显示
   // 子 agent 的会话显示在主会话下面，不单独占一行（主会话不在了才单独显示）
   const top = live.filter(s => !isChild(s));
-  const open = top.filter(s => !isEnded(s)).sort((a, b) => rank(a) - rank(b) || byOrder(a, b));
+  const open = top.filter(s => !isEnded(s) || branchActive(s)).map(s => isEnded(s) ? { ...s, canvasContext: true } : s).sort((a, b) => rank(a) - rank(b) || byOrder(a, b));
   // 说在跑、但 30 分钟没更新的单独成组（“可能掉线了”），不占“进行中”的位置
-  const active = open.filter(s => !isDormant(s));
-  const stale = open.filter(isDormant);
-  const recent = top.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN)
+  const active = open.filter(branchActive);
+  const stale = open.filter(s => !branchActive(s));
+  const cleanup = cleanupRoots().filter(s => all || !S.detached.has(s.id));
+  const recent = top.filter(s => isEnded(s) && !branchActive(s) && !sessionBranch(s).some(x => !isEnded(x)) && t - s.endedAt < 30 * MIN)
     .sort((a, b) => (S.order === 'old' ? a.endedAt - b.endedAt : b.endedAt - a.endedAt));
   // 标题上的数字按列表里的行数（一个任务一行，子 agent 算在主任务里）：
   // 自己或手下的子 agent 在等你的算“等你”，其余算“进行中”，两个数加起来就是“进行中”分组的行数
-  const needsYou = s => isWaiting(s) || childrenOf(s).some(isWaiting);
+  const needsYou = s => sessionBranch(s).some(waitingForUser);
   // （主任务掉线了、子 agent 还在等你的也要数上，不能把等你的漏掉）
   const nW = [...active, ...stale].filter(needsYou).length;
-  const nR = active.filter(s => !needsYou(s)).length;
-  return { unread, cards: cards.slice(0, 3), active, stale, recent, nW, nR };
+  const nR = active.filter(s => !needsYou(s) && sessionBranch(s).some(x => (x.status === 'running' || x.status === 'planning') && !isDormant(x))).length;
+  const paused = active.filter(s => sessionBranch(s).filter(x => !isEnded(x)).every(x => x.status === 'paused'));
+  const dependencies = active.filter(s => !paused.includes(s) && !sessionBranch(s).some(waitingForUser) && !sessionBranch(s).some(x => (x.status === 'running' || x.status === 'planning') && !isDormant(x)));
+  return { unread, cards: cards.slice(0, 3), active: active.filter(s => !paused.includes(s) && !dependencies.includes(s)), paused, dependencies, stale, cleanup, recent, nW, nR };
 }
 
 // 左上角 logo 点开的 Agent 面板：每个 agent 一行（几个在跑、几个等你、最近一条动态、多久前），
@@ -2358,9 +2451,11 @@ function agentsHtml() {
   const by = new Map();
   for (const s of visible()) {
     let g = by.get(s.agent);
-    if (!g) by.set(s.agent, g = { agent: s.agent, run: 0, wait: 0, last: null });
-    if (isWaiting(s)) g.wait++;
-    else if (!isEnded(s) && !isDormant(s)) g.run++;
+    if (!g) by.set(s.agent, g = { agent: s.agent, run: 0, wait: 0, blocked: 0, paused: 0, last: null });
+    if (waitingForUser(s)) g.wait++;
+    else if (s.status === 'blocked') g.blocked++;
+    else if (s.status === 'paused') g.paused++;
+    else if (isRunning(s)) g.run++;
     const e = s.events?.[s.events.length - 1];
     if (e && (!g.last || e.at > g.last.e.at)) g.last = { s, e };
   }
@@ -2375,7 +2470,7 @@ function agentsHtml() {
     const x = g.last;
     return `<button class="ag-row" data-key="ag-${esc(g.agent)}" data-enter="fade" data-act="agent-go"${x ? ` data-sid="${esc(x.s.id)}" data-tip="${esc(`${x.s.title}\n${evTr(x.e.text)}`)}"` : ''}>
       <span class="tile" style="--ac:${a.color}">${esc(a.mark)}</span>
-      <span class="ag-m"><span class="ag-n"><b class="trunc">${esc(a.name)}</b>${g.wait ? `<span class="ag-w num">${g.wait} 个在等你</span>` : ''}${g.run ? `<span class="ag-r num">${g.run} 个进行中</span>` : ''}</span>
+      <span class="ag-m"><span class="ag-n"><b class="trunc">${esc(a.name)}</b>${g.wait ? `<span class="ag-w num">${g.wait} 个在等你</span>` : ''}${g.blocked ? `<span class="ag-w num">${g.blocked} 个等依赖</span>` : ''}${g.paused ? `<span class="ag-r num">${g.paused} 个待续</span>` : ''}${g.run ? `<span class="ag-r num">${g.run} 个进行中</span>` : ''}</span>
         ${x ? `<span class="ag-e trunc">${esc(firstLine(evText(x)))}</span>` : ''}</span>
       ${x ? `<span class="when num" data-clock="ago" data-at="${x.e.at}">${ago(x.e.at)}</span>` : ''}</button>`;
   };
@@ -2568,7 +2663,7 @@ function renderFloat(el, mode) {
   const first = !el.firstElementChild;
   const nUnread = d.unread.length;
   const bell = S.compact ? '' : `<button class="ib bell${S.drawer ? ' on' : ''}${nUnread ? ' unread' : ''}${d.cards.length ? ' hot' : ''}" data-key="a-bell" data-act="drawer"
-      data-tip="${S.drawer ? '收起通知' : nUnread ? `${nUnread} 条未读通知` : '通知'}" aria-pressed="${S.drawer}">${IC.bell}${nUnread ? `<span class="bdg num" data-roll>${nUnread > 99 ? '99+' : nUnread}</span>` : ''}</button>`;
+      data-tip="${S.drawer ? '收起通知' : nUnread ? `${nUnread} 条未读通知` : '通知'}" aria-pressed="${S.drawer}">${IC.bell}${nUnread && S.notificationBadge !== false ? `<span class="bdg num" data-roll>${nUnread > 99 ? '99+' : nUnread}</span>` : ''}</button>`;
   const acts = `<div class="f-acts">
     ${bell}
     ${mode === 'native' && !S.compact ? `<button class="ib pin${S.pinned ? ' on' : ''}" data-key="a-pin" data-act="pin" data-tip="${S.pinned ? '取消置顶' : '置顶'}" aria-pressed="${S.pinned}">${IC.pinMorph}</button>` : ''}
@@ -2595,6 +2690,9 @@ function renderFloat(el, mode) {
         <span class="g-peek trunc" data-key="peek-s">${S.staleOpen ? '' : esc(d.stale.slice(0, 3).map(s => s.title).join(' · '))}</span>
         <span class="g-tools"><button class="ib" data-act="end-stale" data-tip="全部结束：标成已取消（agent 回来接着报会自动恢复）" aria-label="全部结束">${IC.x}</button></span></div>
       <div class="g-body"><div><div class="s-list" data-flip>${d.stale.map(s => sessionRow(s, live)).join('')}</div></div></div></section>` : '';
+  const cleanup = d.cleanup.length ? `<section class="grp hist stale-g${S.cleanupOpen ? ' open' : ''}" data-key="g-cleanup" data-enter="grow" data-exit>
+      <div class="g-h"><button class="g-fold" data-act="cleanup-fold" aria-expanded="${!!S.cleanupOpen}" data-tip="主任务已结束，子任务超过 30 分钟没有进展，点开后可归档整组">${IC.chev}${sicon('dormant')}<span class="g-t">待清理</span><span class="c num">${d.cleanup.length}</span></button><span class="g-peek trunc">${S.cleanupOpen ? '' : esc(d.cleanup.slice(0, 2).map(s => s.title).join(' · '))}</span></div>
+      <div class="g-body"><div class="cleanup-list">${d.cleanup.map(s => `<div class="cleanup-entry"><button class="cleanup-title" data-act="open-panel-session" data-sid="${esc(s.id)}" title="${esc(s.title)}"><span>${esc(s.title)}</span><small>${esc(cleanupNote(s))}</small></button><button class="cleanup-archive" data-act="archive" data-sid="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></div>`).join('')}</div></div></section>` : '';
   // 贴边收起时整块换成小标签（或消息气泡）；外层 .f 的尺寸在两种形态之间平滑变形，原生窗口跟着长
   const tucked = mode === 'native' && S.dock.tucked;
   // 新的“等你 / 受阻”到了：下次以完整面板出现时自动拉开抽屉（收着、胶囊时先不撑大窗口）
@@ -2619,11 +2717,15 @@ function renderFloat(el, mode) {
       ${acts}
     </header>
     <div class="f-body">
-      ${d.active.length ? group('g-a', '进行中', d.active.length, `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
+      ${d.active.length ? group('g-a', '当前任务', d.active.length, `<div class="s-list" data-flip>${d.active.map(s => sessionRow(s, live)).join('')}</div>`, d.active.length + d.recent.length > 1 ? sortBtn : '') : ''}
+      ${d.paused.length ? group('g-paused', '待续', d.paused.length, `<div class="s-list">${d.paused.map(s => sessionRow(s, live)).join('')}</div>`) : ''}
+      ${d.dependencies.length ? group('g-dependencies', '等依赖', d.dependencies.length, `<div class="s-list">${d.dependencies.map(s => sessionRow(s, live)).join('')}</div>`) : ''}
       ${staleG}
+      ${cleanup}
       ${hist}
+      ${ARCHIVE.error ? `<p class="archive-error" role="alert">${esc(ARCHIVE.error)}</p>` : ''}
       ${S.undo && now() < S.undo.until ? `<div class="undo" data-key="undo" data-enter="grow" data-exit><span>${esc(tr(S.undo.text))}</span><button class="g-act" data-act="undo">撤销</button></div>` : ''}
-      ${!d.active.length && !d.recent.length && !d.stale.length ? floatEmpty() : ''}
+      ${!d.active.length && !d.paused.length && !d.dependencies.length && !d.recent.length && !d.stale.length && !d.cleanup.length ? floatEmpty() : ''}
     </div>
   </div>`;
   // 抽屉盖在当前窗口上（从铃铛那里展开），窗口不变宽；内容太矮时窗口长高一些给抽屉留地方
@@ -2654,6 +2756,7 @@ function renderFloat(el, mode) {
   if (d.nW > (el._nW ?? d.nW)) ping(el.querySelector('.wdot') || el.querySelector('.mini.waiting'));
   el._nW = d.nW;
   if (!el._wired) wireFloat(el, mode);
+  if (FLOAT) drawerReturnSync(drawer && !sheet);
 }
 
 // 外层盒子从旧尺寸变到新尺寸：标签 ↔ 面板 ↔ 气泡之间的“长出来 / 缩回去”。
@@ -2669,6 +2772,67 @@ function boxMorph(f, from) {
     { duration: grow ? 300 : 260, easing: EASE_BOX });
 }
 
+// 通知页停留：复用等待提醒时长，翻看时暂停；只回到进度，不改变通知或会话状态。
+const DRAWER_RETURN = { timer: 0, shown: false, left: 0, at: 0, hover: false, focus: false, quietUntil: 0, seen: new Set() };
+const drawerReturnTTL = () => TOAST_TTL.waiting * ({ short: .5, long: 2 }[S.toastLen] || 1);
+function drawerCanAuto(n) {
+  const since = S.sessions.get(n.sessionId)?.waitSince || n.at;
+  const key = `${n.sessionId}:${n.kind}:${since}`;
+  if (S.drawer || document.hidden || S.hostHidden || Date.now() < DRAWER_RETURN.quietUntil || DRAWER_RETURN.seen.has(key)) return false;
+  DRAWER_RETURN.seen.add(key);
+  return true;
+}
+function drawerReturnStop() {
+  clearTimeout(DRAWER_RETURN.timer); DRAWER_RETURN.timer = 0;
+  if (DRAWER_RETURN.shown) DRAWER_RETURN.quietUntil = Date.now() + drawerReturnTTL();
+  DRAWER_RETURN.shown = false; DRAWER_RETURN.left = 0; DRAWER_RETURN.at = 0; DRAWER_RETURN.hover = false; DRAWER_RETURN.focus = false;
+  S.drawerWant = false;
+}
+function drawerReturnPaint() {
+  const paused = DRAWER_RETURN.hover || DRAWER_RETURN.focus;
+  const text = `${Math.ceil(DRAWER_RETURN.left / 1000)} 秒后回到进度${paused ? ' · 暂停' : ''}`;
+  for (const el of document.querySelectorAll('[data-drawer-return]')) { if (el.textContent !== text) el.textContent = text; }
+}
+function drawerReturnTick() {
+  clearTimeout(DRAWER_RETURN.timer); DRAWER_RETURN.timer = 0;
+  if (!DRAWER_RETURN.shown) return;
+  const at = Date.now();
+  if (DRAWER_RETURN.at) DRAWER_RETURN.left = Math.max(0, DRAWER_RETURN.left - (at - DRAWER_RETURN.at));
+  DRAWER_RETURN.at = at;
+  if (!DRAWER_RETURN.left) { S.drawer = false; S.drawerAuto = false; S.drawerWant = false; drawerReturnStop(); schedule(); return; }
+  drawerReturnPaint();
+  DRAWER_RETURN.timer = setTimeout(drawerReturnTick, Math.min(1000, DRAWER_RETURN.left));
+}
+function drawerReturnPause(kind, on) {
+  if (!DRAWER_RETURN.shown || DRAWER_RETURN[kind] === on) return;
+  const at = Date.now();
+  if (DRAWER_RETURN.at && !DRAWER_RETURN.hover && !DRAWER_RETURN.focus) DRAWER_RETURN.left = Math.max(0, DRAWER_RETURN.left - (at - DRAWER_RETURN.at));
+  DRAWER_RETURN[kind] = on;
+  clearTimeout(DRAWER_RETURN.timer); DRAWER_RETURN.timer = 0;
+  DRAWER_RETURN.at = DRAWER_RETURN.hover || DRAWER_RETURN.focus ? 0 : at;
+  drawerReturnPaint();
+  if (DRAWER_RETURN.at) DRAWER_RETURN.timer = setTimeout(drawerReturnTick, Math.min(1000, DRAWER_RETURN.left));
+}
+function drawerKeyboardFocus(el) {
+  return !!el?.closest?.('.f-drawer') && el.matches(':focus-visible,input,textarea,select,[contenteditable]:not([contenteditable="false"])');
+}
+function drawerReturnSync(show) {
+  if (!show || document.hidden || S.hostHidden) { drawerReturnStop(); return; }
+  if (!DRAWER_RETURN.shown) { DRAWER_RETURN.shown = true; DRAWER_RETURN.left = drawerReturnTTL(); DRAWER_RETURN.at = Date.now(); DRAWER_RETURN.timer = setTimeout(drawerReturnTick, 1000); }
+  const drawer = document.querySelector('.f-drawer');
+  if (drawer) { drawerReturnPause('hover', drawer.matches(':hover')); drawerReturnPause('focus', drawer.contains(document.activeElement) && drawerKeyboardFocus(document.activeElement)); }
+  drawerReturnPaint();
+}
+if (FLOAT) {
+  document.addEventListener('pointerover', e => { const drawer = e.target.closest?.('.f-drawer'); if (drawer && !drawer.contains(e.relatedTarget)) drawerReturnPause('hover', true); });
+  document.addEventListener('pointerout', e => { const drawer = e.target.closest?.('.f-drawer'); if (drawer && !drawer.contains(e.relatedTarget)) drawerReturnPause('hover', false); });
+  document.addEventListener('focusin', e => { if (e.target.closest?.('.f-drawer')) drawerReturnPause('focus', drawerKeyboardFocus(e.target)); });
+  document.addEventListener('focusout', e => { const drawer = e.target.closest?.('.f-drawer'); if (drawer && !drawer.contains(e.relatedTarget)) drawerReturnPause('focus', false); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { S.drawer = false; S.drawerWant = false; drawerReturnStop(); schedule(); } });
+  addEventListener('pagehide', drawerReturnStop);
+}
+// 通知页停留结束。
+
 // 通知抽屉：铃铛拉开，在朝屏幕中间的那一侧。最上面是“等你 / 受阻”卡片（能回到对话、复制接力提示），
 // 下面是通知列表：点一行标为已读并在主面板里定位会话；底部选提示音
 function drawerHtml(d) {
@@ -2683,7 +2847,7 @@ function drawerHtml(d) {
         ${allRead ? '<button class="g-act" data-act="dtab" data-tab="all">看全部通知</button>' : '<span>agent 需要你拍板、卡住或做完时，会在这里留一条。</span>'}</div>`
     : '';
   const sound = NATIVE && S.sounds.length ? `<footer class="dr-foot">
-      <span class="dr-snd"><span class="dr-si" data-tip="新通知时响的提示音">${IC.sound}</span>${pickHtml('sound', [{ id: '', name: '不响' }, ...S.sounds], S.sound, '提示音')}</span>
+      <span class="dr-snd"><span class="dr-si" data-tip="新通知时响的提示音">${IC.sound}</span>${pickHtml('sound', [{ id: '', name: '静音' }, ...S.sounds], S.sound, '提示音')}</span>
       <span class="grow"></span>
       ${S.sound ? `<button class="ib" data-act="sound-test" data-tip="试听">${IC.play}</button>` : ''}
       <button class="ib" data-act="sound-dir" data-tip="打开声音文件夹：放进自己的 .wav 就能选">${IC.folder}</button></footer>` : '';
@@ -2692,6 +2856,7 @@ function drawerHtml(d) {
     <header class="dr-top" data-drag><button class="ib dr-back" data-act="drawer" data-tip="返回（Esc）" aria-label="返回">${IC.chevL}</button><b>通知</b><span class="grow"></span>
       ${unread ? '<button class="g-act" data-act="read-all">全部已读</button>' : S.notices.length ? '<button class="g-act dr-clear" data-act="clear-notices" data-tip="清空通知历史（会话不受影响）">清空</button>' : ''}
       <span class="seg">${tab('unread', '未读', unread || fresh.size)}${tab('all', '全部', 0)}</span></header>
+    <p class="drawer-return num" data-drawer-return></p>
     <div class="dr-body">
       ${d.cards.length ? `<div class="n-area" data-flip>${d.cards.map(cardHtml).join('')}</div>` : ''}
       ${list.length ? `<div class="dr-list" data-flip>${list.map(noticeRow).join('')}</div>` : ''}
@@ -2781,7 +2946,7 @@ function fanHtml(d, live) {
       st => `<button class="fc solo" data-act="fan-more" data-key="fc-more" style="${st}" tabindex="-1"><span class="fc-t">还有 ${more} 个</span><span class="fc-s">展开悬浮窗看全部</span></button>`, ' data-key="fg-more"') : '')
     : grp(g.items[0], 0, 'empty', 'var(--text-4)', () => '',
       st => `<button class="fc solo" data-act="fan-hub" data-key="fc-empty" style="${st}" tabindex="-1"><span class="fc-t">都安静着</span><span class="fc-s">agent 开工后会从这里散出来</span></button>`, ' data-key="fg-empty"');
-  return `<div class="fan" data-key="fan" aria-label="进行中的任务" style="width:${g.W}px;height:${g.H}px;--hx:${g.hx}px;--hy:${g.hy}px;--nudge:${g.items[0]?.side === 'l' ? -4 : 4}px">
+  return `<div class="fan" data-key="fan" aria-label="当前任务" style="width:${g.W}px;height:${g.H}px;--hx:${g.hx}px;--hy:${g.hy}px;--nudge:${g.items[0]?.side === 'l' ? -4 : 4}px">
     <i class="fan-at" style="left:${g.hx}px;top:${g.hy}px"></i>${body}${hub}</div>`;
 }
 
@@ -2840,7 +3005,7 @@ function stripHtml(list) {
   const noticed = new Set(S.notices.filter(n => !n.read).map(n => topOf(n.sessionId)));
   const segs = shown.length
     ? shown.map(s => {
-      const n = noticed.has(s.id);
+      const n = S.notificationBadge !== false && noticed.has(s.id);
       return `<i class="sb-g${n ? ' n' : ''}${s.status === 'running' && !isDormant(s) ? ' run' : ''}${s.id === S.focusSid ? ' on' : ''}" data-key="sg-${esc(s.id)}" data-sid="${esc(s.id)}" style="--c:${color(s)};--p:${(pct(s) * 100).toFixed(1)}%"><b class="fl"></b>${n ? '<b class="nb"></b><b class="nf"></b>' : ''}</i>`;
     }).join('')
     : '<i class="sb-g idle" data-key="sg-idle"></i>';
@@ -3220,11 +3385,11 @@ function pillHtml(d, live) {
   S.pillSid = s.id;
   const p = progress(s);
   const step = current(s);
-  const sub = isWaiting(s) ? firstLine(s.statusNote || '等你回复') : step ? step.text : subline(s);
+  const sub = isWaiting(s) ? firstLine(s.statusNote || (waitingForUser(s) ? '等你回复' : '等待依赖')) : step ? step.text : subline(s);
   const ticking = s.status === 'running' && !!step && live();
   return `<span class="pill-tx" data-key="pill-${esc(s.id)}" data-enter="fade">${sicon(isDormant(s) ? 'dormant' : s.status)}
     <span class="tx"><b>${esc(s.title)}</b> <span class="${ticking ? 'sweep' : 't3'}" data-key="pill-step-${esc(step?.id || s.status)}">${esc(sub)}</span></span>
-    ${p.total ? `<span class="p num"><span data-roll>${p.done}</span>/${p.total}</span>` : ''}${list.length > 1 ? `<span class="pill-dots" data-tip="${list.length} 个进行中，轮流显示">${list.slice(0, 6).map((x, i) => `<i${x === s || (i === 5 && list.indexOf(s) > 5) ? ' class="on"' : ''}></i>`).join('')}</span>` : ''}</span>`;
+    ${p.total ? `<span class="p num"><span data-roll>${p.done}</span>/${p.total}</span>` : ''}${list.length > 1 ? `<span class="pill-dots" data-tip="${list.length} 个会话，轮流显示">${list.slice(0, 6).map((x, i) => `<i${x === s || (i === 5 && list.indexOf(s) > 5) ? ' class="on"' : ''}></i>`).join('')}</span>` : ''}</span>`;
 }
 
 // 清单分模块时的段标题：模块名 + 这个模块勾了几项（悬浮窗、面板详情、卡片背面共用）。没分模块的条目不出标题
@@ -3329,7 +3494,7 @@ function sessionRow(s, live) {
   return `<div class="s${open ? ' open' : ''}${isEnded(s) ? ' ended' : ''}${dead ? ' dead' : ''}${S.celebrate.has(s.id) ? ' celebrate' : ''}" style="--quick-w:${((s.link ? 4 : 3) + (dead ? 1 : 0)) * 25 + 8}px" data-key="${esc(s.id)}" data-enter="grow" data-exit data-sid="${esc(s.id)}">
     <button class="s-head" data-act="toggle" aria-expanded="${open}">
       <span class="s-l1">${sicon(dead ? 'dormant' : s.status)}<span class="s-title" data-tip="${esc(s.title)}">${esc(s.title)}</span><span class="s-prog num">${p.total ? `<span data-roll>${p.done}</span>/${p.total}` : ''}</span>${IC.chev}</span>
-      <span class="s-l2"><span class="tile sm" data-tip="${esc(a.name)}">${esc(a.mark)}</span><span class="tx-wrap"><span class="tx${ticking ? ' sweep' : ''}" data-key="sub-${esc(step?.id || s.status)}" data-enter="fade">${esc(firstLine(subline(s)))}</span></span>
+      <span class="s-l2"><span class="tile sm" data-tip="${esc(a.name)}">${esc(a.mark)}</span><span class="tx-wrap"><span class="tx${ticking ? ' sweep' : ''}" data-key="sub-${esc(step?.id || s.status)}" data-enter="fade">${esc(s.canvasContext ? parentContextNote(s) : firstLine(subline(s)))}</span></span>
         ${isStale(s) && !dead ? (now() - alive(s) < 10 * MIN
           ? `<span class="stale live" data-tip="对话 ${short(now() - alive(s))} 前还有动静：agent 在干活，只是没报进度（比如在跑很长的命令）">${short(now() - s.updatedAt)} 没报进度 ·</span>`
           : `<span class="stale">${short(now() - s.updatedAt)} 没动静 ·</span>`) : ''}<span class="tm num" data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span></span>
@@ -3395,13 +3560,13 @@ function groups() {
       return [day, arr, `勾了 ${ticked} 项 · 干活 ${short(work)}${failed ? ` · ${failed} 个没做成` : ''}`];
     });
   }
-  if (S.agent) return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' || s.status === 'planning')], ['已结束', by(isEnded)]];
+  if (S.agent) return [['等你', by(waitingForUser)], ['等依赖', by(s => s.status === 'blocked')], ['待续', by(s => s.status === 'paused')], ['进行中', by(s => s.status === 'running' || s.status === 'planning')], ['已结束', by(isEnded)]];
   switch (S.view) {
-    case 'waiting': return [['等你', by(isWaiting)]];
+    case 'waiting': return [['等你', by(waitingForUser)]];
     case 'idle': return [['可能掉线了', by(isDormant), '30 分钟没有更新']];
     case 'all': return [['全部', by(() => true)]];
     case 'archived': return [['已归档', by(() => true)]];
-    default: return [['等你', by(isWaiting)], ['进行中', by(s => s.status === 'running' && !isDormant(s))], ['写清单', by(s => s.status === 'planning' && !isDormant(s))],
+    default: return [['等你', by(waitingForUser)], ['等依赖', by(s => s.status === 'blocked')], ['待续', by(s => s.status === 'paused')], ['进行中', by(s => s.status === 'running' && !isDormant(s))], ['写清单', by(s => s.status === 'planning' && !isDormant(s))],
       ['刚结束', by(s => isEnded(s) && now() - s.endedAt < 3 * 3600e3)], ['可能掉线了', by(isDormant)]];
   }
 }
@@ -3414,7 +3579,7 @@ function renderPanel() {
   }
   const live = visible();
   const archived = S.sessions.size - live.length;
-  const n = { active: live.filter(isRunning).length, waiting: live.filter(isWaiting).length, idle: live.filter(isDormant).length,
+  const n = { active: live.filter(isRunning).length, waiting: live.filter(waitingForUser).length, idle: live.filter(isDormant).length,
     history: live.filter(isEnded).length, all: live.length, archived };
   const nav = (v, icon) => `<button class="nav-i${S.view === v && !S.agent ? ' on' : ''}" data-view="${v}">${icon}<span class="grow">${VIEWS[v]}</span><span class="cnt num${v === 'waiting' && n.waiting ? ' hot' : ''}">${n[v] || ''}</span></button>`;
   const agents = [...new Set(live.map(s => s.agent))].sort();
@@ -3484,7 +3649,7 @@ function renderPanel() {
 //   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, historyOpen: new Set(), archiving: new Set(), archiveError: '', topology: null, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { direction: 'horizontal', follow: true, overview: false, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3515,6 +3680,7 @@ function cvEdgePath(a, b) {
     const c = horizontal ? [x1 + k * sx, y1, x2 - k * sx, y2] : [x1, y1 + k * sx, x2, y2 - k * sx];
     return `M${x1} ${y1} C${c[0]} ${c[1]} ${c[2]} ${c[3]} ${x2} ${y2}`;
   };
+  if (CV.direction === 'vertical' && b.y >= a.y + a.h - 24) return curve(cx(a), a.y + a.h, cx(b), b.y, false);
   if (b.x >= a.x + a.w - 24) return curve(a.x + a.w, hy(a), b.x, hy(b), true);
   if (b.x + b.w <= a.x + 24) return curve(a.x, hy(a), b.x + b.w, hy(b), true);
   if (b.y >= a.y) return curve(cx(a), a.y + a.h, cx(b), b.y, false);
@@ -3522,7 +3688,11 @@ function cvEdgePath(a, b) {
 }
 // 每个根会话从同一条左侧起点出发，子流程按深度向右延伸；不同根会话竖排成独立 lane。
 // nodes: [{ id, parentId, w, h }]，返回 Map(id → {x, y})
-function cvArrangeLayout(nodes, vw) {
+function cvArrangeLayout(nodes, vw, direction = CV.direction) {
+  if (direction === 'vertical') {
+    const swapped = nodes.map(n => ({ ...n, w: n.h, h: n.w }));
+    return new Map([...cvArrangeLayout(swapped, vw, 'horizontal')].map(([id, p]) => [id, { x: p.y, y: p.x }]));
+  }
   const byId = new Map(nodes.map(n => [n.id, n]));
   const kids = new Map();
   for (const n of nodes) if (byId.has(n.parentId) && n.parentId !== n.id) (kids.get(n.parentId) || kids.set(n.parentId, []).get(n.parentId)).push(n);
@@ -3563,12 +3733,31 @@ function cvZoomAt(v, px, py, factor) {
 }
 // 画布上有哪些卡：每个会话一张，子 agent 也是独立的卡，用箭头连到父卡；父卡不在画布上（结束很久了）时子卡单独放着，没有箭头
 function cvCards() {
-  const all = visible(), list = all.filter(s => !isEnded(s));
+  const all = visible(), cleanup = new Set(cleanupRoots().flatMap(s => sessionBranch(s).map(x => x.id)));
+  const list = all.filter(s => !isEnded(s) && !cleanup.has(s.id));
   const waits = list.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
   const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
   const stale = list.filter(s => !isEnded(s) && !isWaiting(s) && isDormant(s)).sort(byOrder);
-  const parents = all.filter(s => isEnded(s) && list.some(k => k.parentId === s.id)).map(s => ({ ...s, canvasContext: true }));
-  return [...waits, ...active, ...stale, ...parents];
+  const parents = all.filter(s => isEnded(s) && branchActive(s)).map(s => ({ ...s, canvasContext: true }));
+  const ordered = [...waits, ...active, ...stale, ...parents];
+  if (CV.overview) return ordered;
+  const roots = ordered.filter(s => !isChild(s));
+  if (!roots.some(s => s.id === CV.focusSid)) CV.focusSid = roots.find(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id || roots[0]?.id || '';
+  const kept = new Set(CV.focusSid ? [CV.focusSid] : []);
+  const visit = owner => {
+    const children = ordered.filter(s => s.parentId === owner.id).sort((a, b) => a.createdAt - b.createdAt);
+    const current = children.filter(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'));
+    const chosen = current.length ? current : children.filter(s => s.status === 'waiting').slice(0, 1);
+    if (!chosen.length && children.length) chosen.push(children.find(s => !isDormant(s)) || children[0]);
+    if (CV.forcedSession) {
+      const forced = children.find(s => s.id === CV.forcedSession || sessionBranch(s).some(k => k.id === CV.forcedSession));
+      if (forced && !chosen.includes(forced)) chosen.unshift(forced);
+    }
+    for (const child of chosen.slice(0, 3)) { kept.add(child.id); visit(child); }
+  };
+  const root = roots.find(s => s.id === CV.focusSid);
+  if (root) visit(root);
+  return ordered.filter(s => kept.has(s.id));
 }
 // 分组窗口跟随真实当前条目，历史和未来只作为有界的折叠列表，不再变成整片画布卡。
 function cvModuleScope(owner) {
@@ -3585,7 +3774,8 @@ function cvModuleScope(owner) {
   if (!current.length) current = items.filter(it => it.status === 'blocked').slice(0, 1);
   if (!current.length) current = items.filter(it => it.status === 'todo').slice(0, 1);
   const started = items.some(it => ['doing', 'done', 'blocked'].includes(it.status) || it.startedAt > 0 || it.spentMs > 0);
-  const focus = new Set(!isEnded(owner) && started ? current.map(it => (it.group || '').split(' / ').map(p => p.trim()).filter(Boolean).join(' / ')).filter(Boolean) : []);
+  const paths = current.map(it => (it.group || '').split(' / ').map(p => p.trim()).filter(Boolean).join(' / ')).filter(Boolean);
+  const focus = new Set(!isEnded(owner) && started ? [...new Set(paths)].slice(0, 3) : []);
   if (!started) return { groups: list, focus, before: [], after: list, other: [] };
   const indices = current.map(it => items.indexOf(it));
   const first = indices.length ? Math.min(...indices) : items.length, last = indices.length ? Math.max(...indices) : items.length;
@@ -3638,11 +3828,14 @@ function cvSave() {
   clearTimeout(cvSaveT);
   cvSaveT = setTimeout(() => {
     const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
-    store.set('canvas', { layoutVersion: CV.needsArrange ? 0 : 2, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+    store.set('canvas', { layoutVersion: CV.needsArrange ? 0 : 2, direction: CV.direction, follow: CV.follow, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
   }, 300);
 }
 function cvLoad() {
   const d = store.get('canvas', null);
+  CV.direction = d?.direction === 'vertical' ? 'vertical' : 'horizontal';
+  CV.follow = d?.follow !== false;
+  CV.focusSid = typeof d?.focusSid === 'string' ? d.focusSid : '';
   if (d?.layoutVersion === 2 && typeof d.topology === 'string') CV.topology = d.topology;
   for (const [k, v] of Object.entries(d?.pos || {})) if (Number.isFinite(v?.x) && Number.isFinite(v?.y)) CV.pos.set(k, { x: v.x, y: v.y });
   const v = d?.view;
@@ -3669,7 +3862,26 @@ function cvRects() {
   }).filter(Boolean);
 }
 function cvFitView(anim) {
-  CV.view = cvFit(cvRects(), innerWidth, innerHeight, cvHeadH());
+  let rects = cvRects();
+  if (!CV.overview) {
+    const owner = CV.focusOwner || [...CV.nodes.values()].find(s => !s.ownerId && s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id;
+    if (owner) {
+      const related = new Set([owner]);
+      let at = CV.nodes.get(owner);
+      while (at?.parentId && CV.nodes.has(at.parentId) && !related.has(at.parentId)) { related.add(at.parentId); at = CV.nodes.get(at.parentId); }
+      for (const node of CV.nodes.values()) if (node.ownerId === owner || node.parentId === owner) related.add(node.id);
+      const els = [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => related.has(el.dataset.cvid));
+      const focused = els.map(el => { const p = CV.pos.get(el.dataset.cvid); return p && { ...p, w: el.offsetWidth, h: el.offsetHeight }; }).filter(Boolean);
+      if (focused.length) rects = focused;
+    }
+  }
+  CV.view = cvFit(rects, innerWidth, innerHeight, cvHeadH());
+  if (!CV.overview && CV.view.z < .65) {
+    const current = [...CV.nodes.values()].find(n => n.focusLeaf && (n.items || []).some(it => it.status === 'doing')) || CV.nodes.get(CV.focusOwner || CV.focusSid);
+    const el = [...document.querySelectorAll('.cv-world>.cv-card')].find(e => e.dataset.cvid === current?.id), p = current && CV.pos.get(current.id);
+    CV.view.z = .65;
+    if (el && p) { CV.view.x = innerWidth / 2 - (p.x + el.offsetWidth / 2) * .65; CV.view.y = cvHeadH() + 40 - p.y * .65; }
+  }
   cvApply(anim);
   cvSave();
 }
@@ -3684,7 +3896,7 @@ function cvRevealPending() {
   CV.revealT = 0;
   const els = new Map([...document.querySelectorAll('.cv-world>.cv-card')].map(el => [el.dataset.cvid, el]));
   for (const id of CV.pendingReveal) if (!CV.nodes.has(id) || !els.has(id) || cvHeaderVisible(els.get(id))) CV.pendingReveal.delete(id);
-  if ((!CV.pendingReveal.size && !CV.needsArrange) || document.hidden) return;
+  if ((!CV.pendingReveal.size && !CV.needsArrange) || document.hidden || !CV.follow) return;
   const delay = 1200 - (Date.now() - CV.userAt);
   if (CV.interacting || delay > 0) {
     CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay);
@@ -3856,16 +4068,32 @@ function cvReveal(id, force) {
 }
 async function cvArchive(id) {
   const session = S.sessions.get(id);
-  if (!session || session.archived || !isEnded(session) || CV.archiving.has(id)) return;
-  CV.archiving.add(id); CV.archiveError = ''; schedule();
-  try {
-    await post(`/api/sessions/${encodeURIComponent(id)}`, { archived: true }, 'PATCH');
-    const response = await fetch(`/api/sessions/${encodeURIComponent(id)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    ingest(await response.json());
-    cvRequestArrange();
-  } catch (err) { CV.archiveError = `归档没成功：${err.message}`; }
-  finally { CV.archiving.delete(id); schedule(); }
+  if (!session || session.archived) return;
+  try { await archiveTree(id); } catch { /* 共享状态保留错误和条目，供当前窗口继续处理。 */ }
+}
+function cvResultSummary(items) {
+  const unique = [...new Map(items.map(it => [it.id, it])).values()];
+  const included = unique.filter(it => it.status !== 'skipped');
+  const count = result => included.filter(it => (it.result || 'unverified') === result).length;
+  return `执行 ${unique.filter(it => it.status === 'done' || it.status === 'skipped').length}/${unique.length} · 通过 ${count('passed')} · 失败 ${count('failed')} · 未知 ${count('unknown')} · 未验证 ${count('unverified')} · 已排除 ${unique.length - included.length}`;
+}
+function cvOpenDetails(id, children = false) {
+  CV.detail = { id, children }; CV.detailFilter = 'all'; CV.follow = false;
+  const node = CV.nodes.get(id) || S.sessions.get(id);
+  CV.focusOwner = node?.ownerId || node?.id || '';
+  cvSave(); schedule();
+}
+function cvDetailHtml() {
+  if (!CV.detail) return '';
+  const node = CV.nodes.get(CV.detail.id) || S.sessions.get(CV.detail.id);
+  if (!node) return '';
+  const all = [...new Map((node.allItems || node.items || []).map(it => [it.id, it])).values()];
+  const items = all.filter(it => CV.detailFilter === 'all' || (CV.detailFilter === 'current' ? it.status === 'doing' || it.status === 'blocked' : !!it.result));
+  const resultLabel = { passed: '通过', failed: '失败', unknown: '未知', unverified: '未验证' };
+  const children = CV.detail.children ? visible().filter(s => s.parentId === node.id).sort((a, b) => a.createdAt - b.createdAt) : [];
+  return `<aside class="cv-detail" aria-label="流程详情"><header><h2>${esc(node.title)}</h2><button class="ib" data-cv="detail-close" aria-label="关闭详情">${IC.x || '×'}</button></header>
+    ${CV.detail.children ? '' : `<div class="cv-result-summary">${cvResultSummary(all)}<br>完成步骤与验证结果分别统计；未填写结果的步骤不计为通过。</div><div class="cv-detail-tools">${[['all','全部'],['current','当前'],['result','结果']].map(([key,label]) => `<button data-cv="detail-filter" data-filter="${key}" aria-pressed="${CV.detailFilter === key}">${label}</button>`).join('')}</div>`}
+    <div class="cv-detail-body">${children.length ? children.map(s => `<div class="cv-detail-item"><button class="cleanup-title" data-cv="details" data-owner-id="${esc(s.id)}">${esc(s.title)}</button><p>${esc(STATUS[s.status] || s.status)} · ${esc(firstLine(s.statusNote || (s.items || []).find(it => it.status === 'doing')?.text || ''))}</p></div>`).join('') : `${node.statusNote ? `<div class="cv-detail-item"><b>${esc(STATUS[node.status] || node.status)}</b><pre>${esc(node.statusNote)}</pre></div>` : ''}${items.map(it => `<details class="cv-detail-item" data-item-id="${esc(it.id)}"${it.status === 'doing' || it.status === 'blocked' ? ' open' : ''}><summary>${esc(it.text)}<span class="cv-result ${esc(it.status === 'skipped' ? 'unverified' : it.result || '')}">${esc(it.status === 'skipped' ? '已跳过' : resultLabel[it.result] || ({done:'已完成',skipped:'已跳过',doing:'进行中',blocked:'等依赖',todo:'待执行'})[it.status] || it.status)}</span></summary>${it.note ? `<p>记录</p><pre>${esc(it.note)}</pre>` : ''}${it.evidence ? `<p>证据</p><pre>${esc(it.evidence)}</pre>` : ''}${it.resultHistory?.length ? `<details class="cv-result-history"><summary>结果记录 ${it.resultHistory.length}</summary>${it.resultHistory.map(report => `<section><p>${esc(new Date(report.at).toLocaleString())} · ${esc(resultLabel[report.result] || report.result)}</p>${report.note ? `<pre>${esc(report.note)}</pre>` : ''}${report.evidence ? `<pre>${esc(report.evidence)}</pre>` : ''}</section>`).join('')}</details>` : ''}${!it.note && !it.evidence && !it.resultHistory?.length ? '<p class="t4">暂无补充记录。</p>' : ''}</details>`).join('')}${!items.length ? '<p class="t4">此筛选下没有步骤。</p>' : ''}`}</div></aside>`;
 }
 function startScreen() {
   const html = document.documentElement;
@@ -3877,9 +4105,11 @@ function startScreen() {
   document.addEventListener('mousemove', wake);
   wake();
   const touch = () => { CV.userAt = Date.now(); };
-  const zoomBy = f => { if (!CV.view) return; touch(); CV.view = cvZoomAt(CV.view, innerWidth / 2, innerHeight / 2, f); cvApply(true); cvSave(); };
+  const stopFollow = () => { CV.follow = false; cvSave(); schedule(); };
+  document.addEventListener('scroll', e => { if (e.target.closest?.('.cv-detail')) stopFollow(); }, true);
+  const zoomBy = f => { if (!CV.view) return; touch(); stopFollow(); CV.view = cvZoomAt(CV.view, innerWidth / 2, innerHeight / 2, f); cvApply(true); cvSave(); };
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') window.tickScreenClose?.();
+    if (e.key === 'Escape') { if (CV.detail) { CV.detail = null; schedule(); } else window.tickScreenClose?.(); }
     else if (e.key === '0' || e.key === 'f' || e.key === 'F') { touch(); cvFitView(true); }
     else if (e.key === '+' || e.key === '=') zoomBy(1.25);
     else if (e.key === '-') zoomBy(0.8);
@@ -3887,7 +4117,7 @@ function startScreen() {
   // 拖动：按在卡片上拖 = 移动这张卡；按在空白处（或中键）拖 = 平移画布。移动不到 4px 当点击，卡片照常展开 / 收起
   let g = null, suppress = false;
   document.addEventListener('pointerdown', e => {
-    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle, .cv-history, .cv-scope, .s-items, .cv-mod-list')) return;
+    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle, .cv-history, .cv-scope, .s-items, .cv-mod-list, .cv-detail')) return;
     touch();
     CV.interacting = true;
     const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
@@ -3900,7 +4130,7 @@ function startScreen() {
     if (!g.moved) {
       if (Math.hypot(dx, dy) < 4) return;
       g.moved = true;
-      touch();
+      touch(); stopFollow();
       document.querySelector('.scr')?.setAttribute('data-grab', '');
       if (!g.pan) {
         CV.drag = g.id;
@@ -3934,24 +4164,34 @@ function startScreen() {
   addEventListener('blur', end);
   document.addEventListener('click', e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('wheel', e => {
-    if (e.target.closest?.('.scr-h, .cv-history, .cv-scope, .cv-mod-list, .s-items')) return;
+    if (e.target.closest?.('.scr-h, .cv-history, .cv-scope, .cv-mod-list, .s-items, .cv-detail')) return;
     e.preventDefault();
     if (!CV.view) return;
     touch();
+    stopFollow();
     CV.view = cvZoomAt(CV.view, e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
     cvApply(false);
     cvSave();
   }, { passive: false });
-  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle, .cv-history')) { touch(); cvFitView(true); } });
+  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle, .cv-history, .cv-detail')) { touch(); cvFitView(true); } });
   document.addEventListener('click', e => {
     const b = e.target.closest?.('[data-cv]');
     if (!b) return;
     touch();
-    if (b.dataset.cv === 'fit') cvFitView(true);
+    if (b.dataset.cv === 'fit') { CV.overview = false; schedule(); requestAnimationFrame(() => cvFitView(true)); }
+    else if (b.dataset.cv === 'root') { CV.focusSid = b.dataset.ownerId; CV.focusOwner = CV.focusSid; CV.forcedSession = ''; CV.overview = false; cvSave(); schedule(); requestAnimationFrame(() => cvFitView(true)); }
+    else if (b.dataset.cv === 'overview') { CV.overview = !CV.overview; schedule(); requestAnimationFrame(() => cvFitView(true)); }
+    else if (b.dataset.cv === 'direction') { CV.direction = CV.direction === 'vertical' ? 'horizontal' : 'vertical'; cvArrange(); cvSave(); schedule(); }
+    else if (b.dataset.cv === 'follow') { CV.follow = !CV.follow; CV.overview = false; cvSave(); schedule(); if (CV.follow) { CV.needsArrange = true; cvNewContent(new Set(), false); } }
+    else if (b.dataset.cv === 'details') cvOpenDetails(b.dataset.ownerId);
+    else if (b.dataset.cv === 'children') cvOpenDetails(b.dataset.ownerId, true);
+    else if (b.dataset.cv === 'detail-close') { CV.detail = null; schedule(); }
+    else if (b.dataset.cv === 'detail-filter') { CV.detailFilter = b.dataset.filter; schedule(); }
     else if (b.dataset.cv === 'in') zoomBy(1.25);
     else if (b.dataset.cv === 'out') zoomBy(0.8);
     else if (b.dataset.cv === 'arrange') cvArrange();
-    else if (b.dataset.cv === 'history') { CV.history = !CV.history; schedule(); }
+    else if (b.dataset.cv === 'history') { CV.history = !CV.history; CV.cleanup = false; schedule(); }
+    else if (b.dataset.cv === 'cleanup') { CV.cleanup = !CV.cleanup; CV.history = false; schedule(); }
     else if (b.dataset.cv === 'archive') cvArchive(b.dataset.ownerId);
     else if (b.dataset.cv === 'history-item') {
       const id = b.dataset.ownerId;
@@ -3965,16 +4205,18 @@ function startScreen() {
       schedule();
     }
     else if (b.dataset.cv === 'module' || b.dataset.cv === 'module-all') {
-      const open = b.dataset.cv === 'module' ? CV.openModules : CV.allModules, id = b.dataset.moduleId;
+      if (b.dataset.cv === 'module') { cvOpenDetails(b.dataset.moduleId); return; }
+      const open = CV.allModules, id = b.dataset.moduleId;
       if (open.has(id)) open.delete(id); else open.add(id);
       cvRequestArrange();
       schedule();
     }
     else if (b.dataset.cv === 'wait') {
-      const ids = cvCards().filter(isWaiting).map(s => s.id);
+      const ids = visible().filter(waitingForUser).map(s => s.id);
       if (!ids.length) return;
       CV.waitIdx = (CV.waitIdx + 1) % ids.length;
-      cvReveal(ids[CV.waitIdx], true);
+      CV.forcedSession = ids[CV.waitIdx]; const waiting = S.sessions.get(CV.forcedSession); CV.focusSid = visible().find(s => !isChild(s) && sessionBranch(s).some(k => k.id === waiting.id))?.id || waiting.id; CV.overview = false; CV.focusOwner = ids[CV.waitIdx]; schedule();
+      requestAnimationFrame(() => { cvReveal(ids[CV.waitIdx], true); cvOpenDetails(ids[CV.waitIdx]); });
     }
   });
   setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
@@ -3983,10 +4225,11 @@ function startScreen() {
 }
 function cvModuleCard(node) {
   const open = CV.openModules.has(node.id), all = CV.allModules.has(node.id);
-  const tone = node.status === 'blocked' ? 'wait' : node.status === 'done' ? 'ok' : node.status === 'running' ? 'run' : 'dead';
-  const label = { blocked: '受阻', done: '已完成', running: '进行中', planning: '待继续' }[node.status];
+  const explicitFailed = node.allItems.some(it => it.result === 'failed'), explicitUnknown = node.allItems.some(it => it.result === 'unknown');
+  const tone = explicitFailed ? 'bad' : explicitUnknown || node.status === 'blocked' ? 'wait' : node.status === 'done' ? 'ok' : node.status === 'running' ? 'run' : 'dead';
+  const label = { blocked: '等依赖', done: '已完成', running: '进行中', planning: '待继续' }[node.status];
   const p = CV.pos.get(node.id), style = p ? `left:${p.x}px;top:${p.y}px;z-index:${CV.zi.get(node.id) || 1}` : 'left:0;top:0;visibility:hidden';
-  const current = node.items.find(it => it.status === 'doing') || node.items.find(it => it.status === 'blocked');
+  const current = node.items.find(it => it.status === 'doing') || node.items.find(it => it.status === 'blocked') || node.items.find(it => it.status === 'todo');
   let from = 0, to = node.items.length;
   if (!all && node.items.length > 8) {
     const pending = node.items.findIndex(it => !['done', 'skipped'].includes(it.status));
@@ -3995,24 +4238,29 @@ function cvModuleCard(node) {
   }
   const fold = text => `<li class="cv-mod-fold"><button data-cv="module-all" data-module-id="${esc(node.id)}">${text}</button></li>`;
   return `<article class="cv-card ${tone} cv-module${node.focusLeaf ? '' : ' ancestor'}${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-enter="fade" data-exit="fade" style="${style}">
-    <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${open}" title="${esc(node.modulePath)}"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
+    <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${CV.detail?.id === node.id}" title="${esc(node.modulePath)}"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
+    ${node.allItems.some(it => it.result) ? `<div class="cv-result-summary">${cvResultSummary(node.allItems)}</div>` : ''}
     ${!open && current ? `<div class="cv-mod-current" title="${esc(current.text)}">${esc(current.text)}</div>` : ''}
     ${open ? `<ul class="cv-mod-list">${from ? fold(`前面 ${from} 项`) : ''}${node.items.slice(from, to).map(it => `<li class="cv-mod-item ${it.status}"><span>${({ done: '✓', skipped: '−', doing: '●', blocked: '!', todo: '·' })[it.status]}</span><span>${esc(it.text)}</span></li>`).join('')}${to < node.items.length ? fold(`后面还有 ${node.items.length - to} 项`) : ''}${all && node.items.length > 8 ? fold('收起清单') : ''}${!node.items.length ? '<li class="cv-mod-fold">子流程展开在右侧</li>' : ''}</ul>` : ''}
   </article>`;
 }
 function cvCard(s, live) {
-  const tone = isWaiting(s) ? 'wait' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'dead' : 'run';
+  const tone = s.status === 'failed' || (s.items || []).some(it => it.result === 'failed') ? 'bad' : isWaiting(s) || (s.items || []).some(it => it.result === 'unknown') ? 'wait' : isEnded(s) ? 'ok' : s.status === 'paused' || isDormant(s) ? 'dead' : 'run';
   const p = CV.pos.get(s.id);
   const style = p ? `left:${p.x}px;top:${p.y}px;z-index:${CV.zi.get(s.id) || 1}` : 'left:0;top:0;visibility:hidden';
-  if (s.canvasContext) return `<article class="cv-card ok cv-parent-context" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" style="${style}"><strong title="${esc(s.title)}">${esc(s.title)}</strong><span>主任务已结束 · 子 agent 仍在执行</span></article>`;
+  const hiddenKids = visible().filter(k => k.parentId === s.id && !CV.nodes.has(k.id)).length;
+  if (s.canvasContext) return `<article class="cv-card ok cv-parent-context" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" style="${style}"><strong title="${esc(s.title)}">${esc(s.title)}</strong><span>${parentContextNote(s)}</span>${hiddenKids ? `<div class="cv-child-summary"><button data-cv="children" data-owner-id="${esc(s.id)}">另有 ${hiddenKids} 个子任务 · 查看</button></div>` : ''}<button class="cleanup-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></article>`;
   const scope = cvModuleScope(s), selected = CV.moduleLists.get(s.id), shown = scope[selected] || [];
   const scopeLabel = { before: '前面', after: '后面', other: '其他' };
+  const childCount = visible().filter(k => k.parentId === s.id).length, shownChildren = [...CV.nodes.values()].filter(k => !k.ownerId && k.parentId === s.id).length;
+  const childSummary = childCount > shownChildren ? `<div class="cv-child-summary"><button data-cv="children" data-owner-id="${esc(s.id)}">另有 ${childCount - shownChildren} 个子任务 · 查看</button></div>` : '';
   const scopeHtml = scope.groups.length ? `<div class="cv-scope"><div class="cv-scope-tools">${['before', 'after', 'other'].filter(part => scope[part].length).map(part => `<button data-cv="scope" data-owner-id="${esc(s.id)}" data-part="${part}" aria-expanded="${selected === part}">${scopeLabel[part]} ${scope[part].length} 个流程</button>`).join('')}</div>${selected && shown.length ? `<ul class="cv-scope-list" aria-label="${scopeLabel[selected]}流程">${shown.map(g => { const done = g.items.filter(it => ['done', 'skipped'].includes(it.status)).length, blocked = g.items.filter(it => it.status === 'blocked').length; return `<li${blocked ? ' class="blocked"' : ''}><span title="${esc(g.path)}">${esc(g.path)}</span><span>${done}/${g.items.length}${blocked ? ` · ${blocked}受阻` : ''}</span></li>`; }).join('')}</ul>` : ''}</div>` : '';
   return `<article class="cv-card ${tone}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-enter="fade" data-exit="fade" style="${style}">
     ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
     ${sessionRow(s, live)}
-      ${scopeHtml}
-    ${tone === 'wait' ? `<p class="cv-q"><b>${s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : '在等你'}</b><span class="q">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</span></p>` : ''}
+      ${scopeHtml}${childSummary}
+    ${(s.items || []).some(it => it.result) ? `<div class="cv-result-summary">${cvResultSummary(s.items)}</div>` : ''}
+    ${isWaiting(s) ? `<p class="cv-q"><b>${waitingForUser(s) && s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : waitingForUser(s) ? '在等你' : '等待依赖'}</b><span class="q">${esc(firstLine(s.statusNote || (waitingForUser(s) ? '它没写具体问题，回到对话看看。' : '依赖尚未就绪。')))}</span><button class="cleanup-title" data-cv="details" data-owner-id="${esc(s.id)}">查看详情</button></p>` : ''}
   </article>`;
 }
 function renderScreen() {
@@ -4032,9 +4280,14 @@ function renderScreen() {
     (CV.moduleFocus ||= new Map()).set(node.id, at);
   }
   const history = visible().filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
-  const waits = list.filter(isWaiting);
-  const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
-  const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && isWaiting(k)));
+  const cleanup = cleanupRoots();
+  const roots = visible().filter(s => !isChild(s) && (!isEnded(s) || branchActive(s)));
+  const overallItems = roots.flatMap(s => s.items || []);
+  const overallDone = overallItems.filter(it => it.status === 'done' || it.status === 'skipped').length;
+  const waits = visible().filter(waitingForUser);
+  const dependencies = visible().filter(s => s.status === 'blocked');
+  const active = list.filter(s => (s.status === 'running' || s.status === 'planning') && !isDormant(s));
+  const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && waitingForUser(k)));
   const runningKids = active.filter(isChild);
   const today = itemsToday(), live = sweeper(3);
   const first = !root.querySelector('.scr');
@@ -4045,17 +4298,22 @@ function renderScreen() {
         <span><b class="num" data-roll>${running.length}</b>在跑</span>
         ${runningKids.length ? `<span title="正在执行的子 agent，不重复计入主任务数"><b class="num" data-roll>${runningKids.length}</b>子 agent</span>` : ''}
         ${waits.length ? `<button class="cv-wait" data-cv="wait" data-key="cv-wait" title="跳到在等你的会话（包含子 agent）"><b class="num" data-roll>${waits.length}</b>项等你</button>` : ''}
+        ${dependencies.length ? `<span>${dependencies.length}项等依赖</span>` : ''}
         ${today ? `<span>今天勾了 <b class="num" data-roll>${today}</b> 项</span>` : ''}
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
       <span class="grow"></span>
+      ${roots.length ? `<span class="cv-root-switch">${roots.map(s => `<button data-cv="root" data-owner-id="${esc(s.id)}" aria-pressed="${CV.focusSid === s.id}" title="${esc(s.title)}">${esc(s.title)} · ${(s.items || []).filter(it => it.status === 'done' || it.status === 'skipped').length}/${(s.items || []).length}</button>`).join('')}</span><span class="cv-total">总进度 ${overallDone}/${overallItems.length}</span>` : ''}
+      ${cleanup.length ? `<button class="cv-ended cv-cleanup" data-cv="cleanup" aria-expanded="${!!CV.cleanup}">待清理 ${cleanup.length}</button>` : ''}
       ${history.length ? `<button class="cv-ended" data-cv="history" aria-expanded="${CV.history}">已结束 ${history.length}</button>` : ''}
-      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="把所有卡片收进视野（双击空白也行）">适应</button><button data-cv="arrange" title="自动整理布局：父任务带着子任务成一组，整齐排好">整理</button></span>`}
+      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="适应当前分支">适应</button><button data-cv="overview" aria-pressed="${CV.overview}">全局概览</button><button data-cv="direction">${CV.direction === 'vertical' ? '竖向' : '横向'}</button><button data-cv="follow" aria-pressed="${CV.follow}">${CV.follow ? '跟随执行' : '恢复跟随'}</button><button data-cv="arrange" title="自动整理布局：父任务带着子任务成一组，整齐排好">整理</button></span>`}
       <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
       ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
     </header>
-    ${CV.archiveError ? `<p class="cv-history-error" role="alert">${esc(CV.archiveError)}</p>` : ''}
-    ${CV.history ? `<section class="cv-history" aria-label="已结束任务"><small>已从主画布移除，保留最近 ${Math.min(20, history.length)} 个结果</small>${history.slice(0, 20).map(s => `<div class="cv-history-entry"><div class="cv-history-head"><button data-cv="history-item" data-owner-id="${esc(s.id)}" aria-expanded="${CV.historyOpen.has(s.id)}" title="${esc(s.title)}">${esc(s.title)}</button><button class="cv-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${CV.archiving.has(s.id) ? 'disabled' : ''}>${CV.archiving.has(s.id) ? '归档中…' : '归档'}</button></div>${CV.historyOpen.has(s.id) ? `<p>${esc(s.summary || '任务已结束。')}</p><small>${({ done: '已完成', failed: '未完成', cancelled: '已取消' })[s.status]} · ${(s.items || []).filter(it => ['done', 'skipped'].includes(it.status)).length}/${(s.items || []).length} 项已处理</small>` : ''}</div>`).join('')}</section>` : ''}
+    ${ARCHIVE.error ? `<p class="cv-history-error" role="alert">${esc(ARCHIVE.error)}</p>` : ''}
+    ${CV.cleanup ? `<section class="cv-history" aria-label="待清理任务"><small>主任务已结束，子任务未收尾且超过 30 分钟没有进展。归档保留记录，新进度会自动恢复。</small>${cleanup.map(s => `<div class="cleanup-entry"><span class="cleanup-title" title="${esc(s.title)}"><span>${esc(s.title)}</span><small>${esc(cleanupNote(s))}</small></span><button class="cleanup-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></div>`).join('')}</section>` : ''}
+    ${CV.history ? `<section class="cv-history" aria-label="已结束任务"><small>已从主画布移除，保留最近 ${Math.min(20, history.length)} 个结果</small>${history.slice(0, 20).map(s => `<div class="cv-history-entry"><div class="cv-history-head"><button data-cv="history-item" data-owner-id="${esc(s.id)}" aria-expanded="${CV.historyOpen.has(s.id)}" title="${esc(s.title)}">${esc(s.title)}</button><button class="cv-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${ARCHIVE.busy.has(s.id) ? 'disabled' : ''}>${ARCHIVE.busy.has(s.id) ? '归档中…' : '归档整组'}</button></div>${CV.historyOpen.has(s.id) ? `<p>${esc(s.summary || '任务已结束。')}</p><small>${({ done: '已完成', failed: '未完成', cancelled: '已取消' })[s.status]} · ${(s.items || []).filter(it => ['done', 'skipped'].includes(it.status)).length}/${(s.items || []).length} 项已处理</small>` : ''}</div>`).join('')}</section>` : ''}
+    ${cvDetailHtml()}
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
       : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
@@ -4095,12 +4353,12 @@ function renderSettings() {
       ${m ? row('主题色', `<span class="mn-cs" role="group" aria-label="${tr('主题色')}">${m.themes.map(t => `<button class="mn-c${t.id === m.theme.id ? ' on' : ''}" data-setting="theme" data-v="${esc(t.id)}" aria-pressed="${t.id === m.theme.id}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}" style="--c:${esc(t.brand)}"></button>`).join('')}</span>`) : ''}
     </section>
     ${m ? `<section class="settings-section"><h3>通知</h3>
-      ${row('提示音', pickHtml('s-sound', [{id:'',name:'不响'},...m.sounds], m.sound || '', tr('提示音')))}
+      ${row('提示音', pickHtml('s-sound', [{id:'',name:'静音'},...m.sounds], m.sound || '', tr('提示音')))}
       ${row('提醒停留', pickHtml('s-toastlen', [{id:'short',name:'短（一半）'},{id:'',name:'标准'},{id:'long',name:'长（两倍）'}], m.toastLen || '', tr('提醒停留')))}
       ${toggle('dnd', m.dnd ? '勿扰中' : '勿扰 1 小时', m.dnd)}
     </section>` : ''}
     <section class="settings-section"><h3>常规</h3>
-      ${m ? `${row('界面语言', pickHtml('s-lang', [{id:'',name:'跟随系统'},{id:'zh',name:'中文'},{id:'en',name:'English'}], m.lang || '', tr('界面语言')))}<p class="settings-note">切换语言会重启 Tick。</p>${toggle('autostart', '开机启动', m.autostart)}` : ''}
+      ${m ? `${row('界面语言', pickHtml('s-lang', [{id:'',name:'跟随系统'},{id:'zh',name:'中文'},{id:'en',name:'English'}], m.lang || '', tr('界面语言')))}<p class="settings-note">切换语言会重启 Tick。</p>${toggle('autostart', '开机启动', m.autostart)}${toggle('trayflash', '托盘闪烁', m.trayFlash !== false)}${toggle('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}${toggle('autoarchive', '自动归档残留任务', m.autoArchive)}<p class="settings-note">默认关闭。整组结束 30 分钟后，或主任务已结束且所有子任务 60 分钟无更新后归档；近期对话活动、等待、受阻和待续任务会保留。新进度会自动恢复。</p>` : ''}
       <button class="mn-row" data-act="settings-mini">${IC.pip}<span class="grow">打开小窗</span></button>
       <button class="mn-row" data-act="settings-guide">${IC.plug}<span class="grow">接入 agent</span></button>
     </section>
@@ -4155,7 +4413,7 @@ async function settingsAct(name, on, val = '') {
   settings.busy = true; settings.revision++; settings.error = ''; settings.readError = ''; clearTimeout(settings.timer); renderSettings();
   const generation = settings.generation;
   try {
-    const input = ['float','dnd','autostart'].includes(name) ? {name,on} : {name,val};
+    const input = ['float','dnd','autostart','autoarchive','trayflash','notificationbadge'].includes(name) ? {name,on} : {name,val};
     const res = await fetch('/api/desktop/settings', { method:'POST', headers:{'Content-Type':'application/json','X-Tick-User':'1'}, body:JSON.stringify(input), signal:AbortSignal.timeout(8000) });
     const m = await res.json();
     if (!res.ok) throw new Error(m.error || res.statusText);
@@ -4222,7 +4480,7 @@ function deckCard(s) {
   const a = agentOf(s.agent);
   const p = progress(s);
   const pct = p.total ? p.done / p.total : 0;
-  const tone = isWaiting(s) ? 'warn' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'idle' : 'run';
+  const tone = isWaiting(s) ? 'warn' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : s.status === 'paused' || isDormant(s) ? 'idle' : 'run';
   const on = S.flipped.has(s.id);
   const sid = esc(s.id);
   return `<div class="card ${tone}${on ? ' flip' : ''}" data-key="c-${sid}" data-exit="fade" data-sid="${sid}" data-act="card-flip" tabindex="0" role="button" aria-pressed="${on}" aria-label="${esc(s.title)}">
@@ -4252,10 +4510,11 @@ function renderDeck() {
   deck.hidden = false;
   const all = groups().flatMap(g => g[1]);
   const list = all.slice(0, DECK_MAX);
-  const wait = list.filter(isWaiting).length;
+  const wait = list.filter(waitingForUser).length;
+  const blocked = list.filter(s => s.status === 'blocked').length, paused = list.filter(s => s.status === 'paused').length;
   if (opening) deck.replaceChildren();
   const entered = morph(deck, `<header class="dk-h" data-drag><span class="logo">${IC.logo}</span><b>${S.agent ? esc(agentOf(S.agent).name) : VIEWS[S.view]}</b><span class="t4 num">${list.length}</span>
-      ${wait ? `<span class="dk-w num">${wait} 个在等你</span>` : ''}<span class="grow"></span><span class="t4 dk-hint">点卡片翻面 · 方向键切换 · Esc 退出</span>
+      ${wait ? `<span class="dk-w num">${wait} 个在等你</span>` : ''}${blocked ? `<span class="dk-w num">${blocked} 个等依赖</span>` : ''}${paused ? `<span class="t4 num">${paused} 个待续</span>` : ''}<span class="grow"></span><span class="t4 dk-hint">点卡片翻面 · 方向键切换 · Esc 退出</span>
       <button class="ib" data-act="deck" data-tip="退出卡片（Esc）">${IC.x}</button></header>
     <div class="dk-grid">${list.length ? list.map(deckCard).join('') : '<div class="empty"><h2>这里没有会话</h2><p>换个视图再来铺卡片。</p></div>'}</div>
     ${all.length > list.length ? `<p class="dk-more t4">还有 ${all.length - list.length} 个没铺开，回列表里看</p>` : ''}`);
@@ -4467,6 +4726,7 @@ window.tickHostState = st => {
   if ('theme' in st) setTheme(st.theme);
   if ('strip' in st) S.strip = !!st.strip;
   if ('toastLen' in st) S.toastLen = st.toastLen;
+  if ('notificationBadge' in st) S.notificationBadge = st.notificationBadge;
   if ('glass' in st) document.documentElement.toggleAttribute('data-glass', !!st.glass);
   if (Array.isArray(st.sounds)) S.sounds = st.sounds;
   schedule();
@@ -4613,6 +4873,7 @@ async function onClick(e) {
     case 'card-open': toggleDeck(false); openSession(sid, true); break;
     case 'close': S.sel = null; history.replaceState(null, '', location.pathname + location.search); schedule(); break;
     case 'toggle': {
+      if (SCREEN) { cvOpenDetails(sid); break; }
       const row = el.closest('.kid, .s'); // 子任务行和会话行都能就地展开
       const open = !S.open.has(sid);
       if (open) S.open.add(sid); else S.open.delete(sid);
@@ -4636,7 +4897,8 @@ async function onClick(e) {
     // ---------- 悬浮窗：抽屉、排序、刚结束、底栏动态、转盘、提示音 ----------
     case 'drawer': {
       S.drawer = !S.drawer;
-      S.drawerAuto = false; // 自己打开的抽屉不会自动收起
+      S.drawerAuto = false; // 手动打开也按提醒停留时长返回；翻看时暂停。
+      if (!S.drawer) drawerReturnStop();
       // 打开就算看过了：未读全部标成已读（角标、外框呼吸、托盘闪动一起停）；
       // 这次打开期间它们仍留在“未读”页签里，关掉抽屉后才归到“全部”
       const ids = S.drawer ? S.notices.filter(n => !n.read).map(n => n.id) : [];
@@ -4800,21 +5062,23 @@ async function onClick(e) {
     }
     case 'archive-ended': {
       // 只清“刚结束”里那些主会话，连同它们的子任务；还在跑的主会话下面已结束的子任务不动
-      const tops = visible().filter(s => isEnded(s) && !isChild(s));
-      const ids = [...tops, ...tops.flatMap(childrenOf)].map(s => s.id);
+      const tops = (FLOAT ? floatData().recent : visible().filter(s => isEnded(s) && !isChild(s))).filter(s => sessionBranch(s).every(isEnded));
+      let changedIds = [];
       const set = async v => {
-        for (const id of ids) { const s = S.sessions.get(id); if (s) s.archived = v; }
-        schedule();
-        try { await Promise.all(ids.map(id => post(`/api/sessions/${id}`, { archived: v }, 'PATCH'))); }
-        catch (err) { toast(`归档没全部成功：${esc(err.message)}`); reload(); }
+        const results = await Promise.allSettled(tops.map(s => archiveTree(s.id, v)));
+        const failed = results.find(r => r.status === 'rejected');
+        if (failed) { ARCHIVE.error = `归档没全部成功：${failed.reason.message}`; toast(esc(ARCHIVE.error)); schedule(); return false; }
+        changedIds = results.flatMap(r => r.value?.changedIds || []);
+        return true;
       };
-      set(true);
-      if (!FLOAT) toast(`已归档 ${ids.length} 个结束的会话`, { action: '撤销', onAction: () => set(false), ms: 6000 });
-      else S.undo = { text: `已归档 ${ids.length} 个`, run: () => set(false), until: now() + 6000 };
+      if (!await set(true)) break;
+      if (!FLOAT) toast(`已归档 ${tops.length} 组会话`, { action: '撤销', onAction: () => undoArchiveChange(changedIds, false), ms: 6000 });
+      else { S.undo = { text: `已归档 ${tops.length} 组`, run: () => undoArchiveChange(changedIds, false), until: now() + 6000 }; schedule(); }
       setTimeout(schedule, 6100);
       break;
     }
     case 'stale-fold': S.staleOpen = !S.staleOpen; schedule(); break;
+    case 'cleanup-fold': S.cleanupOpen = !S.cleanupOpen; schedule(); break;
     // 结束掉线的会话：标成已取消并写明原因；能撤销（恢复成原来的状态）。agent 回来接着报，服务端会自动恢复
     case 'end-stale': case 'end-session': {
       const list = act === 'end-stale' ? floatData().stale : s ? [s] : [];
@@ -4849,20 +5113,16 @@ async function onClick(e) {
     case 'theme': changeAppearance(S.theme === 'dark' ? 'light' : 'dark'); break;
     case 'archive':
       if (s) {
-        // 连同子任务一起：主会话归档了，挂在它下面的子 agent 也不该单独冒出来
-        const ids = [s.id, ...childrenOf(s).map(c => c.id)];
         const to = !s.archived;
         const set = async v => {
-          for (const id of ids) { const cur = S.sessions.get(id); if (cur) cur.archived = v; }
-          if (v && ids.includes(S.sel)) S.sel = null;
-          schedule();
-          try { await Promise.all(ids.map(id => post(`/api/sessions/${id}`, { archived: v }, 'PATCH'))); }
-          catch (err) { toast(`归档没成功：${esc(err.message)}`); reload(); }
+          try { return await archiveTree(s.id, v); }
+          catch { toast(esc(ARCHIVE.error)); return null; }
         };
-        set(to);
+        const changed = await set(to);
+        if (!changed) break;
         const text = `${to ? '已归档' : '已放回'}「${esc(s.title)}」`;
-        if (!FLOAT) toast(text, { action: '撤销', onAction: () => set(!to), ms: 6000 });
-        else { S.undo = { text: to ? '已归档这个会话' : '已放回', run: () => set(!to), until: now() + 6000 }; setTimeout(schedule, 6100); }
+        if (!FLOAT) toast(text, { action: '撤销', onAction: () => undoArchiveChange(changed.changedIds, !to), ms: 6000 });
+        else { S.undo = { text: to ? '已归档这个会话' : '已放回', run: () => undoArchiveChange(changed.changedIds, !to), until: now() + 6000 }; schedule(); setTimeout(schedule, 6100); }
       }
       break;
   }
@@ -5525,7 +5785,7 @@ setIdle();
 document.addEventListener('visibilitychange', setIdle);
 // 宿主在显示 / 隐藏窗口时调用。藏起来时把“刚结束”和转盘收回去，下次出来是干净的
 window.tickVisible = on => {
-  if (!on) stopFloatResize?.();
+  if (!on) { stopFloatResize?.(); if (FLOAT) { S.drawer = false; S.drawerWant = false; drawerReturnStop(); } }
   S.hostHidden = !on;
   if (!on) { S.histOpen = false; S.staleOpen = false; S.agentsOpen = false; if (S.fan) { S.fan = false; S.fanRestore?.(); } schedule(); }
   setIdle();

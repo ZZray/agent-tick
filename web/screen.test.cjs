@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(process.env.TICK_HTML || path.join(__dirname, 'index.html'), 'utf8');
-const source = html.slice(html.indexOf('const CV_GAP'), html.indexOf('// 面板设置留在侧栏 morph 之外'));
+const source = html.slice(html.indexOf('// 会话树与归档：'), html.indexOf('// 共享归档结束。')) + html.slice(html.indexOf('const CV_GAP'), html.indexOf('// 面板设置留在侧栏 morph 之外'));
 const MIN = 60000;
 const NOW = 100 * MIN;
 function screen(sessions = []) {
@@ -16,7 +16,10 @@ function screen(sessions = []) {
     store: { get: (_, d) => d, set: () => {} },
     visible: () => sessions.filter(s => !s.archived), now: () => NOW, MIN,
     isChild: s => !!s.parentId && byId.has(s.parentId) && !byId.get(s.parentId).archived,
+    childrenOf: s => sessions.filter(c => c.parentId === s.id && !c.archived), SCREEN: true,
     isWaiting: s => ['waiting', 'blocked'].includes(s.status),
+    waitingForUser: s => s.status === 'waiting',
+    firstLine: s => String(s || '').split('\n')[0],
     isEnded: s => ['done', 'failed', 'cancelled'].includes(s.status),
     isDormant: s => s.status === 'running' && s.updatedAt < NOW - 30 * MIN,
     byOrder: (a, b) => b.createdAt - a.createdAt,
@@ -30,6 +33,7 @@ function screen(sessions = []) {
   };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
+  vm.runInContext('CV.overview=true', ctx); // Existing geometry/whole-board cases explicitly use overview; focused mode has separate coverage.
   ctx.run = code => vm.runInContext(code, ctx);
   ctx.flowing = node => { ctx.flowNode = node; return ctx.run('cvFlowing(flowNode)'); };
   return ctx;
@@ -91,6 +95,90 @@ test('waiting cards come first and completed tasks leave the canvas immediately'
     { id: 'gone', status: 'running', createdAt: 4, updatedAt: NOW, archived: true, title: 'gone' },
   ]);
   assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['wait', 'run']);
+});
+
+test('focused view keeps one stable root and only current real child branches at 219-step 11-group scale', () => {
+  const items = Array.from({ length: 219 }, (_, i) => ({ id: `i${i}`, group: `API / 模块${Math.floor(i / 20)}`, text: `API ${i}`, status: i < 101 ? 'done' : i === 101 ? 'doing' : 'todo' }));
+  const owner = { id: 'p', title: 'API root', status: 'running', updatedAt: NOW, createdAt: 1, items };
+  const children = Array.from({ length: 11 }, (_, i) => ({ id: `c${i}`, parentId: 'p', title: `child${i}`, status: 'blocked', updatedAt: NOW, createdAt: i + 2, items: [{ id: 'step', text: 'dependency work', status: 'blocked' }] }));
+  children[7].status = 'running'; children[7].items[0].status = 'doing';
+  const other = { id: 'q', title: 'other root', status: 'running', updatedAt: NOW, createdAt: 20, items: [] };
+  const ctx = screen([owner, ...children, other]); ctx.run('CV.overview=false');
+  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['c7', 'p']);
+  assert.equal(ctx.run('CV.focusSid'), 'p');
+  const nodes = ctx.cvFlowNodes();
+  assert.ok(nodes.length <= 5, 'root, current agent and current module ancestors stay bounded');
+  assert.deepEqual(plain(nodes.filter(n => n.ownerId === 'p').map(n => n.modulePath)), ['API', 'API / 模块5']);
+  ctx.renderScreen();
+  assert.match(ctx.markup, /另有 10 个子任务/);
+  assert.match(ctx.markup, /总进度 101\/219/);
+  assert.match(ctx.markup, /10项等依赖/);
+  assert.doesNotMatch(ctx.markup, /项等你/);
+  const fresh = { id: 'new', title: 'new root', status: 'running', createdAt: 99, updatedAt: NOW, items: [] };
+  ctx.S.sessions.set(fresh.id, fresh);
+  ctx.visible = () => [...ctx.S.sessions.values()].filter(s => !s.archived);
+  ctx.cvCards(); assert.equal(ctx.run('CV.focusSid'), 'p', 'new roots do not steal current selection');
+  ctx.run("CV.focusSid='q'");
+  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['q']);
+});
+
+test('follow off suppresses topology camera movement and direction/follow settings round-trip without discarding hand positions', () => {
+  const { ctx, fire } = cameraScreen();
+  const before = plain(ctx.run('[...CV.pos]')), view = plain(ctx.run('CV.view'));
+  ctx.run('CV.follow=false;CV.needsArrange=true');
+  let arranged=0;ctx.cvArrange=()=>{arranged++;};
+  ctx.cvNewContent(new Set(['b']),false); fire();
+  assert.equal(arranged,0);assert.deepEqual(plain(ctx.run('CV.view')),view);
+  assert.deepEqual(plain(ctx.run('[...CV.pos]')),before);
+  const saved={layoutVersion:2,direction:'vertical',follow:false,focusSid:'a',topology:'same',pos:{a:{x:444,y:333}},view:{x:3,y:7,z:1.25}};
+  ctx.store.get=()=>saved;ctx.cvLoad();
+  assert.equal(ctx.run('CV.direction'),'vertical');assert.equal(ctx.run('CV.follow'),false);
+  assert.equal(ctx.run('CV.focusSid'),'a');assert.deepEqual(plain(ctx.run("CV.pos.get('a')")),{x:444,y:333});
+});
+
+test('vertical layout shares top origin and places descendants downward without overlap', () => {
+  const ctx = screen();
+  const nodes = [{ id:'p',w:380,h:140 },{ id:'a',parentId:'p',w:320,h:180 },{ id:'g',parentId:'a',w:320,h:230 },{ id:'b',parentId:'p',w:320,h:120 },{ id:'q',w:380,h:240 }];
+  const vertical = ctx.cvArrangeLayout(nodes, 1280, 'vertical');
+  assert.equal(vertical.get('p').y, 0); assert.equal(vertical.get('q').y, 0);
+  assert.ok(vertical.get('a').y >= 140 + 72);
+  assert.ok(vertical.get('g').y >= vertical.get('a').y + 180 + 72);
+  const rects = nodes.map(n => ({...n,...vertical.get(n.id)}));
+  for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++)assert.equal(overlap(rects[i],rects[j]),false);
+  ctx.run("CV.direction='vertical'");
+  const curve=ctx.cvEdgePath({x:0,y:0,w:380,h:140},{x:900,y:212,w:320,h:180});
+  assert.match(curve,/^M190 140 C190 /,'vertical branches leave the parent bottom even when the child is far right');
+  assert.match(curve,/1060 212$/,'vertical branches reach the child top center');
+});
+
+test('result summaries count unique item IDs and keep completed execution separate from validation', () => {
+  const ctx = screen();
+  const items = [{id:'a',status:'done'},{id:'b',status:'done',result:'failed',note:'actual failure',evidence:'reply <unsafe>'},{id:'c',status:'done',result:'unknown'},{id:'d',status:'skipped',result:'unverified'},{id:'e',status:'done',result:'passed'}];
+  assert.equal(ctx.cvResultSummary([...items,items[1]]), '执行 5/5 · 通过 1 · 失败 1 · 未知 1 · 未验证 1 · 已排除 1');
+  const owner = {id:'r',title:'API suite',status:'paused',updatedAt:NOW,items};
+  ctx.S.sessions.set('r',owner);ctx.STATUS={paused:'待续'};
+  ctx.cvOpenDetails('r');
+  let markup=ctx.cvDetailHtml();
+  assert.match(markup,/class="cv-result failed"/);assert.match(markup,/reply &lt;unsafe>/);
+  assert.match(markup,/未填写结果的步骤不计为通过/);
+  ctx.run("CV.detailFilter='result'");markup=ctx.cvDetailHtml();
+  assert.doesNotMatch(markup,/data-item-id="a"/);assert.match(markup,/data-item-id="b"/);
+  assert.equal(ctx.run('CV.follow'),false,'reading details disables camera following');
+  items[4].status='skipped';
+  assert.match(ctx.cvResultSummary(items), /通过 0/,'a skipped step is never counted as passed');
+  items[1].resultHistory=[{at:NOW-MIN,result:'unknown',note:'before retry',evidence:'receipt A'},{at:NOW,result:'failed',note:'recheck',evidence:'receipt B'}];
+  markup=ctx.cvDetailHtml();
+  assert.match(markup,/结果记录 2/);assert.match(markup,/receipt A/);assert.match(markup,/receipt B/);
+});
+
+test('validation totals include unreported items and exclude skipped items from every result category', () => {
+  const ctx = screen();
+  const cases = [
+    {id:'old-done',status:'done'}, {id:'future',status:'todo'},
+    ...['passed','failed','unknown','unverified'].map(result => ({id:result,status:'done',result})),
+    ...['passed','failed','unknown','unverified'].map(result => ({id:'excluded-'+result,status:'skipped',result})),
+  ];
+  assert.equal(ctx.cvResultSummary([...cases,cases[0]]), '执行 9/10 · 通过 1 · 失败 1 · 未知 1 · 未验证 3 · 已排除 4');
 });
 
 test('active sub-agents keep only a compact finished parent context', () => {
@@ -548,27 +636,29 @@ test('fit and arrange ignore outgoing morph ghosts', () => {
   assert.equal(els[1].style.left, undefined);
 });
 
-test('manual history archive uses the real single-session contract and shows busy and failures', async () => {
+test('manual history archive uses the shared tree contract and shows busy and failures', async () => {
   const owner = { id: 'ended', status: 'done', endedAt: NOW, updatedAt: NOW, title: 'finished', items: [] };
   const ctx = screen([owner]);
   const calls = [];
-  let finishPatch;
-  ctx.post = (...args) => { calls.push(args); return new Promise(resolve => { finishPatch = resolve; }); };
-  ctx.fetch = async url => { calls.push(url); return { ok: true, json: async () => ({ ...owner, archived: true }) }; };
+  let finishArchive;
+  ctx.fetch = (...args) => { calls.push(args); return new Promise(resolve => { finishArchive = () => resolve({ ok: true, json: async () => ({ sessions: [{ ...owner, archived: true }] }) }); }); };
   ctx.ingest = s => { Object.assign(owner, s); ctx.S.sessions.set(s.id, s); };
   ctx.run('CV.history=true');
   const archive = ctx.cvArchive('ended');
   ctx.renderScreen();
   assert.match(ctx.markup, /data-cv="archive" data-owner-id="ended" disabled>归档中/);
-  finishPatch(); await archive;
+  finishArchive(); await archive;
   assert.equal(ctx.run('CV.needsArrange'), true, 'manual archive requests tidy even when active topology is unchanged');
-  assert.deepEqual(plain(calls), [['/api/sessions/ended', { archived: true }, 'PATCH'], '/api/sessions/ended']);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], '/api/sessions/ended/archive');
+  assert.equal(calls[0][1].method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0][1].body), { archived: true });
   ctx.renderScreen();
   assert.doesNotMatch(ctx.markup, /class="cv-history-entry"/);
   owner.archived = false;
   ctx.run('CV.needsArrange=false');
   ctx.S.sessions.set(owner.id, owner);
-  ctx.post = async () => { throw new Error('offline'); };
+  ctx.fetch = async () => { throw new Error('offline'); };
   await ctx.cvArchive('ended'); ctx.renderScreen();
   assert.match(ctx.markup, /role="alert">归档没成功：offline/);
   assert.equal(owner.archived, false);

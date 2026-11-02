@@ -29,30 +29,33 @@ type tray struct {
 
 // trayState 弹窗要显示的一切：开关状态、版本、会话统计
 type trayState struct {
-	Visible    bool         `json:"visible"`
-	Pinned     bool         `json:"pinned"`
-	AutoHide   bool         `json:"autoHide"`
-	FsHide     bool         `json:"fsHide"`
-	Dnd        bool         `json:"dnd"`
-	DndUntil   int64        `json:"dndUntil"`
-	Autostart  bool         `json:"autostart"`
-	AutoUpdate bool         `json:"autoUpdate"`
-	Sound      string       `json:"sound"`
-	Sounds     []soundOpt   `json:"sounds"`
-	Theme      colorTheme   `json:"theme"`
-	Lang       string       `json:"lang"` // 用户选的语言，"" = 跟系统
-	Strip      bool         `json:"strip"`
-	Screen     bool         `json:"screen"` // 大屏窗口开着
-	ToastLen   string       `json:"toastLen"`
-	Themes     []colorTheme `json:"themes"`
-	Version    string       `json:"version"`
-	Pending    string       `json:"pending"`
-	Hotkey     string       `json:"hotkey"`
-	Running    int          `json:"running"`
-	Waiting    int          `json:"waiting"`
-	Done       int          `json:"done"`
-	Total      int          `json:"total"`
-	Glass      bool         `json:"glass"`
+	Visible           bool         `json:"visible"`
+	Pinned            bool         `json:"pinned"`
+	AutoHide          bool         `json:"autoHide"`
+	FsHide            bool         `json:"fsHide"`
+	Dnd               bool         `json:"dnd"`
+	DndUntil          int64        `json:"dndUntil"`
+	Autostart         bool         `json:"autostart"`
+	AutoUpdate        bool         `json:"autoUpdate"`
+	AutoArchive       bool         `json:"autoArchive"`
+	TrayFlash         bool         `json:"trayFlash"`
+	NotificationBadge bool         `json:"notificationBadge"`
+	Sound             string       `json:"sound"`
+	Sounds            []soundOpt   `json:"sounds"`
+	Theme             colorTheme   `json:"theme"`
+	Lang              string       `json:"lang"` // 用户选的语言，"" = 跟系统
+	Strip             bool         `json:"strip"`
+	Screen            bool         `json:"screen"` // 大屏窗口开着
+	ToastLen          string       `json:"toastLen"`
+	Themes            []colorTheme `json:"themes"`
+	Version           string       `json:"version"`
+	Pending           string       `json:"pending"`
+	Hotkey            string       `json:"hotkey"`
+	Running           int          `json:"running"`
+	Waiting           int          `json:"waiting"`
+	Done              int          `json:"done"`
+	Total             int          `json:"total"`
+	Glass             bool         `json:"glass"`
 
 	Restart       bool   `json:"restart,omitempty"`
 	EffectiveLang string `json:"effectiveLang"`
@@ -62,7 +65,7 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
+		AutoUpdate: !f.set.NoAutoUpdate, AutoArchive: f.set.AutoArchive, TrayFlash: !f.set.NoTrayFlash, NotificationBadge: !f.set.NoBadge, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Screen = screenOn()
@@ -77,9 +80,9 @@ func (t *tray) state() trayState {
 		if !active {
 			continue
 		}
-		if isWaiting(s.Status) {
+		if s.Status == "waiting" {
 			st.Waiting++
-		} else {
+		} else if s.Status != "blocked" {
 			st.Running++
 		}
 		for _, it := range s.Items {
@@ -113,7 +116,7 @@ func (t *tray) act(name string, on bool, val string) {
 		}
 	case "fs":
 		setFlag(&f.set.NoFullscreenHide, !on)
-	case "dnd", "autostart", "toastlen", "sound", "lang", "theme":
+	case "dnd", "autostart", "toastlen", "sound", "lang", "theme", "autoarchive", "trayflash", "notificationbadge":
 		restart, err := t.applySetting(name, on, val)
 		if err != nil {
 			log.Printf("设置 %s 失败：%v", name, err)

@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -48,11 +49,24 @@ type desktopSettingsInput struct {
 	Val  *string `json:"val"`
 }
 
+// The embedded Session keeps the existing JSON shape; finish intent is local to
+// this request, so renaming an already ended session cannot masquerade as finish.
+type sessionPatchResult struct {
+	*Session
+	finished bool
+}
+
+type sessionStartResult struct {
+	*Session
+	Attached bool   `json:"attached"`
+	Hint     string `json:"hint,omitempty"`
+}
+
 type desktopSettingsHandler func(context.Context, *desktopSettingsInput) (state any, afterReply func(), err error)
 
 func (in desktopSettingsInput) validate() error {
 	switch in.Name {
-	case "float", "dnd", "autostart":
+	case "float", "dnd", "autostart", "autoarchive", "trayflash", "notificationbadge":
 		if in.On == nil || in.Val != nil {
 			return bad("%s 需要布尔值 on，不接受 val", in.Name)
 		}
@@ -167,6 +181,23 @@ func (srv *Server) Handler() http.Handler {
 				writeErr(w, err)
 				return
 			}
+			if r.Header.Get("X-Tick-Agent-Request") == "1" && !byUser(r) {
+				var s *Session
+				finishing := false
+				switch result := v.(type) {
+				case *Session:
+					s = result
+				case sessionPatchResult:
+					s, finishing = result.Session, result.finished
+				case sessionStartResult:
+					s = result.Session
+				}
+				if s != nil {
+					if reminder := st.AgentReminder(s.ID, finishing, now()); reminder != "" {
+						w.Header().Set("X-Tick-Reminder", url.QueryEscape(reminder))
+					}
+				}
+			}
 			writeJSON(w, status, v)
 		})
 	}
@@ -231,11 +262,7 @@ func (srv *Server) Handler() http.Handler {
 		if !attached && s.ParentID == "" {
 			hint = unfinishedHint(st.Unfinished(s.Agent, s.ID))
 		}
-		return status, struct {
-			*Session
-			Attached bool   `json:"attached"`
-			Hint     string `json:"hint,omitempty"` // 同一 agent 还有没收尾的会话时，提醒先收尾
-		}{s, attached, hint}, nil
+		return status, sessionStartResult{s, attached, hint}, nil
 	})
 	handle("GET /api/sessions/{id}", func(r *http.Request) (int, any, error) {
 		s, err := st.Session(r.PathValue("id"))
@@ -247,7 +274,20 @@ func (srv *Server) Handler() http.Handler {
 			return 0, nil, err
 		}
 		s, err := st.Patch(r.PathValue("id"), in)
-		return 200, s, err
+		return 200, sessionPatchResult{s, in.Status != nil && *in.Status == "done"}, err
+	})
+	handle("POST /api/sessions/{id}/archive", func(r *http.Request) (int, any, error) {
+		var in struct {
+			Archived *bool `json:"archived"`
+		}
+		if err := decode(r, &in); err != nil {
+			return 0, nil, err
+		}
+		if in.Archived == nil {
+			return 0, nil, bad("archived 需要布尔值")
+		}
+		result, err := st.ArchiveTree(r.PathValue("id"), *in.Archived)
+		return 200, result, err
 	})
 	handle("PUT /api/sessions/{id}/items", func(r *http.Request) (int, any, error) {
 		var in struct{ Items []json.RawMessage }

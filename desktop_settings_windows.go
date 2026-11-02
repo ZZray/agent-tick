@@ -82,6 +82,39 @@ func (t *tray) applySetting(name string, on bool, val string) (bool, error) {
 		return false, f.setDnd(on)
 	case "autostart":
 		return false, setAutostart(on)
+	case "autoarchive":
+		f.mu.Lock()
+		before := f.set.AutoArchive
+		f.set.AutoArchive = on
+		f.mu.Unlock()
+		if err := f.saveSettings(); err != nil {
+			f.mu.Lock()
+			f.set.AutoArchive = before
+			f.mu.Unlock()
+			return false, err
+		}
+		return false, nil
+	case "trayflash", "notificationbadge":
+		f.mu.Lock()
+		flag := &f.set.NoTrayFlash
+		if name == "notificationbadge" {
+			flag = &f.set.NoBadge
+		}
+		before := *flag
+		*flag = !on
+		f.mu.Unlock()
+		if err := f.saveSettings(); err != nil {
+			f.mu.Lock()
+			*flag = before
+			f.mu.Unlock()
+			return false, err
+		}
+		f.pushHostState()
+		select {
+		case trayFlash <- 0:
+		default:
+		}
+		return false, nil
 	case "sound":
 		return false, f.setSound(val)
 	case "toastlen":

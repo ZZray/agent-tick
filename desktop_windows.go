@@ -93,6 +93,9 @@ type deskSettings struct {
 	Panel            panelRect // 完整面板窗口上次的位置和大小
 	Pins             []pinRec  // 钉住的任务浮窗：重启后按这里恢复；关掉浮窗 = 取消钉住，记录删掉
 	NoAutoUpdate     bool      // 关掉自动更新（默认每天检查一次，有新版就在空闲时更新）
+	AutoArchive      bool      // 可选：自动归档结束或残留会话组；默认关闭
+	NoTrayFlash      bool      // 仅关闭托盘闪烁，静态进度不受影响
+	NoBadge          bool      // 仅关闭悬浮窗与胶囊未读角标，不影响提醒卡
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
@@ -183,10 +186,13 @@ func (f *floatWin) setDnd(on bool) error {
 // （抽屉往屏幕中间那一侧拉开：窗口变宽时靠右的保持右边缘不动，见 fit）
 func (f *floatWin) pushHostState() {
 	pinned, dnd, sound, strip, tl := f.pinned(), f.dnd(), f.soundState(), f.strip(), f.toastLen()
+	f.mu.Lock()
+	badge := !f.set.NoBadge
+	f.mu.Unlock()
 	th, _ := json.Marshal(f.theme())
 	h, v := f.side()
 	f.dispatch(func() {
-		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,side:%q,vside:%q,glass:%t,strip:%t,toastLen:%q,theme:%s,width:%g,%s})", pinned, dnd, h, v, glassOn, strip, tl, th, f.floatWidth(), sound))
+		f.w.Eval(fmt.Sprintf("window.tickHostState && tickHostState({pinned:%t,dnd:%t,notificationBadge:%t,side:%q,vside:%q,glass:%t,strip:%t,toastLen:%q,theme:%s,width:%g,%s})", pinned, dnd, badge, h, v, glassOn, strip, tl, th, f.floatWidth(), sound))
 	})
 }
 
@@ -853,6 +859,9 @@ func runTray(srv *Server, f *floatWin) {
 		mAuto := systray.AddMenuItemCheckbox(L("开机启动", "Start with Windows"), "", autostartEnabled())
 		mUpdate := systray.AddMenuItem(L("检查更新（当前 ", "Check for updates (current ")+version+L("）", ")"), "")
 		mAutoUp := systray.AddMenuItemCheckbox(L("自动更新", "Auto-update"), L("每 12 小时检查一次，空闲时重启到新版本", "Checks every 12 hours and restarts into the new version when idle"), !f.set.NoAutoUpdate)
+		mAutoArchive := systray.AddMenuItemCheckbox(L("自动归档残留任务", "Auto-archive inactive groups"), L("整组结束 30 分钟，或父任务结束且整组 60 分钟无活动；等待和受阻保留", "After 30 minutes for ended groups, or 60 quiet minutes after the parent ended; waiting and blocked are kept"), f.set.AutoArchive)
+		mTrayFlash := systray.AddMenuItemCheckbox(L("托盘闪烁", "Tray flashing"), "", !f.set.NoTrayFlash)
+		mBadge := systray.AddMenuItemCheckbox(L("未读角标", "Unread badges"), "", !f.set.NoBadge)
 		t.up = &updater{f: f, srv: srv, menu: mUpdate}
 		srv.restart = func(force bool) { t.up.setPending(L("新版本", "new version")); t.up.restartWhenIdle(force) }
 		go t.up.loop()
@@ -882,6 +891,9 @@ func runTray(srv *Server, f *floatWin) {
 			check(mFS, st.FsHide)
 			check(mAuto, st.Autostart)
 			check(mAutoUp, st.AutoUpdate)
+			check(mAutoArchive, st.AutoArchive)
+			check(mTrayFlash, st.TrayFlash)
+			check(mBadge, st.NotificationBadge)
 			for i, o := range soundOpts {
 				check(soundItems[i], o.ID == st.Sound)
 			}
@@ -928,6 +940,12 @@ func runTray(srv *Server, f *floatWin) {
 					t.act("update", true, "")
 				case <-mAutoUp.ClickedCh:
 					t.act("autoupdate", !mAutoUp.Checked(), "")
+				case <-mAutoArchive.ClickedCh:
+					t.act("autoarchive", !mAutoArchive.Checked(), "")
+				case <-mTrayFlash.ClickedCh:
+					t.act("trayflash", !mTrayFlash.Checked(), "")
+				case <-mBadge.ClickedCh:
+					t.act("notificationbadge", !mBadge.Checked(), "")
 				case <-mAuto.ClickedCh:
 					t.act("autostart", !mAuto.Checked(), "")
 				case <-mQuit.ClickedCh:
@@ -951,9 +969,9 @@ func trayCounts(srv *Server) (running, waiting, done, total int) {
 	for _, s := range srv.store.Sessions(false) {
 		active := isWaiting(s.Status) || s.Status == "running" || s.Status == "planning"
 		switch {
-		case isWaiting(s.Status):
+		case s.Status == "waiting":
 			waiting++
-		case active:
+		case active && s.Status != "blocked":
 			running++
 		}
 		if active {
@@ -990,6 +1008,8 @@ func trayStatus(srv *Server, f *floatWin) {
 	// 有没读的通知就一直闪（像微信），读完 / 清空 / 开了勿扰就停；勿扰到点了也要重新判断
 	dndCheck := time.NewTicker(30 * time.Second)
 	defer dndCheck.Stop()
+	archiveCheck := time.NewTicker(time.Minute)
+	defer archiveCheck.Stop()
 	nag := false
 	cache := map[iconState][]byte{}
 	base := iconState{Progress: 1}
@@ -1020,6 +1040,9 @@ func trayStatus(srv *Server, f *floatWin) {
 		set(base)
 	}
 	update := func() {
+		f.mu.Lock()
+		flashEnabled := !f.set.NoTrayFlash
+		f.mu.Unlock()
 		running, waiting, done, total := trayCounts(srv)
 		tip := "Tick · " + traySummary(running, waiting, done, total)
 		// 有未读（且没开勿扰）时鼠标停在图标上会弹自己的未读预览（摘要行写在预览里），
@@ -1042,7 +1065,10 @@ func trayStatus(srv *Server, f *floatWin) {
 		if waiting > 0 {
 			base.Tone = toneOrange
 		}
-		nag = srv.store.UnreadNotices() > 0 && !f.dnd()
+		nag = flashEnabled && srv.store.UnreadNotices() > 0 && !f.dnd()
+		if !flashEnabled {
+			stop()
+		}
 		switch {
 		case nag && blink == nil:
 			blink = time.NewTicker(520 * time.Millisecond)
@@ -1075,7 +1101,21 @@ func trayStatus(srv *Server, f *floatWin) {
 			update()
 		case <-dndCheck.C:
 			update()
+		case <-archiveCheck.C:
+			f.mu.Lock()
+			enabled := f.set.AutoArchive
+			f.mu.Unlock()
+			if enabled {
+				srv.store.AutoArchive()
+			}
 		case n := <-trayFlash:
+			f.mu.Lock()
+			flashEnabled := !f.set.NoTrayFlash
+			f.mu.Unlock()
+			if !flashEnabled {
+				stop()
+				continue
+			}
 			if n <= 0 {
 				if !nag {
 					stop()

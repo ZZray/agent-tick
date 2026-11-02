@@ -4,13 +4,78 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	webview2 "github.com/jchv/go-webview2"
 )
+
+func TestAutoArchiveSettingDefaultsPersistsAndRollsBackOnError(t *testing.T) {
+	tr, _ := settingsTestTray(t)
+	if tr.f.set.AutoArchive || tr.state().AutoArchive {
+		t.Fatal("auto archive must default off")
+	}
+	if _, err := tr.applySetting("autoarchive", true, ""); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(tr.f.file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored deskSettings
+	if err := json.Unmarshal(b, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if !restored.AutoArchive || !tr.state().AutoArchive {
+		t.Fatal("enabled state not persisted and exposed")
+	}
+	tr.f.file = t.TempDir()
+	if _, err := tr.applySetting("autoarchive", false, ""); err == nil {
+		t.Fatal("settings write error was swallowed")
+	}
+	if !tr.f.set.AutoArchive {
+		t.Fatal("failed write changed enabled preference")
+	}
+}
+
+func TestNotificationDisplaySettingsPersistIndependentlyAndRollback(t *testing.T) {
+	tr, _ := settingsTestTray(t)
+	if !tr.state().TrayFlash || !tr.state().NotificationBadge {
+		t.Fatal("notification display defaults changed")
+	}
+	for _, name := range []string{"trayflash", "notificationbadge"} {
+		if _, err := tr.applySetting(name, false, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if tr.state().TrayFlash || tr.state().NotificationBadge {
+		t.Fatal("display toggles did not apply")
+	}
+	b, err := os.ReadFile(tr.f.file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved deskSettings
+	if err := json.Unmarshal(b, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if !saved.NoTrayFlash || !saved.NoBadge || saved.Sound != "" || saved.DndUntil != 0 {
+		t.Fatal("display settings changed sound or do-not-disturb")
+	}
+	tr.f.file = t.TempDir()
+	for _, name := range []string{"trayflash", "notificationbadge"} {
+		if _, err := tr.applySetting(name, true, ""); err == nil {
+			t.Fatal("failed save reported success")
+		}
+	}
+	if tr.state().TrayFlash || tr.state().NotificationBadge {
+		t.Fatal("failed save changed effective state")
+	}
+}
 
 // Only Dispatch is used. No WebView, sound playback, registry write, or restart runs.
 type settingsQueueView struct {
