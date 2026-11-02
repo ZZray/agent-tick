@@ -43,6 +43,7 @@ const cliHelp = `Tick 命令行（agent 用；协议见 http://127.0.0.1:7357/pr
   tick notify <会话> "文字" [--kind info|success|warning]
   tick show <会话>  |  tick ls  |  tick panel [会话]（打开完整面板）
   tick install [--dry-run]  |  tick uninstall  |  tick update  |  tick version
+  tick gateway --listen <本机IP:7358> --token-file <私有令牌文件> [--port 7357]    远端 Agent 接入
 参数也可以写成 --note=… ；单独的 -- 之后全部当正文。退出码：0 成功，1 用法或接口错误，2 连不上 Tick（不影响主任务）`
 
 func runCLI(port int, args []string) int {

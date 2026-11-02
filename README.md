@@ -150,6 +150,12 @@ Codex：        [mcp_servers.tick]
 
 MCP 初始化时会把用法交给 agent：开工写清单、逐条勾选、需要你时通知、做完写总结。agent 名称从客户端信息自动识别。完整约定见 [AGENT_PROTOCOL.md](AGENT_PROTOCOL.md)，服务启动后也能从 `/protocol` 读取，其中有不用 MCP 时的 HTTP 接口。
 
+## 另一台电脑上的 agent
+
+从 0.5.17 起，在显示 Tick 的电脑启动 `tick gateway --listen <本机局域网IP>:7358 --token-file <私有令牌文件>`，另一台电脑的 agent 即可通过 `http://<Tick电脑IP>:7358/mcp` 携带 Bearer 令牌上报任务，远端无需安装 Tick。
+
+网关只提供 MCP；会话数据和窗口仍在原电脑，网页与桌面管理接口保持本机访问规则。启动方式、令牌保存和 Codex/Cursor/Kiro 配置见[远端接入说明](docs/knowledge/remote-agents.md)。
+
 ## 命令行
 
 没接 MCP、只能跑 shell 的 agent 用同一个 `tick.exe`。中文参数直接传，不经过 JSON，所以不会遇到 PowerShell 5.1 的编码乱码：

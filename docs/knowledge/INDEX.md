@@ -4,6 +4,7 @@
 
 | 条目 | 内容 |
 |---|---|
+| [远端 agent 接入](remote-agents.md) | 鉴权 MCP 网关、远端配置、权限与跨电脑验证边界 |
 | [大屏验证与 WebView2 退出消息](screen-mode-20261030.md) | 2026-10-30 大屏续做的缺陷证据、回归范围和原生验收缺口 |
 | [主子清单折叠与当前步骤](checklist-folding.md) | 0.5.14 的显示修复、父子定位约束和验证入口 |
 | [清单展开预留 WebView 视口](fold-motion-reserve-20261031.md) | 展开时灰白新增区的根因、`tickReserve` 做法、动效参数与原生验收方法 |
