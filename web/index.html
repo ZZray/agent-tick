@@ -1277,7 +1277,33 @@ html.nocur .scr-esc{opacity:0}
 .cv-card .s-head{cursor:inherit}
 .cv-card .s-l1{padding-right:0!important}
 .cv-card .s-prog{display:block!important}
+.cv-card .s-items .pad{max-height:280px;overflow:auto}
 .cv-module{width:320px;padding:0}
+.cv-module.ancestor{width:220px}
+.cv-parent-context{padding:12px 14px}
+.cv-parent-context strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text-2)}
+.cv-parent-context span{display:block;margin-top:5px;font-size:12px;color:var(--text-2)}
+.cv-scope{padding:3px 12px 10px;border-top:1px solid var(--line-soft)}
+.cv-scope-tools{display:flex;gap:12px;flex-wrap:wrap}
+.cv-scope-tools button{padding:5px 0;border:0;background:none;font:inherit;font-size:12px;color:var(--text-2);cursor:pointer}
+.cv-scope-tools button[aria-expanded=true]{color:var(--text-1)}
+.cv-scope-list{max-height:180px;overflow:auto;margin:4px 0 0;padding:0;list-style:none;font-size:11px}
+.cv-scope-list li{display:flex;gap:10px;padding:6px 0;color:var(--text-3)}
+.cv-scope-list li>span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-scope-list .blocked{color:var(--orange)}
+.cv-history{position:absolute;z-index:100;right:18px;top:58px;width:min(420px,calc(100vw - 36px));max-height:calc(100vh - 84px);overflow:auto;padding:12px 16px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 20px 60px #0005;font-size:12px}
+.cv-history-entry{border-bottom:1px solid var(--line-soft);padding:8px 0}
+.cv-history-head{display:flex;gap:12px;align-items:center}
+.cv-history-head>button{min-width:0;padding:0;border:0;background:none;font:inherit;text-align:left;cursor:pointer;color:var(--text-2)}
+.cv-history-head>button:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cv-history-head .cv-archive{flex:none;opacity:0;pointer-events:none}
+.cv-history-entry:hover .cv-archive,.cv-history-entry:focus-within .cv-archive,.cv-archive:disabled{opacity:1;pointer-events:auto}
+.cv-history-error{position:absolute;z-index:101;top:64px;left:18px;max-width:min(480px,calc(100vw - 36px));margin:0;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg-2);color:var(--red);font-size:12px;overflow-wrap:anywhere}
+.cv-ended{border:0;background:none;color:var(--text-2);font:inherit;font-size:12px;cursor:pointer}
+.cv-ended::before{content:'✓';margin-right:6px;color:var(--green)}
+.cv-history p{max-height:150px;overflow:auto;color:var(--text-3);overflow-wrap:anywhere}
+.cv-history small{color:var(--text-4)}
+.cv-mod-list{max-height:220px;overflow:auto}
 .cv-mod-head{display:flex;align-items:center;gap:10px;width:100%;padding:14px 16px;background:none;border:0;color:var(--text-1);text-align:left;cursor:inherit}
 .cv-mod-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--text-4)}
 .cv-module.run .cv-mod-dot{background:var(--brand)}
@@ -3453,12 +3479,12 @@ function renderPanel() {
 // 无限画布：每个会话一张和悬浮窗里同款的卡片（sessionRow），可以自由拖动。
 //   拖空白处平移，滚轮按光标位置缩放，双击空白或点「适应」把所有卡片收进视野；卡片位置和视图记在本机（localStorage）。
 //   新会话的卡片自动找一块不压着别的卡的空位；等你的卡橙色，问题原文直接摆在卡上，顶光也变橙，
-//   新任务或模块标题在视野外时自动适应相机；手动操作结束 1.2 秒后再处理，不改卡片位置。顶栏等你入口依次跳转。
-//   刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。
+//   可见拓扑变化后合并自动整理；普通进度刷新保留位置。手动操作结束 1.2 秒后再处理，顶栏等你入口依次跳转。
+//   完成任务立即移出主画布，结果留在有界历史列表；模块只看当前分支，前后流程收成数量入口。
 //   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, historyOpen: new Set(), archiving: new Set(), archiveError: '', topology: null, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3494,7 +3520,7 @@ function cvEdgePath(a, b) {
   if (b.y >= a.y) return curve(cx(a), a.y + a.h, cx(b), b.y, false);
   return curve(cx(a), a.y, cx(b), b.y + b.h, false);
 }
-// 自动整理：每个父卡带着它的子卡成一块（子卡在父卡右边竖着排），块再按"先靠上再靠左"排进窗口宽度能放下的几列里
+// 每个根会话从同一条左侧起点出发，子流程按深度向右延伸；不同根会话竖排成独立 lane。
 // nodes: [{ id, parentId, w, h }]，返回 Map(id → {x, y})
 function cvArrangeLayout(nodes, vw) {
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -3512,19 +3538,14 @@ function cvArrangeLayout(nodes, vw) {
   for (const n of nodes.filter(n => !byId.has(n.parentId) || n.parentId === n.id)) if (!claimed.has(n.id)) blocks.push(measure(n));
   // 没有根的损坏关系也保留卡片，不让一个环使整组任务消失。
   for (const n of nodes) if (!claimed.has(n.id)) blocks.push(measure(n));
-  const pitch = (nodes[0]?.w || 380) + CV_GAP;
-  const width = cvClamp(Math.floor(vw / pitch), 2, 5) * pitch + (CV_ARROW - CV_GAP);
-  const out = new Map(), rects = [];
+  const out = new Map();
   const place = (b, x, y) => {
     out.set(b.node.id, { x, y });
     let cy = y;
     for (const k of b.children) { place(k, x + b.node.w + CV_ARROW, cy); cy += k.h + CV_GAP; }
   };
-  for (const b of blocks) {
-    const p = cvPlace(rects, b.w, b.h, 1, Math.max(0, width - CV_GAP - b.w));
-    rects.push({ ...p, w: b.w, h: b.h });
-    place(b, p.x, p.y);
-  }
+  let y = 0;
+  for (const b of blocks) { place(b, 0, y); y += b.h + CV_GAP * 2; }
   return out;
 }
 // 把所有卡片收进视野：缩放取刚好放得下、不超过 CV_ZFIT，居中；top 是顶栏高度，卡片不压在它下面
@@ -3542,18 +3563,40 @@ function cvZoomAt(v, px, py, factor) {
 }
 // 画布上有哪些卡：每个会话一张，子 agent 也是独立的卡，用箭头连到父卡；父卡不在画布上（结束很久了）时子卡单独放着，没有箭头
 function cvCards() {
-  const t = now();
-  const list = visible().filter(s => !isEnded(s) || t - s.endedAt < 30 * MIN);
+  const all = visible(), list = all.filter(s => !isEnded(s));
   const waits = list.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
   const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
   const stale = list.filter(s => !isEnded(s) && !isWaiting(s) && isDormant(s)).sort(byOrder);
-  const recent = list.filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
-  return [...waits, ...active, ...stale, ...recent];
+  const parents = all.filter(s => isEnded(s) && list.some(k => k.parentId === s.id)).map(s => ({ ...s, canvasContext: true }));
+  return [...waits, ...active, ...stale, ...parents];
+}
+// 分组窗口跟随真实当前条目，历史和未来只作为有界的折叠列表，不再变成整片画布卡。
+function cvModuleScope(owner) {
+  const items = owner.items || [], groups = new Map();
+  for (const [index, item] of items.entries()) {
+    const path = (item.group || '').split(' / ').map(p => p.trim()).filter(Boolean).join(' / ');
+    if (!path) continue;
+    if (!groups.has(path)) groups.set(path, { path, items: [], first: index, last: index });
+    groups.get(path).items.push(item);
+    groups.get(path).last = index;
+  }
+  const list = [...groups.values()];
+  let current = items.filter(it => it.status === 'doing');
+  if (!current.length) current = items.filter(it => it.status === 'blocked').slice(0, 1);
+  if (!current.length) current = items.filter(it => it.status === 'todo').slice(0, 1);
+  const started = items.some(it => ['doing', 'done', 'blocked'].includes(it.status) || it.startedAt > 0 || it.spentMs > 0);
+  const focus = new Set(!isEnded(owner) && started ? current.map(it => (it.group || '').split(' / ').map(p => p.trim()).filter(Boolean).join(' / ')).filter(Boolean) : []);
+  if (!started) return { groups: list, focus, before: [], after: list, other: [] };
+  const indices = current.map(it => items.indexOf(it));
+  const first = indices.length ? Math.min(...indices) : items.length, last = indices.length ? Math.max(...indices) : items.length;
+  return { groups: list, focus, before: list.filter(g => g.last < first), after: list.filter(g => g.first > last), other: list.filter(g => g.last >= first && g.first <= last && !focus.has(g.path)) };
 }
 // 模块只投影到画布，不创建会话。分组路径中的 " / " 表示下一层，原单级分组仍然是一张模块卡。
 function cvFlowNodes(sessions = cvCards()) {
   const nodes = [...sessions];
   for (const owner of sessions) {
+    if (isEnded(owner)) continue;
+    const focus = cvModuleScope(owner).focus;
     const groups = new Map();
     for (const item of owner.items || []) {
       const parts = (item.group || '').split(' / ').map(p => p.trim()).filter(Boolean);
@@ -3570,11 +3613,12 @@ function cvFlowNodes(sessions = cvCards()) {
       }
     }
     for (const node of groups.values()) {
-      if (!node.allItems.some(it => ['doing', 'done', 'blocked'].includes(it.status) || it.startedAt > 0 || it.spentMs > 0)) continue;
+      if (![...focus].some(path => path === node.modulePath || path.startsWith(node.modulePath + ' / '))) continue;
       node.done = node.allItems.filter(it => ['done', 'skipped'].includes(it.status)).length;
       node.total = node.allItems.length;
       node.status = node.done === node.total ? 'done' : node.allItems.some(it => it.status === 'blocked') ? 'blocked' : owner.status === 'running' && node.allItems.some(it => it.status === 'doing') ? 'running' : 'planning';
       node.updatedAt = owner.updatedAt;
+      node.focusLeaf = focus.has(node.modulePath);
       nodes.push(node);
     }
   }
@@ -3594,11 +3638,12 @@ function cvSave() {
   clearTimeout(cvSaveT);
   cvSaveT = setTimeout(() => {
     const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
-    store.set('canvas', { pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+    store.set('canvas', { layoutVersion: CV.needsArrange ? 0 : 2, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
   }, 300);
 }
 function cvLoad() {
   const d = store.get('canvas', null);
+  if (d?.layoutVersion === 2 && typeof d.topology === 'string') CV.topology = d.topology;
   for (const [k, v] of Object.entries(d?.pos || {})) if (Number.isFinite(v?.x) && Number.isFinite(v?.y)) CV.pos.set(k, { x: v.x, y: v.y });
   const v = d?.view;
   if (v && [v.x, v.y, v.z].every(Number.isFinite) && v.z >= CV_ZMIN && v.z <= CV_ZMAX) CV.view = { x: v.x, y: v.y, z: v.z };
@@ -3618,7 +3663,7 @@ function cvApply(anim) {
   if (zl) zl.textContent = Math.round(CV.view.z * 100) + '%';
 }
 function cvRects() {
-  return [...document.querySelectorAll('.cv-world>.cv-card')].map(el => {
+  return [...document.querySelectorAll('.cv-world>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid)).map(el => {
     const p = CV.pos.get(el.dataset.cvid);
     return p && { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight };
   }).filter(Boolean);
@@ -3639,13 +3684,19 @@ function cvRevealPending() {
   CV.revealT = 0;
   const els = new Map([...document.querySelectorAll('.cv-world>.cv-card')].map(el => [el.dataset.cvid, el]));
   for (const id of CV.pendingReveal) if (!CV.nodes.has(id) || !els.has(id) || cvHeaderVisible(els.get(id))) CV.pendingReveal.delete(id);
-  if (!CV.pendingReveal.size || document.hidden) return;
+  if ((!CV.pendingReveal.size && !CV.needsArrange) || document.hidden) return;
   const delay = 1200 - (Date.now() - CV.userAt);
   if (CV.interacting || delay > 0) {
     CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay);
     return;
   }
-  // 适应只调整相机，用户拖过的卡片位置保持不动。
+  if (CV.needsArrange) {
+    CV.needsArrange = false;
+    cvArrange();
+    CV.pendingReveal.clear();
+    return;
+  }
+  // 只有标题超出视口时调整相机，普通内容更新不改用户摆放。
   cvFitView(true);
   // 无限画布可能宽到最小缩放也装不下：至少把一张新卡的标题带进视野，不能按巨高卡的整卡中心定位。
   const target = [...CV.pendingReveal].map(id => els.get(id)).find(el => !cvHeaderVisible(el));
@@ -3661,15 +3712,21 @@ function cvNewContent(ids, first) {
   const els = [...document.querySelectorAll('.cv-world>.cv-card')];
   const allOutside = first && els.length && !els.some(cvHeaderVisible);
   for (const el of els) if ((allOutside || !first && ids.has(el.dataset.cvid)) && !cvHeaderVisible(el)) CV.pendingReveal.add(el.dataset.cvid);
-  if (CV.pendingReveal.size && !CV.revealT) {
+  if ((CV.pendingReveal.size || CV.needsArrange) && !CV.revealT) {
     CV.revealT = setTimeout(cvRevealPending, 60); // 合并一小批连着到达的新会话/模块。
   }
+}
+// 显式展开/收起和主动归档也会改变可用空间；与拓扑更新共用一条延后整理队列。
+function cvRequestArrange() {
+  CV.needsArrange = true;
+  CV.userAt = Date.now();
+  cvNewContent(new Set(), false);
 }
 // 渲染后给还没有位置的卡找位置（量实际高度）：没有父卡的先放，子卡再落到各自父卡右边；第一次还没有视图时把所有卡收进视野
 function cvLayout() {
   const world = document.querySelector('.cv-world');
   if (!world) return;
-  const els = new Map([...world.querySelectorAll(':scope>.cv-card')].map(el => [el.dataset.cvid, el]));
+  const els = new Map([...world.querySelectorAll(':scope>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid)).map(el => [el.dataset.cvid, el]));
   const rects = new Map(), fresh = [];
   for (const [id, el] of els) {
     const p = CV.pos.get(id);
@@ -3765,7 +3822,9 @@ function cvWatch(world) {
 function cvArrange() {
   const world = document.querySelector('.cv-world');
   if (!world) return;
-  const els = [...world.querySelectorAll(':scope>.cv-card')];
+  clearTimeout(CV.revealT); CV.revealT = 0; CV.pendingReveal.clear();
+  const els = [...world.querySelectorAll(':scope>.cv-card')].filter(el => CV.nodes.has(el.dataset.cvid));
+  CV.needsArrange = false;
   const pos = cvArrangeLayout(els.map(el => ({ id: el.dataset.cvid, parentId: cvNode(el.dataset.cvid)?.parentId || '', w: el.offsetWidth, h: el.offsetHeight })), innerWidth);
   clearTimeout(CV.arranging);
   CV.arranging = setTimeout(() => {
@@ -3795,6 +3854,19 @@ function cvReveal(id, force) {
   cvSave();
   if (!RM.matches) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 200);
 }
+async function cvArchive(id) {
+  const session = S.sessions.get(id);
+  if (!session || session.archived || !isEnded(session) || CV.archiving.has(id)) return;
+  CV.archiving.add(id); CV.archiveError = ''; schedule();
+  try {
+    await post(`/api/sessions/${encodeURIComponent(id)}`, { archived: true }, 'PATCH');
+    const response = await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    ingest(await response.json());
+    cvRequestArrange();
+  } catch (err) { CV.archiveError = `归档没成功：${err.message}`; }
+  finally { CV.archiving.delete(id); schedule(); }
+}
 function startScreen() {
   const html = document.documentElement;
   html.dataset.scr = '';
@@ -3815,7 +3887,7 @@ function startScreen() {
   // 拖动：按在卡片上拖 = 移动这张卡；按在空白处（或中键）拖 = 平移画布。移动不到 4px 当点击，卡片照常展开 / 收起
   let g = null, suppress = false;
   document.addEventListener('pointerdown', e => {
-    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle')) return;
+    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle, .cv-history, .cv-scope, .s-items, .cv-mod-list')) return;
     touch();
     CV.interacting = true;
     const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
@@ -3862,7 +3934,7 @@ function startScreen() {
   addEventListener('blur', end);
   document.addEventListener('click', e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('wheel', e => {
-    if (e.target.closest?.('.scr-h')) return;
+    if (e.target.closest?.('.scr-h, .cv-history, .cv-scope, .cv-mod-list, .s-items')) return;
     e.preventDefault();
     if (!CV.view) return;
     touch();
@@ -3870,7 +3942,7 @@ function startScreen() {
     cvApply(false);
     cvSave();
   }, { passive: false });
-  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle')) { touch(); cvFitView(true); } });
+  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle, .cv-history')) { touch(); cvFitView(true); } });
   document.addEventListener('click', e => {
     const b = e.target.closest?.('[data-cv]');
     if (!b) return;
@@ -3879,9 +3951,23 @@ function startScreen() {
     else if (b.dataset.cv === 'in') zoomBy(1.25);
     else if (b.dataset.cv === 'out') zoomBy(0.8);
     else if (b.dataset.cv === 'arrange') cvArrange();
+    else if (b.dataset.cv === 'history') { CV.history = !CV.history; schedule(); }
+    else if (b.dataset.cv === 'archive') cvArchive(b.dataset.ownerId);
+    else if (b.dataset.cv === 'history-item') {
+      const id = b.dataset.ownerId;
+      if (CV.historyOpen.has(id)) CV.historyOpen.delete(id); else CV.historyOpen.add(id);
+      schedule();
+    }
+    else if (b.dataset.cv === 'scope') {
+      const id = b.dataset.ownerId, part = b.dataset.part;
+      if (CV.moduleLists.get(id) === part) CV.moduleLists.delete(id); else CV.moduleLists.set(id, part);
+      cvRequestArrange();
+      schedule();
+    }
     else if (b.dataset.cv === 'module' || b.dataset.cv === 'module-all') {
       const open = b.dataset.cv === 'module' ? CV.openModules : CV.allModules, id = b.dataset.moduleId;
       if (open.has(id)) open.delete(id); else open.add(id);
+      cvRequestArrange();
       schedule();
     }
     else if (b.dataset.cv === 'wait') {
@@ -3892,7 +3978,7 @@ function startScreen() {
     }
   });
   setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
-  setInterval(schedule, 30000); // “刚做完”到点离场
+  setInterval(schedule, 30000); // 更新随时间变化的活跃状态。
   addEventListener('resize', () => schedule());
 }
 function cvModuleCard(node) {
@@ -3908,7 +3994,7 @@ function cvModuleCard(node) {
     from = Math.max(0, at - 1); to = Math.min(node.items.length, at + 5);
   }
   const fold = text => `<li class="cv-mod-fold"><button data-cv="module-all" data-module-id="${esc(node.id)}">${text}</button></li>`;
-  return `<article class="cv-card ${tone} cv-module${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-enter="fade" data-exit="fade" style="${style}">
+  return `<article class="cv-card ${tone} cv-module${node.focusLeaf ? '' : ' ancestor'}${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-enter="fade" data-exit="fade" style="${style}">
     <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${open}" title="${esc(node.modulePath)}"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
     ${!open && current ? `<div class="cv-mod-current" title="${esc(current.text)}">${esc(current.text)}</div>` : ''}
     ${open ? `<ul class="cv-mod-list">${from ? fold(`前面 ${from} 项`) : ''}${node.items.slice(from, to).map(it => `<li class="cv-mod-item ${it.status}"><span>${({ done: '✓', skipped: '−', doing: '●', blocked: '!', todo: '·' })[it.status]}</span><span>${esc(it.text)}</span></li>`).join('')}${to < node.items.length ? fold(`后面还有 ${node.items.length - to} 项`) : ''}${all && node.items.length > 8 ? fold('收起清单') : ''}${!node.items.length ? '<li class="cv-mod-fold">子流程展开在右侧</li>' : ''}</ul>` : ''}
@@ -3918,9 +4004,14 @@ function cvCard(s, live) {
   const tone = isWaiting(s) ? 'wait' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'dead' : 'run';
   const p = CV.pos.get(s.id);
   const style = p ? `left:${p.x}px;top:${p.y}px;z-index:${CV.zi.get(s.id) || 1}` : 'left:0;top:0;visibility:hidden';
+  if (s.canvasContext) return `<article class="cv-card ok cv-parent-context" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" style="${style}"><strong title="${esc(s.title)}">${esc(s.title)}</strong><span>主任务已结束 · 子 agent 仍在执行</span></article>`;
+  const scope = cvModuleScope(s), selected = CV.moduleLists.get(s.id), shown = scope[selected] || [];
+  const scopeLabel = { before: '前面', after: '后面', other: '其他' };
+  const scopeHtml = scope.groups.length ? `<div class="cv-scope"><div class="cv-scope-tools">${['before', 'after', 'other'].filter(part => scope[part].length).map(part => `<button data-cv="scope" data-owner-id="${esc(s.id)}" data-part="${part}" aria-expanded="${selected === part}">${scopeLabel[part]} ${scope[part].length} 个流程</button>`).join('')}</div>${selected && shown.length ? `<ul class="cv-scope-list" aria-label="${scopeLabel[selected]}流程">${shown.map(g => { const done = g.items.filter(it => ['done', 'skipped'].includes(it.status)).length, blocked = g.items.filter(it => it.status === 'blocked').length; return `<li${blocked ? ' class="blocked"' : ''}><span title="${esc(g.path)}">${esc(g.path)}</span><span>${done}/${g.items.length}${blocked ? ` · ${blocked}受阻` : ''}</span></li>`; }).join('')}</ul>` : ''}</div>` : '';
   return `<article class="cv-card ${tone}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-enter="fade" data-exit="fade" style="${style}">
     ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
     ${sessionRow(s, live)}
+      ${scopeHtml}
     ${tone === 'wait' ? `<p class="cv-q"><b>${s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : '在等你'}</b><span class="q">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</span></p>` : ''}
   </article>`;
 }
@@ -3928,7 +4019,19 @@ function renderScreen() {
   const list = cvCards(), idle = !list.length;
   const nodes = cvFlowNodes(list);
   const fresh = new Set(nodes.filter(n => !CV.nodes.has(n.id)).map(n => n.id));
+  const topology = JSON.stringify(nodes.map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
+  if (CV.topology !== topology) { CV.topology = topology; CV.needsArrange = true; }
   CV.nodes = new Map(nodes.map(n => [n.id, n]));
+  for (const node of nodes) {
+    const items = node.items || [];
+    const at = items.filter(it => it.status === 'doing').map(it => it.id).join(',') || items.find(it => !['done', 'skipped'].includes(it.status))?.id || '';
+    if (CV.moduleFocus?.get(node.id) !== at) {
+      if (node.ownerId) CV.allModules.delete(node.id);
+      else { S.open.delete(`all:${node.id}`); CV.moduleLists.delete(node.id); }
+    }
+    (CV.moduleFocus ||= new Map()).set(node.id, at);
+  }
+  const history = visible().filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
   const waits = list.filter(isWaiting);
   const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
   const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && isWaiting(k)));
@@ -3946,10 +4049,13 @@ function renderScreen() {
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
       <span class="grow"></span>
+      ${history.length ? `<button class="cv-ended" data-cv="history" aria-expanded="${CV.history}">已结束 ${history.length}</button>` : ''}
       ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="把所有卡片收进视野（双击空白也行）">适应</button><button data-cv="arrange" title="自动整理布局：父任务带着子任务成一组，整齐排好">整理</button></span>`}
       <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
       ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
     </header>
+    ${CV.archiveError ? `<p class="cv-history-error" role="alert">${esc(CV.archiveError)}</p>` : ''}
+    ${CV.history ? `<section class="cv-history" aria-label="已结束任务"><small>已从主画布移除，保留最近 ${Math.min(20, history.length)} 个结果</small>${history.slice(0, 20).map(s => `<div class="cv-history-entry"><div class="cv-history-head"><button data-cv="history-item" data-owner-id="${esc(s.id)}" aria-expanded="${CV.historyOpen.has(s.id)}" title="${esc(s.title)}">${esc(s.title)}</button><button class="cv-archive" data-cv="archive" data-owner-id="${esc(s.id)}" ${CV.archiving.has(s.id) ? 'disabled' : ''}>${CV.archiving.has(s.id) ? '归档中…' : '归档'}</button></div>${CV.historyOpen.has(s.id) ? `<p>${esc(s.summary || '任务已结束。')}</p><small>${({ done: '已完成', failed: '未完成', cancelled: '已取消' })[s.status]} · ${(s.items || []).filter(it => ['done', 'skipped'].includes(it.status)).length}/${(s.items || []).length} 项已处理</small>` : ''}</div>`).join('')}</section>` : ''}
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
       : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
@@ -4514,6 +4620,7 @@ async function onClick(e) {
       row.classList.toggle('open', open); // 就地切换，保留展开过渡
       el.setAttribute('aria-expanded', String(open));
       foldSlide(row, open);
+      if (SCREEN) cvRequestArrange();
       break;
     }
     case 'read':
@@ -4568,6 +4675,7 @@ async function onClick(e) {
       e.stopPropagation();
       const k = `all:${sid}`;
       if (S.open.has(k)) S.open.delete(k); else S.open.add(k);
+      if (SCREEN) cvRequestArrange();
       schedule();
       break;
     }
