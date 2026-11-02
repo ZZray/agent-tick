@@ -91,7 +91,7 @@ test('notification display toggles preserve boolean settings contract and defaul
   assert.match(ctx.settings.el.markup,/data-setting="notificationbadge" aria-pressed="true"/);
   await ctx.settingsAct('trayflash',false);await ctx.settingsAct('notificationbadge',false);
   assert.deepEqual(calls,[{name:'trayflash',on:false},{name:'notificationbadge',on:false}]);
-  assert.match(html,/<details class="mn-list"[^>]*>[\s\S]*?<summary class="mn-row">显示与通知/);
+  assert.match(html,/data-menu-sub aria-haspopup="menu"[\s\S]*?<span>显示与通知<\/span>/);
   assert.match(html,/nUnread && S.notificationBadge !== false/);
   assert.doesNotMatch(html,/name:\s*'不响'/);
 });

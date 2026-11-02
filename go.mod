@@ -12,3 +12,5 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 )
+
+replace github.com/jchv/go-webview2 => ./third_party/go-webview2

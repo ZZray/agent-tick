@@ -161,32 +161,53 @@ func (t *tray) act(name string, on bool, val string) {
 // ---------- 弹窗 ----------
 
 type menuWin struct {
-	mu       sync.Mutex
-	w        webview2.WebView
-	hwnd     uintptr
-	orig     uintptr
-	opening  bool
-	ready    bool
-	wantShow bool // 下一次页面报尺寸时显示出来（先排好版再出现，不闪）
-	anchor   point
-	gen      int
-	failed   bool
+	mu        sync.Mutex
+	w         webview2.WebView
+	hwnd      uintptr
+	orig      uintptr
+	opening   bool
+	ready     bool
+	wantShow  bool // 下一次页面报尺寸时显示出来（先排好版再出现，不闪）
+	anchor    point
+	gen       int
+	failed    bool
+	parent    *menuWin // nil for the main menu; settings is its owned popup
+	subY      float64
+	wantFocus bool
 }
 
 var theMenu = &menuWin{}
+var theSubMenu = &menuWin{parent: theMenu}
 
 // menuProc 只建一次：syscall.NewCallback 的槽位永不释放，窗口每次重建都新建会慢慢耗尽
 var menuProc = syscall.NewCallback(func(hh, msg, wp, lp uintptr) uintptr {
 	m := theMenu
+	theSubMenu.mu.Lock()
+	subH := theSubMenu.hwnd
+	theSubMenu.mu.Unlock()
+	if hh == subH {
+		m = theSubMenu
+	}
 	if msg == wmActivate && wp&0xFFFF == waInactive {
-		m.hide()
+		theMenu.mu.Lock()
+		mainH := theMenu.hwnd
+		theMenu.mu.Unlock()
+		inside := lp != 0 && (lp == mainH || lp == subH)
+		if lp == 0 {
+			foreground, _, _ := pGetForegroundWindow.Call()
+			inside = (hh == mainH && subH != 0 && foreground == subH) ||
+				(hh == subH && mainH != 0 && foreground == mainH)
+		}
+		if !inside {
+			theMenu.hide()
+		}
 	}
 	if msg == 0x100 && wp == 0x1B { // WM_KEYDOWN + VK_ESCAPE：焦点还在宿主窗口上、没进页面时也能关
-		m.hide()
+		theMenu.closeLevel()
 		return 0
 	}
 	if msg == wmClose {
-		m.hide()
+		theMenu.hide()
 		return 0
 	}
 	r, _, _ := pCallWindowProc.Call(m.orig, hh, msg, wp, lp)
@@ -206,6 +227,7 @@ const (
 
 // open 右键托盘：在光标附近弹出。返回 false 表示弹窗建不出来，调用方改用系统菜单
 func (m *menuWin) open(t *tray) bool {
+	m.closeSub(false)
 	var c point
 	pGetCursorPos.Call(uintptr(unsafe.Pointer(&c)))
 	m.mu.Lock()
@@ -230,24 +252,125 @@ func (m *menuWin) open(t *tray) bool {
 	return true
 }
 
+// openSub keeps the main window fixed. Hover only shows; explicit entry requests focus.
+func (m *menuWin) openSub(t *tray, y float64, focus bool) {
+	m.mu.Lock()
+	mainH, visible := m.hwnd, m.ready
+	m.mu.Unlock()
+	if v, _, _ := pIsWindowVisible.Call(mainH); !visible || v == 0 {
+		return
+	}
+	sub := theSubMenu
+	sub.mu.Lock()
+	sub.subY, sub.wantShow = y, true
+	sub.wantFocus = sub.wantFocus || focus
+	sub.gen++
+	w, ready := sub.w, sub.ready
+	if w != nil && ready {
+		sub.mu.Unlock()
+		b, _ := json.Marshal(t.state())
+		w.Dispatch(func() { w.Eval("tickMenuOpen(" + string(b) + ")") })
+	} else {
+		if !sub.opening {
+			sub.opening = true
+			go sub.create(t)
+		}
+		sub.mu.Unlock()
+	}
+	m.subState(true, false)
+}
+
+func (m *menuWin) subState(open, focus bool) {
+	m.mu.Lock()
+	w := m.w
+	m.mu.Unlock()
+	if w != nil {
+		w.Dispatch(func() { w.Eval(fmt.Sprintf("window.tickMenuSubState && tickMenuSubState(%t,%t)", open, focus)) })
+	}
+}
+
+func (m *menuWin) closeSub(focus bool) {
+	theSubMenu.hide()
+	if focus {
+		m.mu.Lock()
+		h := m.hwnd
+		m.mu.Unlock()
+		if v, _, _ := pIsWindowVisible.Call(h); v != 0 {
+			pSetForegroundWindow.Call(h)
+			m.subState(false, true)
+		}
+	}
+}
+
+func (m *menuWin) closeLevel() {
+	theSubMenu.mu.Lock()
+	h, pending := theSubMenu.hwnd, theSubMenu.wantShow
+	theSubMenu.mu.Unlock()
+	if v, _, _ := pIsWindowVisible.Call(h); pending || v != 0 {
+		m.closeSub(true)
+	} else {
+		m.hide()
+	}
+}
+
 func (m *menuWin) create(t *tray) {
 	runtime.LockOSThread()
+	defer func() {
+		m.mu.Lock()
+		m.w, m.hwnd, m.ready, m.opening = nil, 0, false, false
+		m.mu.Unlock()
+	}()
+	if m.parent != nil {
+		// The library initializes COM only on its package-init thread. This child
+		// runs on its own locked thread and must establish its STA explicitly.
+		ole32 := syscall.NewLazyDLL("ole32.dll")
+		hr, _, _ := ole32.NewProc("CoInitializeEx").Call(0, 2) // COINIT_APARTMENTTHREADED
+		if int32(hr) < 0 {
+			log.Printf("创建设置子菜单失败：CoInitializeEx HRESULT=%08x", uint32(hr))
+			m.mu.Lock()
+			m.wantShow, m.wantFocus = false, false
+			m.mu.Unlock()
+			m.parent.subState(false, false)
+			return
+		}
+		defer ole32.NewProc("CoUninitialize").Call() // balances both S_OK and S_FALSE
+	}
 	f := t.f
-	w := newGlassWebView(webview2.WebViewOptions{
+	title := "Tick 菜单"
+	if m.parent != nil {
+		title = "Tick 显示与通知"
+	}
+	o := webview2.WebViewOptions{
 		DataPath:      f.dataPath,
-		WindowOptions: webview2.WindowOptions{Title: "Tick 菜单", Width: 320, Height: 420},
-	})
+		AutoFocus:     true,
+		WindowOptions: webview2.WindowOptions{Title: title, Width: 320, Height: 420, Hidden: m.parent != nil},
+	}
+	w := newGlassWebView(o)
+
 	if w == nil {
 		// 这次右键先把悬浮窗叫出来；下次右键时（在托盘线程里）换成系统菜单
 		log.Printf("托盘弹窗创建失败，改用系统菜单")
 		m.mu.Lock()
-		m.opening, m.failed = false, true
+		m.opening, m.failed, m.wantShow, m.wantFocus = false, true, false, false
 		m.mu.Unlock()
-		f.dispatch(f.summon)
+		if m.parent != nil {
+			m.parent.subState(false, false)
+		} else {
+			f.dispatch(f.summon)
+		}
 		return
 	}
 	h := uintptr(w.Window())
 	pShowWindow.Call(h, swHide)
+	if m.parent != nil {
+		m.parent.mu.Lock()
+		owner := m.parent.hwnd
+		m.parent.mu.Unlock()
+		pSetWindowLongPtr.Call(h, ^uintptr(7), owner) // GWLP_HWNDPARENT
+	}
+	m.mu.Lock()
+	m.w, m.hwnd = w, h
+	m.mu.Unlock()
 	pSetWindowLongPtr.Call(h, uintptr(gwlStyleU()), wsPopup|wsClipChildren)
 	pSetWindowLongPtr.Call(h, uintptr(gwlExStyleU()), wsExToolWindow|wsExTopmost)
 	round := int32(2)
@@ -270,27 +393,65 @@ func (m *menuWin) create(t *tray) {
 		w.Eval("tickMenuOpen(" + state() + ")")
 	})
 	_ = w.Bind("tickMenuFit", func(cw, ch float64) { m.fit(cw, ch) })
-	_ = w.Bind("tickMenuClose", func() { m.hide() })
+	_ = w.Bind("tickMenuClose", func() {
+		if m.parent != nil {
+			m.parent.closeSub(true)
+		} else {
+			m.closeLevel()
+		}
+	})
+	if m.parent == nil {
+		_ = w.Bind("tickMenuSubOpen", func(y float64, focus bool) { m.openSub(t, y, focus) })
+		_ = w.Bind("tickMenuSubClose", func(focus bool) { m.closeSub(focus) })
+	}
 	// 动作执行完回新的状态给页面；会离开菜单的动作（打开面板、退出等）顺手收起
 	_ = w.Bind("tickMenuAct", func(name string, on bool, val string) string {
 		switch name {
 		case "float", "panel", "browser", "mcp", "update", "sounddir", "quit", "lang":
-			m.hide()
+			theMenu.hide()
 		}
 		t.act(name, on, val)
 		if name == "dnd" || name == "sound" { // 这两个会异步推状态，等一下再取
 			time.Sleep(60 * time.Millisecond)
 		}
-		return state()
+		st := state()
+		if m.parent != nil {
+			m.parent.mu.Lock()
+			parentW := m.parent.w
+			m.parent.mu.Unlock()
+			if parentW != nil {
+				parentW.Dispatch(func() { parentW.Eval("window.tickMenuState && tickMenuState(" + st + ")") })
+			}
+		}
+		return st
 	})
-	m.mu.Lock()
-	m.w, m.hwnd = w, h
-	m.mu.Unlock()
-	w.Navigate(pageURL(f.srv.port, "view=menu"))
+	view := "view=menu"
+	if m.parent != nil {
+		view += "&submenu=1"
+	}
+	if m.parent != nil {
+		m.parent.mu.Lock()
+		alive := m.parent.ready
+		m.parent.mu.Unlock()
+		if !alive {
+			w.Destroy()
+			return
+		}
+	}
+	w.Navigate(pageURL(f.srv.port, view))
 	w.Run()
 	m.mu.Lock()
-	m.w, m.hwnd, m.ready, m.opening = nil, 0, false, false
+	m.ready = false
 	m.mu.Unlock()
+	if m.parent == nil {
+		theSubMenu.hide()
+		theSubMenu.mu.Lock()
+		subW := theSubMenu.w
+		theSubMenu.mu.Unlock()
+		if subW != nil {
+			subW.Dispatch(subW.Terminate)
+		}
+	}
 	w.Destroy()
 }
 
@@ -309,17 +470,43 @@ func menuBounds(cw, ch, scale float64, c point, wa rect) rect {
 	return rect{Left: x, Top: y, Right: x + pw, Bottom: y + ph}
 }
 
+// submenuBounds prefers the right side and flips left without moving the parent.
+func submenuBounds(cw, ch, scale, rowY float64, parent, work rect) rect {
+	gap := int32(8*scale + 0.5)
+	margin := int32(10*scale + 0.5)
+	pw := min(int32(cw*scale+0.5), max(1, work.Right-work.Left-2*margin))
+	ph := min(int32(ch*scale+0.5), max(1, work.Bottom-work.Top-2*margin))
+	x := parent.Right + gap
+	if x+pw > work.Right-margin {
+		x = parent.Left - gap - pw
+	}
+	x = min(max(x, work.Left+margin), work.Right-pw-margin)
+	y := min(max(parent.Top+int32(rowY*scale+0.5), work.Top+margin), work.Bottom-ph-margin)
+	return rect{Left: x, Top: y, Right: x + pw, Bottom: y + ph}
+}
+
 // fit also accepts content changes while visible. Only the opening request shows
 // or activates the window; resize callbacks after hide must not bring it back.
 func (m *menuWin) fit(cw, ch float64) {
 	m.mu.Lock()
-	h, show, c, gen := m.hwnd, m.wantShow, m.anchor, m.gen
+	h, show, c, gen, focus, rowY := m.hwnd, m.wantShow, m.anchor, m.gen, m.wantFocus, m.subY
 	m.mu.Unlock()
 	if h == 0 || cw <= 0 || ch <= 0 {
 		return
 	}
 	if visible, _, _ := pIsWindowVisible.Call(h); !show && visible == 0 {
 		return
+	}
+	var parentRect rect
+	if m.parent != nil {
+		m.parent.mu.Lock()
+		parentH := m.parent.hwnd
+		c = m.parent.anchor
+		m.parent.mu.Unlock()
+		if v, _, _ := pIsWindowVisible.Call(parentH); v == 0 {
+			return
+		}
+		pGetWindowRect.Call(parentH, uintptr(unsafe.Pointer(&parentRect)))
 	}
 	mon, _, _ := pMonitorFromPoint.Call(uintptr(uint32(c.X))|uintptr(uint32(c.Y))<<32, 2)
 	mi := monitorInfo{Size: uint32(unsafe.Sizeof(monitorInfo{}))}
@@ -332,16 +519,22 @@ func (m *menuWin) fit(cw, ch float64) {
 		s = float64(dpi) / 96
 	}
 	r := menuBounds(cw, ch, s, c, mi.Work)
+	if m.parent != nil {
+		r = submenuBounds(cw, ch, s, rowY, parentRect, mi.Work)
+	}
 	m.mu.Lock()
 	if m.hwnd != h || m.gen != gen {
 		m.mu.Unlock()
 		return
 	}
-	m.wantShow = false
+	m.wantShow, m.wantFocus = false, false
 	m.mu.Unlock()
 	flags := uintptr(0x14) // SWP_NOZORDER | SWP_NOACTIVATE
 	if show {
 		flags = 0x40 // SWP_SHOWWINDOW
+		if m.parent != nil && !focus {
+			flags |= 0x10
+		} // hover must not activate
 	} else {
 		var current rect
 		pGetWindowRect.Call(h, uintptr(unsafe.Pointer(&current)))
@@ -351,9 +544,15 @@ func (m *menuWin) fit(cw, ch float64) {
 	}
 	pSetWindowPos.Call(h, ^uintptr(0), uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), flags)
 	if show {
-		pSetForegroundWindow.Call(h)
-		pSetFocus.Call(h)
-		go m.watchOutside(h, gen)
+		if m.parent == nil || focus {
+			pSetForegroundWindow.Call(h)
+			if m.parent != nil {
+				m.w.Eval("window.tickMenuFocus && tickMenuFocus()")
+			}
+		}
+		if m.parent == nil {
+			go m.watchOutside(h, gen)
+		}
 	}
 }
 
@@ -377,7 +576,15 @@ func (m *menuWin) watchOutside(h uintptr, gen int) {
 			var wr rect
 			pGetCursorPos.Call(uintptr(unsafe.Pointer(&c)))
 			pGetWindowRect.Call(h, uintptr(unsafe.Pointer(&wr)))
-			if c.X < wr.Left || c.X >= wr.Right || c.Y < wr.Top || c.Y >= wr.Bottom {
+			inside := c.X >= wr.Left && c.X < wr.Right && c.Y >= wr.Top && c.Y < wr.Bottom
+			theSubMenu.mu.Lock()
+			subH := theSubMenu.hwnd
+			theSubMenu.mu.Unlock()
+			if visible, _, _ := pIsWindowVisible.Call(subH); visible != 0 {
+				pGetWindowRect.Call(subH, uintptr(unsafe.Pointer(&wr)))
+				inside = inside || (c.X >= wr.Left && c.X < wr.Right && c.Y >= wr.Top && c.Y < wr.Bottom)
+			}
+			if !inside {
 				m.hide()
 				return
 			}
@@ -387,9 +594,14 @@ func (m *menuWin) watchOutside(h uintptr, gen int) {
 }
 
 func (m *menuWin) hide() {
+	if m.parent == nil {
+		theSubMenu.hide()
+	} else {
+		m.parent.subState(false, false)
+	}
 	m.mu.Lock()
 	h, w := m.hwnd, m.w
-	m.wantShow = false
+	m.wantShow, m.wantFocus = false, false
 	m.gen++
 	gen := m.gen
 	m.mu.Unlock()

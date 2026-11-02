@@ -33,3 +33,34 @@ func TestMenuBounds(t *testing.T) {
 		t.Fatalf("collapse should shrink against same work-area edge: %+v -> %+v", expanded, collapsed)
 	}
 }
+
+func TestSubmenuBounds(t *testing.T) {
+	cases := []struct {
+		name         string
+		parent, work rect
+		scale        float64
+		want         rect
+	}{
+		{"right", rect{100, 100, 400, 430}, rect{0, 0, 1920, 1080}, 1, rect{408, 380, 708, 880}},
+		{"flip left", rect{1600, 700, 1900, 1030}, rect{0, 0, 1920, 1040}, 1, rect{1292, 530, 1592, 1030}},
+		{"short work area", rect{600, 100, 900, 430}, rect{0, 0, 1280, 480}, 1, rect{908, 10, 1208, 470}},
+		{"negative high DPI", rect{-1000, 100, -550, 595}, rect{-1920, 0, 0, 1080}, 1.5, rect{-538, 315, -88, 1065}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := submenuBounds(300, 500, tc.scale, 280, tc.parent, tc.work)
+			if got != tc.want {
+				t.Fatalf("got %+v want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSubmenuCancelBeforeWindowExists(t *testing.T) {
+	parent := &menuWin{}
+	sub := &menuWin{parent: parent, wantShow: true, wantFocus: true, opening: true, gen: 7}
+	sub.hide()
+	if sub.wantShow || sub.wantFocus || sub.gen != 8 {
+		t.Fatalf("cancel left pending child activation: %+v", sub)
+	}
+}

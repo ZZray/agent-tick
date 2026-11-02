@@ -616,6 +616,11 @@ html:not([data-glass]):has(.mn),html:not([data-glass]):has(.mn) body{background:
 .mn-h,.mn-f{flex-shrink:0}
 .mn-body{min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .mn-content{display:flow-root}
+.mn-sub-trigger{width:100%;justify-content:space-between}
+.mn-sub-trigger[aria-expanded=true]{background:var(--hover);color:var(--text-1)}
+.mn-sub .mn-h{padding:10px 14px;font-weight:600;color:var(--text-1);box-shadow:inset 0 -1px 0 var(--line-soft)}
+.mn-sub .mn-list{box-shadow:none}
+.mn-sub .mn-f{height:0;overflow:hidden}
 .mn-h{display:flex;align-items:center;gap:11px;padding:14px 14px 12px}
 .mn-logo{width:34px;height:34px}
 .mn-ht{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -1425,6 +1430,7 @@ const VIEW = qs.get('view');                       // float：原生悬浮窗；
 const NATIVE = typeof window.tickDrag === 'function'; // Go 宿主注入的函数
 const FLOAT = VIEW === 'float' || VIEW === 'mini';
 const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示悬浮窗转过来的卡片，不连数据
+const MENU_SUB = VIEW === 'menu' && qs.get('submenu') === '1';
 const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
 const PEEK = VIEW === 'peek';   // 鼠标停在托盘图标上弹出的未读列表（像微信）
 const CARD = VIEW === 'card';   // 鼠标停在贴边长条某一段上弹出的详情卡（具体子步骤）
@@ -2299,20 +2305,56 @@ function renderPeek() {
 function startMenu() {
   // Measure unconstrained content, not the viewport-capped shell: collapsing must shrink again.
   let fitFrame = 0;
-  window.tickMenuMeasure = () => {
-    if (fitFrame) return;
-    fitFrame = requestAnimationFrame(() => {
+  window.tickMenuMeasure = (immediate = false) => {
+    if (fitFrame) {
+      if (immediate !== true) return;
+      cancelAnimationFrame(fitFrame);
+      fitFrame = 0;
+    }
+    const measure = () => {
       fitFrame = 0;
       const el = root.querySelector('.mn'), content = root.querySelector('.mn-content');
       if (el && content) window.tickMenuFit(el.offsetWidth,
         root.querySelector('.mn-h').offsetHeight + content.offsetHeight + root.querySelector('.mn-f').offsetHeight);
-    });
+    };
+    if (immediate === true) measure();
+    else fitFrame = requestAnimationFrame(measure);
   };
-  document.addEventListener('toggle', e => {
-    if (e.target.matches?.('[data-key=menu-display]')) { S.menuDisplay = e.target.open; window.tickMenuMeasure(); }
-  }, true);
+  let hoverTimer = 0;
+  const cancelHover = () => { clearTimeout(hoverTimer); hoverTimer = 0; };
+  const openSub = focus => {
+    cancelHover();
+    const trigger = root.querySelector('[data-menu-sub]');
+    if (trigger) window.tickMenuSubOpen(trigger.getBoundingClientRect().top, focus);
+  };
+  if (!MENU_SUB) {
+    root.addEventListener('pointerover', e => {
+      const trigger = e.target.closest('[data-menu-sub]');
+      if (trigger && !trigger.contains(e.relatedTarget) && !S.menuDisplay) {
+        cancelHover();
+        hoverTimer = setTimeout(() => openSub(false), 180);
+      } else if (e.target.closest('.mn-tile,.mn-f button')) {
+        cancelHover();
+        window.tickMenuSubClose(false);
+      }
+    });
+    root.addEventListener('pointerout', e => {
+      const trigger = e.target.closest('[data-menu-sub]');
+      if (trigger && !trigger.contains(e.relatedTarget)) cancelHover();
+    });
+  }
+  window.tickMenuState = st => { S.menu = st; render(); };
+  window.tickMenuSubState = (open, focus) => {
+    S.menuDisplay = open;
+    const trigger = root.querySelector('[data-menu-sub]');
+    trigger?.setAttribute('aria-expanded', String(open));
+    if (focus) trigger?.focus();
+  };
+  window.tickMenuFocus = () => root.querySelector('.mn-list button')?.focus();
   window.tickMenuOpen = st => {
+    cancelHover();
     S.menu = st;
+    if (!MENU_SUB) S.menuDisplay = false;
     render();
     // 每次弹出都重播一次入场（宫格依次弹出），并把焦点放进来，方便 Esc 关掉
     const box = root.querySelector('.mn');
@@ -2321,11 +2363,11 @@ function startMenu() {
       box.querySelectorAll('.mn-tile').forEach((el, i) => el.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }],
         { duration: 300, delay: 40 + i * 28, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }));
     }
-    root.querySelector('.mn')?.focus();
-    // 再次弹出时尺寸没变，ResizeObserver 不会触发：主动报一次，宿主才知道该显示了
-    window.tickMenuMeasure();
+    if (!MENU_SUB) root.querySelector('.mn')?.focus();
+    // 隐藏的原生窗口可能不执行 rAF；先同步报尺寸，宿主才能显示窗口。
+    window.tickMenuMeasure(true);
   };
-  window.tickMenuHidden = () => { pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
+  window.tickMenuHidden = () => { cancelHover(); pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
   // 开关先在界面上拨过去，再等宿主改；宿主回来的状态和点的不一样就是没改成，拨回去并说一声。
   // 只核对同步生效的两项（写注册表 / 存设置）；置顶、贴边这些宿主排队异步改，回来时可能还是旧值
   const CHECKED = { trayflash: ['trayFlash', '托盘闪烁没改成'], notificationbadge: ['notificationBadge', '未读角标没改成'], autoarchive: ['autoArchive', '自动归档没改成'], autostart: ['autostart', '开机启动没设上'], autoupdate: ['autoUpdate', '自动更新没改成'] };
@@ -2342,6 +2384,7 @@ function startMenu() {
   };
   const OPT = { pin: 'pinned', autohide: 'autoHide', fs: 'fsHide', screen: 'screen' };
   root.addEventListener('click', e => {
+    if (e.target.closest('[data-menu-sub]')) { openSub(true); return; }
     const b = e.target.closest('[data-m]');
     if (!b) return;
     const on = b.getAttribute('aria-pressed') !== 'true';
@@ -2356,7 +2399,14 @@ function startMenu() {
   PICK['m-sound'] = v => act('sound', true, v);
   PICK['m-lang'] = v => act('lang', true, v);
   PICK['m-toastlen'] = v => act('toastlen', true, v);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickMenuClose(); });
+  document.addEventListener('keydown', e => {
+    if (pk.el) return; // picker handles its own Escape before returning to this level
+    if (!MENU_SUB && e.target.closest?.('[data-menu-sub]') && (e.key === 'ArrowRight' || e.key === 'Enter')) {
+      e.preventDefault(); openSub(true);
+    } else if (e.key === 'Escape' || (MENU_SUB && e.key === 'ArrowLeft')) {
+      e.preventDefault(); window.tickMenuClose();
+    }
+  });
   // 报布局尺寸（offset*），不受入场动画的缩放影响
   new ResizeObserver(() => window.tickMenuMeasure()).observe(root);
   window.tickMenuReady();
@@ -2374,6 +2424,23 @@ function renderMenu() {
   const tile = (key, icon, label, sub = '', on = null) => `<button class="mn-tile${on ? ' on' : ''}" data-m="${key}"${on !== null ? ` aria-pressed="${!!on}"` : ''}>
       <span class="mn-ti">${icon}</span><span class="mn-tl">${label}</span>${sub ? `<span class="mn-ts">${sub}</span>` : ''}</button>`;
   const sw = (key, label, on, hint = '') => `<button class="mn-row" data-m="${key}" aria-pressed="${!!on}" data-tip="${esc(tr(hint))}"><span class="grow">${label}</span><i class="sw${on ? ' on' : ''}"></i></button>`;
+  const settingsHtml = `    <div class="mn-list">
+      ${sw('pin', '悬浮窗置顶', m.pinned)}
+      ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
+      ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
+      ${sw('autostart', '开机启动', m.autostart)}
+      ${sw('screen', '大屏模式', m.screen, '全屏无限画布，给扩展屏挂着看：每个会话一张卡，可以拖动、缩放；有扩展屏铺扩展屏，Esc 退出')}
+      ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
+      ${sw('trayflash', '托盘闪烁', m.trayFlash !== false)}
+      ${sw('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}
+      ${sw('autoarchive', '自动归档残留任务', m.autoArchive)}
+      ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
+      <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '静音' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
+      <div class="mn-row nohov"><span class="grow">提醒停留</span>${pickHtml('m-toastlen', [{ id: 'short', name: '短（一半）' }, { id: '', name: '标准' }, { id: 'long', name: '长（两倍）' }], m.toastLen || '', '提醒停留')}</div>
+      <div class="mn-row nohov"><span class="grow">界面语言</span>${pickHtml('m-lang', [{ id: '', name: '跟随系统' }, { id: 'zh', name: '中文' }, { id: 'en', name: 'English' }], m.lang || '', '界面语言')}</div>
+      <div class="mn-row nohov"><span class="grow">主题色</span><span class="mn-cs" role="radiogroup" aria-label="主题色">${(m.themes || []).map(t => { const on = t.id === m.theme?.id; return `<button class="mn-c${on ? ' on' : ''}" data-m="theme" data-v="${esc(t.id)}" style="--c:${esc(t.brand)}" role="radio" aria-checked="${on}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}"></button>`; }).join('')}</span></div>
+      ${S.menuErr ? `<div class="mn-err" data-key="mn-err" data-enter="fade">${sicon('blocked')}${esc(S.menuErr.text)}</div>` : ''}
+    </div>`;
   const html = `<div class="mn" tabindex="-1">
     <header class="mn-h">
       <span class="logo mn-logo">${IC.logo}</span>
@@ -2391,27 +2458,11 @@ function renderMenu() {
       ${tile('mcp', IC.copy, '复制 MCP', '接入 agent')}
       ${tile('browser', IC.globe, '浏览器打开', '127.0.0.1')}
     </div>
-    <details class="mn-list" data-key="menu-display"${S.menuDisplay ? ' open' : ''}><summary class="mn-row">显示与通知</summary>
-      ${sw('pin', '悬浮窗置顶', m.pinned)}
-      ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
-      ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
-      ${sw('autostart', '开机启动', m.autostart)}
-      ${sw('screen', '大屏模式', m.screen, '全屏无限画布，给扩展屏挂着看：每个会话一张卡，可以拖动、缩放；有扩展屏铺扩展屏，Esc 退出')}
-      ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
-      ${sw('trayflash', '托盘闪烁', m.trayFlash !== false)}
-      ${sw('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}
-      ${sw('autoarchive', '自动归档残留任务', m.autoArchive)}
-      ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
-      <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '静音' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
-      <div class="mn-row nohov"><span class="grow">提醒停留</span>${pickHtml('m-toastlen', [{ id: 'short', name: '短（一半）' }, { id: '', name: '标准' }, { id: 'long', name: '长（两倍）' }], m.toastLen || '', '提醒停留')}</div>
-      <div class="mn-row nohov"><span class="grow">界面语言</span>${pickHtml('m-lang', [{ id: '', name: '跟随系统' }, { id: 'zh', name: '中文' }, { id: 'en', name: 'English' }], m.lang || '', '界面语言')}</div>
-      <div class="mn-row nohov"><span class="grow">主题色</span><span class="mn-cs" role="radiogroup" aria-label="主题色">${(m.themes || []).map(t => { const on = t.id === m.theme?.id; return `<button class="mn-c${on ? ' on' : ''}" data-m="theme" data-v="${esc(t.id)}" style="--c:${esc(t.brand)}" role="radio" aria-checked="${on}" aria-label="${esc(tr(t.name))}" data-tip="${esc(tr(t.name))}"></button>`; }).join('')}</span></div>
-      ${S.menuErr ? `<div class="mn-err" data-key="mn-err" data-enter="fade">${sicon('blocked')}${esc(S.menuErr.text)}</div>` : ''}
-    </details>
+    <div class="mn-list"><button class="mn-row mn-sub-trigger" data-menu-sub aria-haspopup="menu" aria-expanded="${!!S.menuDisplay}"><span>显示与通知</span><span aria-hidden="true">›</span></button></div>
     </div></div>
     <footer class="mn-f"><button data-m="sounddir">${IC.folder}声音文件夹</button><i></i><button data-m="quit" class="quit">${IC.power}退出 Tick</button></footer>
   </div>`;
-  morph(root, html);
+  morph(root, MENU_SUB ? `<div class="mn mn-sub" tabindex="-1"><header class="mn-h">显示与通知</header><div class="mn-body"><div class="mn-content">${settingsHtml}</div></div><footer class="mn-f"></footer></div>` : html);
   setTheme(m.theme);
   window.tickMenuMeasure?.();
 }
