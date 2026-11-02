@@ -1214,18 +1214,19 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
 }
 @media (max-width:560px){ .row .time,.today{display:none} .facts{grid-template-columns:auto minmax(0,1fr)} .d-main{padding:16px} }
 
-/* ============ 大屏：宿主开的独立全屏窗口（view=screen）。挂在扩展屏上的状态画布：正常字号，每个任务一张带子步骤的卡片，
-   卡片按列往下排、排满一列接着往右排（像无限画布往右延伸），可以拖动 / 滚轮平移，没人动时自己每 12 秒翻一屏 ============ */
-.scr{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;user-select:none;cursor:default;color:var(--text-1);
+/* ============ 大屏：宿主开的独立全屏窗口（view=screen）。无限画布：每个会话是一张和悬浮窗里同款的卡片（sessionRow），
+   可以自由拖动；拖空白处平移，滚轮按光标缩放，双击空白或点「适应」把所有卡片收进视野。位置和视图记在本机 ============ */
+.scr{position:fixed;inset:0;overflow:hidden;user-select:none;cursor:default;color:var(--text-1);
   font-size:clamp(13px,.75vw,19px);
   background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--brand) 9%,transparent),transparent 70%),var(--bg)}
 /* 有任务在等你：顶光从品牌色换成橙色（叠一层，只过渡透明度） */
 .scr::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1200ms var(--ease);
   background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--orange) 15%,transparent),transparent 70%)}
 .scr.warn::before{opacity:1}
-.scr>*{position:relative}
 html.nocur,html.nocur *{cursor:none!important}
-.scr-h{display:flex;align-items:center;gap:1.3em;height:3em;padding:0 1.5em;flex-shrink:0;white-space:nowrap;font-size:.95em}
+.scr-h{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:1.3em;height:3.4em;padding:0 1.5em;white-space:nowrap;font-size:.95em;
+  background:linear-gradient(var(--bg) 35%,transparent);pointer-events:none}
+.scr-h>*{pointer-events:auto}
 .scr-brand{display:flex;align-items:center;gap:.5em;font-weight:600}
 .scr-brand .logo{width:1.4em;height:1.4em}
 .scr-sum{display:flex;align-items:baseline;gap:1.2em;color:var(--text-3)}
@@ -1233,58 +1234,51 @@ html.nocur,html.nocur *{cursor:none!important}
 .scr-sum .w,.scr-sum .w b{color:var(--orange)}
 .scr-lost{color:var(--red)}
 .scr-h .grow{flex:1}
-.cv-dots{display:flex;align-items:center;gap:.4em}
-.cv-dots i{width:.4em;height:.4em;border-radius:.2em;background:var(--line-strong);transition:width 300ms var(--ease-out),background-color 300ms var(--ease)}
-.cv-dots i.on{width:1.2em;background:var(--brand)}
+button.cv-wait{font:inherit;color:var(--orange);padding:.15em .7em;border-radius:2em;background:color-mix(in srgb,var(--orange) 12%,transparent);
+  transition:background-color var(--t-hover) var(--ease)}
+button.cv-wait:hover{background:color-mix(in srgb,var(--orange) 22%,transparent)}
+button.cv-wait b{font-weight:600;margin-right:.2em}
+.cv-tools{display:flex;align-items:center;gap:.15em;padding:.15em;border-radius:.7em;background:var(--layer-2);box-shadow:inset 0 0 0 1px var(--line-soft)}
+.cv-tools button{font:inherit;min-width:2em;height:2em;padding:0 .6em;border-radius:.5em;color:var(--text-3);transition:background-color var(--t-hover) var(--ease),color var(--t-hover) var(--ease)}
+.cv-tools button:hover{background:var(--hover);color:var(--text-1)}
+.cv-tools .cv-zl{min-width:3.4em;text-align:center;color:var(--text-2);font-size:.92em}
 .scr-esc{font-size:.85em;color:var(--text-4);transition:opacity 300ms var(--ease)}
 html.nocur .scr-esc{opacity:0}
 .scr-clk{display:flex;align-items:baseline;gap:.6em;color:var(--text-4)}
 .scr-clk b{font-size:1.5em;font-weight:500;color:var(--text-1)}
-/* 画布：多列流式排版，列满了往右长；横向滚动条藏起来，用拖动 / 滚轮 / 自动翻屏 */
-.cv-flow{flex:1;height:0;min-height:0;column-width:21em;column-gap:1em;column-fill:auto;overflow-x:auto;overflow-y:hidden;
-  padding:.4em 1.5em 1.5em;scrollbar-width:none;cursor:grab}
-.cv-flow::-webkit-scrollbar{display:none}
-.cv-flow:active{cursor:grabbing}
-.cv{--rc:var(--brand);position:relative;display:flex;flex-direction:column;gap:.6em;break-inside:avoid;margin:0 0 1em;padding:.95em 1.05em 1em 1.2em;
-  border-radius:.8em;overflow:hidden;background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);
-  transition:background-color 600ms var(--ease),box-shadow 600ms var(--ease)}
-.cv::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.25em;background:var(--rc);transition:background-color 600ms var(--ease)}
-.cv.wait{--rc:var(--orange);background:color-mix(in srgb,var(--orange) 8%,var(--layer-1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 38%,transparent)}
-.cv.bad{--rc:var(--red)}
-.cv.dead{--rc:var(--text-4);opacity:.65}
-.cv.ok{--rc:var(--green);opacity:.8}
-.cv-glow{position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;transform:translateX(-100%);
-  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 18%,transparent),transparent)}
-.cv .tile{width:1.5em;height:1.5em;font-size:.62em;border-radius:.4em}
-.cv-h{display:flex;align-items:center;gap:.5em;font-size:.85em;color:var(--text-3)}
-.cv-a{color:var(--text-2)}
-.cv-st{color:var(--text-3)}
-.cv.wait .cv-st{color:var(--orange);font-weight:600}
-.cv-e{margin-left:auto;color:var(--text-4)}
-.cv-t{margin:0;font-size:1.06em;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.cv-q{margin:0;padding:.55em .75em;border-radius:.55em;font-size:.95em;line-height:1.5;color:var(--text-1);background:color-mix(in srgb,var(--orange) 11%,transparent);
-  display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.cv-sum{margin:0;font-size:.88em;line-height:1.5;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.cv-p{display:flex;align-items:center;gap:.7em}
-.cv-p .segs{flex:1;height:.35em;gap:.15em}
-.cv-p .num{font-size:.82em;color:var(--text-3)}
-/* 子步骤：只展开正在做的那一条前后几条，前面做完的、后面没做的各折成一行 */
-.cv-st-l{list-style:none;margin:.1em 0 0;padding:0;display:flex;flex-direction:column;gap:.1em}
-.st{display:flex;gap:.55em;align-items:flex-start;padding:.14em 0;font-size:.9em;line-height:1.4;color:var(--text-3)}
-.st .ic{margin-top:.18em}
-.st>span{min-width:0;word-break:break-word}
-.cv .st>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.cv .st.doing>span{-webkit-line-clamp:3}
-.st.doing{color:var(--text-1);font-weight:510}
-.st.blocked{color:var(--red)}
-.st.done,.st.skipped{color:var(--text-4)}
-.st.more{padding-left:1.55em;font-size:.82em;color:var(--text-4)}
+/* 画布：世界坐标原点在左上角，整体做 translate + scale；点阵背景画在世界里，跟着一起移动缩放 */
+.cv-world{position:absolute;left:0;top:0;transform-origin:0 0}
+.cv-world.anim{transition:transform 320ms var(--ease-out)}
+.cv-world::before{content:"";position:absolute;left:-12000px;top:-12000px;width:24000px;height:24000px;pointer-events:none;
+  background-image:radial-gradient(circle,var(--line-strong) 1.1px,transparent 1.6px);background-size:32px 32px;background-position:-4px -4px;opacity:.55}
+.scr[data-grab]{cursor:grabbing}
+.cv-card{--rc:var(--brand);position:absolute;width:380px;padding:4px;border-radius:var(--r-xl);cursor:grab;overflow:hidden;
+  background:var(--bg-2);box-shadow:0 0 0 1px var(--line),0 18px 40px -20px rgba(0,0,0,.7);
+  transition:box-shadow 240ms var(--ease),opacity 400ms var(--ease)}
+.cv-card:hover{box-shadow:0 0 0 1px var(--line-strong),0 22px 48px -20px rgba(0,0,0,.75)}
+.cv-card.drag{cursor:grabbing;box-shadow:0 0 0 1px var(--line-strong),0 30px 64px -22px rgba(0,0,0,.85)}
+.cv-card.wait{box-shadow:0 0 0 1px color-mix(in srgb,var(--orange) 55%,transparent),0 18px 40px -20px rgba(0,0,0,.7);background:color-mix(in srgb,var(--orange) 6%,var(--bg-2))}
+.cv-card.bad{box-shadow:0 0 0 1px color-mix(in srgb,var(--red) 45%,transparent),0 18px 40px -20px rgba(0,0,0,.7)}
+.cv-card.ok{opacity:.8}
+.cv-card.dead{opacity:.65}
+.cv-card>.s:hover{background:transparent}
+.cv-card>.s.open:hover{background:var(--layer-1)}
+.cv-card .s-quick,.cv-card .s-more{display:none}
+.cv-card .s-head{cursor:inherit}
+.cv-card .s-l1{padding-right:0!important}
+.cv-card .s-prog{display:block!important}
+.cv-glow{position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;transform:translateX(-100%);border-radius:inherit;
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 20%,transparent),transparent)}
+.cv-q{margin:2px 4px 4px;padding:.7em .9em;border-radius:var(--r-lg);font-size:13px;line-height:1.55;color:var(--text-1);
+  background:color-mix(in srgb,var(--orange) 12%,transparent);word-break:break-word}
+.cv-q b{display:block;margin-bottom:.15em;font-size:11.5px;font-weight:600;color:var(--orange)}
+.cv-sum{margin:0 12px 8px 30px;font-size:12px;line-height:1.5;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 /* 一个任务都没有：一只钟 */
-.scr-idle{margin:auto;display:flex;flex-direction:column;align-items:center;gap:.5em;text-align:center;color:var(--text-3)}
+.scr-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5em;text-align:center;color:var(--text-3)}
 .scr-idle b{font-size:5.5em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
 .scr-idle span{font-size:1.2em}
 .scr-idle em{font-style:normal;margin-top:1em;color:var(--text-4)}
-@media (prefers-reduced-motion:reduce){.scr::before,.cv,.cv::before,.cv-dots i{transition:none}}
+@media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card{transition:none}}
 </style>
 </head>
 <body>
@@ -1440,7 +1434,6 @@ function tr(s) {
 const S = {
   sessions: new Map(), notices: [], conn: 'connecting', ready: false, desktop: false,
   detached: new Set(), // 分离成子窗口的会话 ID（宿主推来），主窗口列表不显示它们
-  scrPage: 0, scrPages: 1, // 大屏：当前页 / 总页数
   info: { mcp: `${BASE}/mcp`, exe: '' },
   view: 'active', agent: null, sel: null, detailFresh: false,
   open: new Set(), justDone: new Set(), celebrate: new Set(), dismissed: new Set(), dragging: false,
@@ -3428,135 +3421,260 @@ function renderPanel() {
 
 // ======================================================================
 // 大屏（view=screen）：宿主开的独立全屏窗口（托盘菜单「大屏模式」，有扩展屏时铺扩展屏）。
-// 定位是挂在旁边那块屏上的状态画布，不是投影大屏：字号正常，信息要全——每个任务一张卡，卡里带子步骤，
-//   卡片按列往下排，排满一列接着往右排（多列流式排版，像无限画布往右延伸），拖动 / 滚轮平移；没人动时每 12 秒自己翻一屏；
-//   在等你的卡排在最前，橙色，问题原文直接摆出来，整屏顶光也变橙；刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；
-//   鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。动画只在事件发生时播：开屏时卡片一张张升起、新任务的卡升起、
-//   进度和勾选状态过渡、等你的卡片出现时扫一道光；没有常驻循环。
+// 无限画布：每个会话一张和悬浮窗里同款的卡片（sessionRow），可以自由拖动。
+//   拖空白处平移，滚轮按光标位置缩放，双击空白或点「适应」把所有卡片收进视野；卡片位置和视图记在本机（localStorage）。
+//   新会话的卡片自动找一块不压着别的卡的空位；等你的卡橙色，问题原文直接摆在卡上，顶光也变橙，
+//   它不在视野里、而且 30 秒内没人动过画布时，视图平滑带过去；顶栏的「N 等你」点一下依次跳到它们。
+//   刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。
+//   动画只在事件发生时播：卡片升起、等你的卡扫一道光、视图跳转的平滑过渡；没有常驻循环。
 // ======================================================================
-const SCR_PAGE_MS = 12000, SCR_HOLD_MS = 30000; // 自动翻屏的间隔；手动拖过以后多久不自动翻
-let scrUserAt = 0;
+const CV_GAP = 24, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
+const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, seen: new Set(), userAt: 0, anim: false, drag: '', rendered: false, waitIdx: -1 };
+const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+// 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 CV_COLS 列，先靠上再靠左
+function cvPlace(rects, w, h, cols = CV_COLS) {
+  const hit = (x, y) => rects.some(r => x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y);
+  const xs = [0, ...rects.map(r => r.x + r.w + CV_GAP)], ys = [0, ...rects.map(r => r.y + r.h + CV_GAP)];
+  const maxX = (cols - 1) * (w + CV_GAP) + 1;
+  let best = null;
+  for (const y of ys) for (const x of xs) {
+    if (x > maxX || hit(x, y)) continue;
+    if (!best || y < best.y || (y === best.y && x < best.x)) best = { x, y };
+  }
+  return best || { x: 0, y: Math.max(0, ...rects.map(r => r.y + r.h + CV_GAP)) };
+}
+// 把所有卡片收进视野：缩放取刚好放得下、不超过 CV_ZFIT，居中；top 是顶栏高度，卡片不压在它下面
+function cvFit(rects, vw, vh, top = 0, pad = 48) {
+  if (!rects.length) return { x: vw / 2, y: top + (vh - top) / 2, z: 1 };
+  const x0 = Math.min(...rects.map(r => r.x)), y0 = Math.min(...rects.map(r => r.y));
+  const x1 = Math.max(...rects.map(r => r.x + r.w)), y1 = Math.max(...rects.map(r => r.y + r.h));
+  const z = cvClamp(Math.min((vw - pad * 2) / (x1 - x0), (vh - top - pad * 2) / (y1 - y0)), CV_ZMIN, CV_ZFIT);
+  return { z, x: (vw - (x1 - x0) * z) / 2 - x0 * z, y: top + (vh - top - (y1 - y0) * z) / 2 - y0 * z };
+}
+// 以屏幕点 (px, py) 为中心缩放：这一点下面的世界坐标缩放前后不动
+function cvZoomAt(v, px, py, factor) {
+  const z = cvClamp(v.z * factor, CV_ZMIN, CV_ZMAX), k = z / v.z;
+  return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
+}
+// 画布上有哪些卡：子任务跟着父卡走；父卡不在画布上（结束很久了）时，仍在场的子任务自己占一张卡
+function cvCards() {
+  const t = now(), live = visible();
+  const shown = s => !isEnded(s) || t - s.endedAt < 30 * MIN;
+  const tops = new Set(live.filter(s => !isChild(s) && shown(s)).map(s => s.id));
+  const list = live.filter(s => tops.has(s.id) || (isChild(s) && !tops.has(s.parentId) && shown(s)));
+  const waits = list.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
+  const active = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
+  const stale = list.filter(s => !isEnded(s) && !isWaiting(s) && isDormant(s)).sort(byOrder);
+  const recent = list.filter(isEnded).sort((a, b) => b.endedAt - a.endedAt);
+  return [...waits, ...active, ...stale, ...recent];
+}
 const scrDate = () => new Date().toLocaleDateString(EN ? 'en-US' : 'zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
 const scrTime = () => new Date().toTimeString().slice(0, 5);
-const scrFlow = () => document.querySelector('.cv-flow');
-// CSS 会把 column-width 扩展到填满可见宽度；翻屏和页点都使用实际列宽及同一组落点。
-function scrStops(f) {
-  const cs = getComputedStyle(f), gap = parseFloat(cs.columnGap);
-  const width = f.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  const step = width + gap, max = Math.max(0, f.scrollWidth - f.clientWidth);
-  const stops = [0];
-  for (let x = step; x < max - 4; x += step) stops.push(x);
-  if (max > 4) stops.push(max);
-  return stops;
+const scrGlow = g => g?.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(260%)' }], { duration: 1200, easing: 'cubic-bezier(.45,.05,.55,.95)' });
+let cvSaveT = 0, cvAnimT = 0;
+function cvSave() {
+  clearTimeout(cvSaveT);
+  cvSaveT = setTimeout(() => store.set('canvas', { pos: Object.fromEntries([...CV.pos].filter(([k]) => S.sessions.has(k))), view: CV.view }), 300);
 }
-// 右上角的页点：画布往右延伸出几屏、现在在第几屏。页点是运行时加的（data-fx），重绘不动它
-function scrDots() {
-  const f = scrFlow(), h = document.querySelector('.scr-h');
-  if (!f || !h) return;
-  let d = h.querySelector('.cv-dots');
-  const stops = scrStops(f), pages = stops.length;
-  if (pages < 2) { d?.remove(); return; }
-  if (!d) { d = document.createElement('span'); d.className = 'cv-dots'; d.setAttribute('data-fx', ''); h.querySelector('.scr-esc').before(d); }
-  const at = stops.reduce((best, x, i) => Math.abs(x - f.scrollLeft) < Math.abs(stops[best] - f.scrollLeft) ? i : best, 0);
-  const html = Array.from({ length: pages }, (_, i) => `<i class="${i === at ? 'on' : ''}"></i>`).join('');
-  if (d.dataset.h !== html) { d.dataset.h = html; d.innerHTML = html; }
+function cvLoad() {
+  const d = store.get('canvas', null);
+  for (const [k, v] of Object.entries(d?.pos || {})) if (Number.isFinite(v?.x) && Number.isFinite(v?.y)) CV.pos.set(k, { x: v.x, y: v.y });
+  const v = d?.view;
+  if (v && [v.x, v.y, v.z].every(Number.isFinite) && v.z >= CV_ZMIN && v.z <= CV_ZMAX) CV.view = { x: v.x, y: v.y, z: v.z };
 }
-// 自动翻屏：每次往右走整数列，走到头回到最左
-function scrAutoPage() {
-  const f = scrFlow();
-  if (!f || document.hidden || Date.now() - scrUserAt < SCR_HOLD_MS) return;
-  const max = f.scrollWidth - f.clientWidth;
-  if (max < 8) { if (f.scrollLeft) f.scrollTo({ left: 0 }); return; }
-  const to = scrStops(f).find(x => x > f.scrollLeft + 4) ?? 0;
-  f.scrollTo({ left: to, behavior: RM.matches ? 'auto' : 'smooth' });
+const cvTransform = () => { const v = CV.view || { x: 0, y: 0, z: 1 }; return `translate(${v.x}px,${v.y}px) scale(${v.z})`; };
+const cvHeadH = () => document.querySelector('.scr-h')?.offsetHeight || 0;
+// 把视图写到 DOM。anim：程序跳转用平滑过渡；手动拖 / 滚轮直接跟手，不过渡
+function cvApply(anim) {
+  const w = document.querySelector('.cv-world');
+  if (!w || !CV.view) return;
+  CV.anim = !!anim && !RM.matches;
+  w.classList.toggle('anim', CV.anim);
+  w.style.transform = cvTransform();
+  clearTimeout(cvAnimT);
+  if (CV.anim) cvAnimT = setTimeout(() => { CV.anim = false; w.classList.remove('anim'); }, 380);
+  const zl = document.querySelector('[data-cv-zl]');
+  if (zl) zl.textContent = Math.round(CV.view.z * 100) + '%';
+}
+function cvRects() {
+  return [...document.querySelectorAll('.cv-world>.cv-card')].map(el => {
+    const p = CV.pos.get(el.dataset.cvid);
+    return p && { x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight };
+  }).filter(Boolean);
+}
+function cvFitView(anim) {
+  CV.view = cvFit(cvRects(), innerWidth, innerHeight, cvHeadH());
+  cvApply(anim);
+  cvSave();
+}
+// 渲染后给还没有位置的卡找位置（量实际高度），第一次还没有视图时把所有卡收进视野
+function cvLayout() {
+  const world = document.querySelector('.cv-world');
+  if (!world) return;
+  const rects = [], fresh = [];
+  for (const el of world.querySelectorAll(':scope>.cv-card')) {
+    const p = CV.pos.get(el.dataset.cvid);
+    if (p) rects.push({ x: p.x, y: p.y, w: el.offsetWidth, h: el.offsetHeight }); else fresh.push(el);
+  }
+  for (const el of fresh) {
+    const w = el.offsetWidth, h = el.offsetHeight, p = cvPlace(rects, w, h, cvClamp(Math.floor(innerWidth / (w + CV_GAP)), 2, 5)); // 列数跟窗口宽度走
+    CV.pos.set(el.dataset.cvid, p);
+    rects.push({ ...p, w, h });
+    el.style.left = p.x + 'px';
+    el.style.top = p.y + 'px';
+    el.style.visibility = '';
+  }
+  if (fresh.length) cvSave();
+  if (!CV.view) { CV.view = cvFit(rects, innerWidth, innerHeight, cvHeadH()); cvApply(false); cvSave(); }
+}
+// 把这张卡带进视野：已经完整在视野里就不动（force 时一定居中），保持当前缩放
+function cvReveal(id, force) {
+  const el = document.querySelector(`.cv-world>.cv-card[data-cvid="${CSS.escape(id)}"]`), p = CV.pos.get(id);
+  if (!el || !p || !CV.view) return;
+  const { x, y, z } = CV.view, w = el.offsetWidth * z, h = el.offsetHeight * z, sx = p.x * z + x, sy = p.y * z + y;
+  if (!force && sx >= 0 && sy >= cvHeadH() && sx + w <= innerWidth && sy + h <= innerHeight) return;
+  CV.view = { z, x: innerWidth / 2 - (p.x + el.offsetWidth / 2) * z, y: (innerHeight + cvHeadH()) / 2 - (p.y + el.offsetHeight / 2) * z };
+  cvApply(true);
+  cvSave();
+  if (!RM.matches) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 200);
 }
 function startScreen() {
   const html = document.documentElement;
   html.dataset.scr = '';
+  cvLoad();
   let hideT = 0;
   const wake = () => { html.classList.remove('nocur'); clearTimeout(hideT); hideT = setTimeout(() => html.classList.add('nocur'), 3000); };
   document.addEventListener('mousemove', wake);
   wake();
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickScreenClose?.(); });
-  // 平移：按住拖，或滚轮（竖着滚也往右走）。操作过以后 30 秒内不自动翻屏
-  let drag = null;
-  document.addEventListener('pointerdown', e => { const f = e.button === 0 && e.target.closest?.('.cv-flow'); if (f) { f.setPointerCapture(e.pointerId); drag = { x: e.clientX, l: f.scrollLeft, f }; scrUserAt = Date.now(); } });
-  document.addEventListener('pointermove', e => { if (!drag) return; drag.f.scrollLeft = drag.l - (e.clientX - drag.x); scrUserAt = Date.now(); });
-  const end = () => { drag = null; };
+  const touch = () => { CV.userAt = Date.now(); };
+  const zoomBy = f => { if (!CV.view) return; touch(); CV.view = cvZoomAt(CV.view, innerWidth / 2, innerHeight / 2, f); cvApply(true); cvSave(); };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') window.tickScreenClose?.();
+    else if (e.key === '0' || e.key === 'f' || e.key === 'F') { touch(); cvFitView(true); }
+    else if (e.key === '+' || e.key === '=') zoomBy(1.25);
+    else if (e.key === '-') zoomBy(0.8);
+  });
+  // 拖动：按在卡片上拖 = 移动这张卡；按在空白处（或中键）拖 = 平移画布。移动不到 4px 当点击，卡片照常展开 / 收起
+  let g = null, suppress = false;
+  document.addEventListener('pointerdown', e => {
+    if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle')) return;
+    const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
+    g = { id, card, sx: e.clientX, sy: e.clientY, p: p && { ...p }, v: CV.view && { ...CV.view }, moved: false, pid: e.pointerId, pan: !card || e.button === 1 };
+  });
+  document.addEventListener('pointermove', e => {
+    if (!g || e.pointerId !== g.pid || !CV.view) return;
+    const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+    if (!g.moved) {
+      if (Math.hypot(dx, dy) < 4) return;
+      g.moved = true;
+      touch();
+      document.querySelector('.scr')?.setAttribute('data-grab', '');
+      if (!g.pan) {
+        CV.drag = g.id;
+        CV.zi.set(g.id, ++CV.zTop);
+        g.card.style.zIndex = CV.zTop;
+        g.card.classList.add('drag');
+      }
+      try { document.documentElement.setPointerCapture(e.pointerId); } catch { /* 指针已经抬起 */ }
+    }
+    if (g.pan) { CV.view = { ...g.v, x: g.v.x + dx, y: g.v.y + dy }; cvApply(false); return; }
+    const p = { x: g.p.x + dx / CV.view.z, y: g.p.y + dy / CV.view.z };
+    CV.pos.set(g.id, p);
+    g.card.style.left = p.x + 'px';
+    g.card.style.top = p.y + 'px';
+  });
+  const end = () => {
+    if (!g) return;
+    if (g.moved) {
+      g.card?.classList.remove('drag');
+      CV.drag = '';
+      document.querySelector('.scr')?.removeAttribute('data-grab');
+      cvSave();
+      suppress = true;
+      setTimeout(() => { suppress = false; }, 40);
+    }
+    g = null;
+  };
   document.addEventListener('pointerup', end);
   document.addEventListener('pointercancel', end);
-  document.addEventListener('wheel', e => { const f = e.target.closest?.('.cv-flow'); if (!f) return; e.preventDefault(); f.scrollLeft += e.deltaX + e.deltaY; scrUserAt = Date.now(); }, { passive: false });
-  document.addEventListener('scroll', e => { if (e.target.classList?.contains('cv-flow')) requestAnimationFrame(scrDots); }, true);
+  document.addEventListener('click', e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
+  document.addEventListener('wheel', e => {
+    if (e.target.closest?.('.scr-h')) return;
+    e.preventDefault();
+    if (!CV.view) return;
+    touch();
+    CV.view = cvZoomAt(CV.view, e.clientX, e.clientY, Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)));
+    cvApply(false);
+    cvSave();
+  }, { passive: false });
+  document.addEventListener('dblclick', e => { if (!e.target.closest?.('.cv-card, .scr-h, .scr-idle')) { touch(); cvFitView(true); } });
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('[data-cv]');
+    if (!b) return;
+    touch();
+    if (b.dataset.cv === 'fit') cvFitView(true);
+    else if (b.dataset.cv === 'in') zoomBy(1.25);
+    else if (b.dataset.cv === 'out') zoomBy(0.8);
+    else if (b.dataset.cv === 'wait') {
+      const ids = cvCards().filter(isWaiting).map(s => s.id);
+      if (!ids.length) return;
+      CV.waitIdx = (CV.waitIdx + 1) % ids.length;
+      cvReveal(ids[CV.waitIdx], true);
+    }
+  });
   setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
-  setInterval(scrAutoPage, SCR_PAGE_MS);
   setInterval(schedule, 30000); // “刚做完”到点离场
   addEventListener('resize', () => schedule());
 }
-const scrGlow = g => g.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(260%)' }], { duration: 1200, easing: 'cubic-bezier(.45,.05,.55,.95)' });
-// 子步骤：正在做的那条前后各取几条，前面做完的、后面没做的各折成一行，一张卡最多 7 行
-function scrSteps(s) {
-  const its = s.items;
-  if (!its.length) return '';
-  let cur = its.findIndex(it => it.status === 'doing' || it.status === 'blocked');
-  if (cur < 0) cur = its.findIndex(it => it.status === 'todo');
-  if (cur < 0) cur = its.length;
-  const from = Math.max(0, cur - 1), to = Math.min(its.length, from + 5);
-  const row = it => `<li class="st ${it.status}" data-key="${esc(s.id)}-${esc(it.id)}">${sicon(it.status)}<span>${esc(it.text)}</span></li>`;
-  return `<ol class="cv-st-l">${from ? `<li class="st more" data-key="${esc(s.id)}-up">前面 ${from} 项已过</li>` : ''}${its.slice(from, to).map(row).join('')}${its.length > to ? `<li class="st more" data-key="${esc(s.id)}-dn">后面还有 ${its.length - to} 项</li>` : ''}</ol>`;
-}
-function scrCard(s) {
-  const a = agentOf(s.agent), p = progress(s);
-  const parent = s.parentId && S.sessions.get(s.parentId);
+function cvCard(s, live) {
   const tone = isWaiting(s) ? 'wait' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'dead' : 'run';
-  const ticking = tone === 'run' && !!current(s)?.startedAt;
-  return `<article class="cv ${tone}" data-key="c-${esc(s.id)}" data-enter="fade" data-exit="fade">
+  const p = CV.pos.get(s.id);
+  const style = p ? `left:${p.x}px;top:${p.y}px;z-index:${CV.zi.get(s.id) || 1}` : 'left:0;top:0;visibility:hidden';
+  return `<article class="cv-card ${tone}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-enter="fade" data-exit="fade" style="${style}">
     ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
-    <header class="cv-h"><span class="tile">${esc(a.mark)}</span><span class="cv-a">${esc(a.name)}</span>${sicon(tone === 'dead' ? 'dormant' : s.status)}<span class="cv-st">${tone === 'dead' ? '很久没动静' : STATUS[s.status]}</span>
-      <span class="cv-e num">${tone === 'wait' && s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : `<span data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span>`}</span></header>
-    <h3 class="cv-t">${esc(s.title)}</h3>
-    ${parent ? `<p class="cv-sum">↳ ${esc(parent.title)}</p>` : ''}
-    ${tone === 'wait' ? `<p class="cv-q">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>` : ''}
+    ${sessionRow(s, live)}
+    ${tone === 'wait' ? `<p class="cv-q"><b>${s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : '在等你'}</b>${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>` : ''}
     ${tone === 'ok' && s.summary ? `<p class="cv-sum">${esc(s.summary)}</p>` : ''}
-    ${p.total ? `<div class="cv-p">${segs(s, ticking)}<span class="num">${p.done}/${p.total}</span></div>` : ''}
-    ${tone === 'ok' ? '' : scrSteps(s)}
   </article>`;
 }
 function renderScreen() {
-  // 大屏每个会话一张卡，包含子 agent 和已钉住的任务；不复用悬浮窗隐藏子会话的列表。
-  const live = visible(), t = now();
-  const waits = live.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
-  const active = live.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
-  const stale = live.filter(s => !isWaiting(s) && isDormant(s)).sort(byOrder);
-  const recent = live.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN).sort((a, b) => b.endedAt - a.endedAt);
-  const list = [...waits, ...active, ...stale, ...recent];
-  const idle = !list.length;
-  const today = itemsToday();
+  const list = cvCards(), idle = !list.length;
+  const waits = list.filter(isWaiting), running = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
+  for (const s of list) if (!CV.seen.has(s.id)) { CV.seen.add(s.id); if (!isEnded(s)) S.open.add(s.id); } // 第一次见到的会话默认展开清单
+  const today = itemsToday(), live = sweeper(3);
   const first = !root.querySelector('.scr');
   const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">
     <header class="scr-h">
       <span class="scr-brand"><span class="logo">${IC.logo}</span>Tick</span>
       ${idle ? '' : `<span class="scr-sum">
-        <span><b class="num" data-roll>${active.length}</b>在跑</span>
-        ${waits.length ? `<span class="w"><b class="num" data-roll>${waits.length}</b>等你</span>` : ''}
+        <span><b class="num" data-roll>${running.length}</b>在跑</span>
+        ${waits.length ? `<button class="cv-wait" data-cv="wait" data-key="cv-wait" title="跳到在等你的卡片"><b class="num" data-roll>${waits.length}</b>等你</button>` : ''}
         ${today ? `<span>今天勾了 <b class="num" data-roll>${today}</b> 项</span>` : ''}
       </span>`}
       ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
       <span class="grow"></span>
+      ${idle ? '' : `<span class="cv-tools"><button data-cv="out" aria-label="缩小">−</button><span class="cv-zl num" data-cv-zl>${Math.round((CV.view?.z || 1) * 100)}%</span><button data-cv="in" aria-label="放大">+</button><button data-cv="fit" title="把所有卡片收进视野（双击空白也行）">适应</button></span>`}
       <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
       ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
     </header>
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
-      : `<div class="cv-flow" data-key="flow">${list.map(scrCard).join('')}</div>`}
+      : `<div class="cv-world${CV.anim ? ' anim' : ''}" data-key="world" style="transform:${cvTransform()}">${list.map(s => cvCard(s, live)).join('')}</div>`}
   </div>`);
   settle(entered);
-  requestAnimationFrame(scrDots);
-  if (RM.matches) return;
-  const rise = (el, k) => el.animate([{ opacity: 0, transform: 'translateY(1.2em)' }, { opacity: 1, transform: 'none' }],
-    { duration: 420, delay: Math.min(k, 16) * 40, easing: EASE_OUT, fill: 'backwards' });
-  if (first) { root.querySelectorAll('.cv').forEach(rise); return; }
-  for (const el of entered) if (el.classList?.contains('cv')) { rise(el, 0); if (el.classList.contains('wait')) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 250); }
+  cvLayout();
+  const cards = entered.filter(el => el.classList?.contains('cv-card'));
+  const wasFirst = !CV.rendered;
+  CV.rendered = true;
+  if (!RM.matches) cards.forEach((el, k) => {
+    el.animate([{ opacity: 0, transform: 'translateY(1.2em)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay: Math.min(k, 16) * 40, easing: EASE_OUT, fill: 'backwards' });
+    if (el.classList.contains('wait')) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 250);
+  });
+  // 新来一张等你的卡，不在视野里，而且最近没人动过画布：把视图带过去
+  const w = !wasFirst && Date.now() - CV.userAt > 30000 && cards.find(el => el.classList.contains('wait'));
+  if (w) cvReveal(w.dataset.cvid);
 }
+
 // 面板设置留在侧栏 morph 之外：任务流更新时不重建弹窗，也不打断控件焦点。
 const settings = { el: null, state: null, busy: false, reading: false, error: '', readError: '', timer: 0, generation: 0, revision: 0, restartLang: '', restartUntil: 0 };
 function positionSettings() {

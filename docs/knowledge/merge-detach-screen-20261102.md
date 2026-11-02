@@ -14,4 +14,4 @@
 
 ## 测试切片边界
 
-`web/*.test.cjs` 用 `html.indexOf(...)` 截取页面脚本片段放进 `vm`。大屏测试从 `const SCR_PAGE_MS` 截到 `// 面板设置留在侧栏 morph 之外`，设置测试从 `const settings = {` 截到 `// ---------- 全屏卡片：`。两段不能重叠，移动这些注释前先看测试。`folding.test.cjs` 的沙箱需要 `window: {}`，会话行里有 `window.tickDetach` 判断。大屏测试文件改名为 `screen.test.cjs`，让 `node --test web/*.test.cjs` 能一起跑。
+`web/*.test.cjs` 用 `html.indexOf(...)` 截取页面脚本片段放进 `vm`。大屏测试从 `const CV_GAP` 截到 `// 面板设置留在侧栏 morph 之外`，设置测试从 `const settings = {` 截到 `// ---------- 全屏卡片：`。两段不能重叠，移动这些注释前先看测试。`folding.test.cjs` 的沙箱需要 `window: {}`，会话行里有 `window.tickDetach` 判断。大屏测试文件改名为 `screen.test.cjs`，让 `node --test web/*.test.cjs` 能一起跑。

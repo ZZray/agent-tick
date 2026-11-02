@@ -9,3 +9,4 @@
 | [悬浮窗拖宽与宽度记忆](floating-window-width.md) | 普通面板宽度的归属、真实光标采样、固定边定位、模式兼容与验收边界 |
 | [会话标题与旧名查找](session-titles.md) | 同一会话改名、独立保存历史标题、MCP/CLI 与长标题显示 |
 | [分离、大屏并入 0.5.15 之后](merge-detach-screen-20261102.md) | 本地未提交的分离与大屏并入 origin/main 时的取舍、冲突点和测试切片边界 |
+| [大屏改成无限画布](screen-canvas-20261102.md) | 卡片复用 sessionRow、手势与坐标约定、位置记忆、CDP 驱动验证的做法和未验证项 |

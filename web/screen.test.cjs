@@ -5,100 +5,125 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(process.env.TICK_HTML || path.join(__dirname, 'index.html'), 'utf8');
-const source = html.slice(html.indexOf('const SCR_PAGE_MS'), html.indexOf('// 面板设置留在侧栏 morph 之外'));
+const source = html.slice(html.indexOf('const CV_GAP'), html.indexOf('// 面板设置留在侧栏 morph 之外'));
+const MIN = 60000;
+const NOW = 100 * MIN;
 function screen(sessions = []) {
+  const byId = new Map(sessions.map(s => [s.id, s]));
   const ctx = {
-    document: { hidden: false, querySelector: () => null },
-    getComputedStyle: () => ({ columnGap: '16', columnWidth: '336', fontSize: '16', paddingLeft: '24', paddingRight: '24' }),
-    visible: () => sessions, now: () => 3600000, MIN: 60000,
+    document: { querySelector: () => null, querySelectorAll: () => [], documentElement: {} },
+    innerWidth: 1920, innerHeight: 1200,
+    store: { get: (_, d) => d, set: () => {} },
+    visible: () => sessions.filter(s => !s.archived), now: () => NOW, MIN,
+    isChild: s => !!s.parentId && byId.has(s.parentId) && !byId.get(s.parentId).archived,
     isWaiting: s => ['waiting', 'blocked'].includes(s.status),
     isEnded: s => ['done', 'failed', 'cancelled'].includes(s.status),
-    isDormant: s => s.status === 'running' && s.updatedAt < 1800000,
+    isDormant: s => s.status === 'running' && s.updatedAt < NOW - 30 * MIN,
     byOrder: (a, b) => b.createdAt - a.createdAt,
-    floatData: () => ({ active: sessions.filter(s => !s.parentId && !['done', 'failed', 'cancelled'].includes(s.status) && s.updatedAt >= 1800000), stale: sessions.filter(s => !s.parentId && s.status === 'running' && s.updatedAt < 1800000), recent: [], nW: 1, nR: 0 }),
-    itemsToday: () => 0, S: { conn: 'live', sessions: new Map(sessions.map(s => [s.id, s])) },
-    root: { querySelector: () => ({}), querySelectorAll: () => [] },
-    morph: (_, markup) => { ctx.markup = markup; return []; },
-    settle: () => {}, requestAnimationFrame: () => {}, RM: { matches: true },
-    esc: s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
-    IC: { logo: '' }, EN: false, Date,
+    sessionRow: s => `<div class="s" data-sid="${s.id}">${s.title}</div>`, sweeper: () => () => false, short: () => '1m',
+    itemsToday: () => 3, S: { conn: 'live', sessions: byId, open: new Set() },
+    root: { querySelector: () => null }, RM: { matches: true }, EASE_OUT: 'ease-out', EN: false, Date,
+    morph: (_, markup) => { ctx.markup = markup; return []; }, settle: () => {}, schedule: () => {},
+    esc: s => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;'),
+    IC: { logo: '' }, scrTimeOverride: null,
   };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
+  ctx.run = code => vm.runInContext(code, ctx);
   return ctx;
 }
+const plain = v => JSON.parse(JSON.stringify(v)); // vm 里造出来的对象原型不同，比较前先转成本地对象
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-test('a short final page has its own active dot and wraps to the first page', () => {
+test('new cards fill three columns left to right, then start the next row without overlapping', () => {
   const ctx = screen();
-  let dots;
-  const flow = { clientWidth: 1000, scrollWidth: 1250, scrollLeft: 250, scrollTo: o => { flow.scrollLeft = o.left; } };
-  ctx.document.querySelector = selector => selector === '.cv-flow' ? flow : {
-    querySelector: () => ({ dataset: {}, set innerHTML(value) { dots = value; } }),
-  };
-  ctx.scrDots();
-  assert.equal(dots, '<i class=""></i><i class="on"></i>');
-  ctx.scrAutoPage();
-  assert.equal(flow.scrollLeft, 0);
+  const rects = [];
+  for (const h of [260, 180, 320, 200, 240, 150, 300]) {
+    const p = ctx.cvPlace(rects, 380, h);
+    rects.push({ ...p, w: 380, h });
+  }
+  assert.deepEqual(rects.slice(0, 3).map(r => [r.x, r.y]), [[0, 0], [404, 0], [808, 0]]);
+  assert.ok(rects.every(r => r.x <= 808), 'never more than three columns');
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.equal(overlap(rects[i], rects[j]), false, `${i} overlaps ${j}`);
+  assert.ok(rects[3].y > 0, 'fourth card starts a new row');
 });
 
-test('automatic paging covers every column and reaches the final edge', () => {
+test('a card the user parked at the origin is not covered by the next one', () => {
   const ctx = screen();
-  const flow = { clientWidth: 1000, scrollWidth: 3100, scrollLeft: 0, scrollTo: o => { flow.scrollLeft = o.left; } };
-  ctx.document.querySelector = () => flow;
-  const stops = [];
-  for (let i = 0; i < 4; i++) { ctx.scrAutoPage(); stops.push(flow.scrollLeft); }
-  assert.deepEqual(stops, [968, 1936, 2100, 0]);
-  flow.clientWidth = 1300;
-  ctx.scrAutoPage();
-  assert.equal(flow.scrollLeft, 1268);
+  const p = ctx.cvPlace([{ x: 0, y: 0, w: 380, h: 300 }], 380, 200);
+  assert.deepEqual(plain(p), { x: 404, y: 0 });
+  const q = ctx.cvPlace([{ x: 0, y: 0, w: 380, h: 300 }, { x: 404, y: 0, w: 380, h: 300 }, { x: 808, y: 0, w: 380, h: 300 }], 380, 200);
+  assert.deepEqual(plain(q), { x: 0, y: 324 });
 });
 
-test('running and waiting child agents remain visible after their parent leaves', () => {
-  const sessions = [
-    { id: 'parent', status: 'done', endedAt: 1, createdAt: 1 },
-    { id: 'child-run', parentId: 'parent', status: 'running', updatedAt: 3500000, createdAt: 2 },
-    { id: 'child-wait', parentId: 'parent', status: 'waiting', waitSince: 3500000, createdAt: 3 },
-    { id: 'old', status: 'running', updatedAt: 1, createdAt: 4 },
-  ];
-  const ctx = screen(sessions);
-  ctx.scrCard = s => `<article>${s.id}</article>`;
+test('fit centers the cards and never zooms in past the fit cap', () => {
+  const ctx = screen();
+  const v = ctx.cvFit([{ x: 0, y: 0, w: 380, h: 200 }], 1920, 1200, 56);
+  assert.equal(v.z, 1.5);
+  assert.equal(v.x, (1920 - 380 * 1.5) / 2);
+  assert.equal(Math.round(v.y), Math.round(56 + (1200 - 56 - 200 * 1.5) / 2));
+  const wide = ctx.cvFit([{ x: -2000, y: 0, w: 380, h: 200 }, { x: 4000, y: 3000, w: 380, h: 200 }], 1920, 1200, 56);
+  assert.ok(wide.z >= 0.25 && wide.z < 0.4);
+  const empty = ctx.cvFit([], 1920, 1200, 56);
+  assert.equal(empty.z, 1);
+});
+
+test('zooming keeps the world point under the cursor fixed and respects the limits', () => {
+  const ctx = screen();
+  const v = { x: 100, y: 50, z: 1 };
+  const w = { x: (700 - v.x) / v.z, y: (400 - v.y) / v.z };
+  const n = ctx.cvZoomAt(v, 700, 400, 1.5);
+  assert.equal(n.z, 1.5);
+  assert.ok(Math.abs(n.x + w.x * n.z - 700) < 1e-9 && Math.abs(n.y + w.y * n.z - 400) < 1e-9);
+  assert.equal(ctx.cvZoomAt(v, 0, 0, 100).z, 2.5);
+  assert.equal(ctx.cvZoomAt(v, 0, 0, 0.0001).z, 0.25);
+});
+
+test('waiting cards come first, long-ended and archived sessions stay off the canvas', () => {
+  const ctx = screen([
+    { id: 'run', status: 'running', createdAt: 2, updatedAt: NOW - MIN, title: 'run' },
+    { id: 'wait', status: 'waiting', createdAt: 1, waitSince: NOW - MIN, updatedAt: NOW, title: 'wait' },
+    { id: 'old', status: 'done', createdAt: 0, endedAt: NOW - 40 * MIN, updatedAt: 0, title: 'old' },
+    { id: 'fresh', status: 'done', createdAt: 3, endedAt: NOW - 5 * MIN, updatedAt: 0, title: 'fresh' },
+    { id: 'gone', status: 'running', createdAt: 4, updatedAt: NOW, archived: true, title: 'gone' },
+  ]);
+  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['wait', 'run', 'fresh']);
+});
+
+test('sub-agents ride on their parent card, but get their own card once the parent has left', () => {
+  const ctx = screen([
+    { id: 'p1', status: 'running', createdAt: 1, updatedAt: NOW, title: 'live parent' },
+    { id: 'k1', parentId: 'p1', status: 'running', createdAt: 2, updatedAt: NOW, title: 'kid of live parent' },
+    { id: 'p2', status: 'done', createdAt: 1, endedAt: NOW - 50 * MIN, updatedAt: 0, title: 'old parent' },
+    { id: 'k2', parentId: 'p2', status: 'running', createdAt: 3, updatedAt: NOW, title: 'kid of old parent' },
+    { id: 'k3', parentId: 'p2', status: 'waiting', createdAt: 4, waitSince: NOW, updatedAt: NOW, title: 'waiting kid' },
+  ]);
+  assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['k3', 'k2', 'p1']);
+});
+
+test('the canvas renders one card per session, shows the question on waiting cards and opens new checklists', () => {
+  const ctx = screen([
+    { id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] },
+    { id: 'w', agent: 'kiro', status: 'waiting', createdAt: 1, waitSince: NOW - 3 * MIN, updatedAt: NOW, title: 'task w', statusNote: 'delete the cache?', items: [] },
+    { id: 'e', agent: 'kiro', status: 'done', createdAt: 0, endedAt: NOW - MIN, updatedAt: 0, title: 'task e', summary: 'all green', items: [] },
+  ]);
   ctx.renderScreen();
-  assert.ok(ctx.markup.includes('<article>child-run</article>'));
-  assert.ok(ctx.markup.includes('<article>child-wait</article>'));
-  assert.ok(ctx.markup.includes('<article>old</article>'));
-  assert.ok(!ctx.markup.includes('<article>parent</article>'));
-  assert.match(ctx.markup, /data-roll>1<\/b>在跑/);
-  assert.match(ctx.markup, /data-roll>1<\/b>等你/);
+  assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 3);
+  assert.match(ctx.markup, /class="scr warn"/);
+  assert.match(ctx.markup, /delete the cache\?/);
+  assert.match(ctx.markup, /data-cv="wait"/);
+  assert.match(ctx.markup, /all green/);
+  assert.match(ctx.markup, /visibility:hidden/, 'cards without a stored spot wait for the layout pass');
+  assert.deepEqual([...ctx.S.open].sort(), ['a', 'w']);
 });
 
-test('manual interaction pauses paging and hidden pages do not advance', () => {
-  const ctx = screen();
-  const flow = { clientWidth: 1000, scrollWidth: 2000, scrollLeft: 0, scrollTo: o => { flow.scrollLeft = o.left; } };
-  ctx.document.querySelector = () => flow;
-  vm.runInContext('scrUserAt = Date.now()', ctx);
-  ctx.scrAutoPage();
-  assert.equal(flow.scrollLeft, 0);
-  vm.runInContext('scrUserAt = Date.now() - 30001', ctx);
-  ctx.scrAutoPage();
-  assert.equal(flow.scrollLeft, 968);
-  ctx.document.hidden = true;
-  ctx.scrAutoPage();
-  assert.equal(flow.scrollLeft, 968);
-});
-
-test('no visible sessions renders the idle clock', () => {
-  const ctx = screen();
+test('stored card spots are used as they are and an empty board shows the clock', () => {
+  const ctx = screen([{ id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] }]);
+  ctx.run("CV.pos.set('a', { x: 40, y: 80 })");
   ctx.renderScreen();
-  assert.match(ctx.markup, /scr-idle/);
-  assert.ok(!ctx.markup.includes('cv-flow'));
-});
-
-test('long checklists keep the current step and both folded ranges', () => {
-  const ctx = screen();
-  ctx.sicon = () => '';
-  const items = Array.from({ length: 20 }, (_, i) => ({ id: `i${i}`, text: `step <${i}>`, status: i < 10 ? 'done' : i === 10 ? 'doing' : 'todo' }));
-  const markup = ctx.scrSteps({ id: 's1', items });
-  assert.match(markup, /前面 9 项/);
-  assert.match(markup, /step &lt;10>/);
-  assert.match(markup, /后面还有 6 项/);
+  assert.match(ctx.markup, /left:40px;top:80px/);
+  const idle = screen([]);
+  idle.renderScreen();
+  assert.match(idle.markup, /class="scr-idle"/);
+  assert.doesNotMatch(idle.markup, /cv-world/);
 });
