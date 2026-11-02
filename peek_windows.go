@@ -158,7 +158,8 @@ func peekData(srv *Server) string {
 			rows = append(rows, row{n.ID, n.SessionID, n.Agent, n.Kind, n.Title, n.Text, n.At})
 		}
 	}
-	b, _ := json.Marshal(map[string]any{"total": total, "items": rows})
+	summary := traySummary(trayCounts(srv))
+	b, _ := json.Marshal(map[string]any{"total": total, "items": rows, "summary": summary})
 	return string(b)
 }
 

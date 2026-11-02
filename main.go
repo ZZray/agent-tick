@@ -99,6 +99,12 @@ func main() {
 			}
 		}()
 		log.Printf("Tick %s 已启动：http://127.0.0.1:%d  数据：%s", version, *port, *dataDir)
+		go func() { // 放太久没读的通知自动算已读：启动时清一遍，之后每 10 分钟一次
+			for {
+				store.ExpireOld()
+				time.Sleep(10 * time.Minute)
+			}
+		}()
 	}
 
 	if srv.desktop {
@@ -117,11 +123,14 @@ func main() {
 // 日志同时写到数据目录，GUI 模式没有控制台时也能查
 func setupLog(dir string) *os.File {
 	_ = os.MkdirAll(dir, 0o755)
-	f, err := os.OpenFile(filepath.Join(dir, "tick.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	path := filepath.Join(dir, "tick.log")
+	trimLog(path, logLimit)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return os.Stderr
 	}
-	log.SetOutput(f)
+	log.SetOutput(&trimWriter{f: f})
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds) // 事件挨得近，时间要带小数秒才分得出先后
 	return f
 }
 

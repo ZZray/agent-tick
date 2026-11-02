@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"slices"
@@ -34,6 +35,7 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
 - 一条预计超过 10 分钟（全量编译、长测试）：doing 时在 note 写预计多久，跑完马上 done。Tick 30 分钟收不到更新会标成“可能掉线了”。
 - 做完了只想问接下来做什么：只发一次 kind=waiting（先一句结论再给选项），不要先 tick_finish 再问，用户会收到两条矛盾的提醒。用户选完再 doing 或 tick_finish。
+- 你是被派出去的子 agent：tick_start 必须带 parent_session_id；不要自己 kind=waiting 问用户，要问的写进返回给主 agent 的结果；返回前 tick_finish 自己的会话，否则它会一直挂在“等你”。
 - 报“没有会话”：用户在 Tick 里删掉了它；只有接着做同一件事时才重新 tick_start（同样的 conversation_id）。
 - 结束时 tick_finish 写总结（改动、验证结果、没覆盖的部分），用户会收到通知。
 - 结束本轮回复前，会话状态必须和你一致：还有活就别结束回复（进度汇报写在工具调用之间）；要用户回答就 kind=waiting；做完了就 tick_finish。不要让会话停在“进行中”却没人在做。
@@ -41,6 +43,7 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 
 // 每个 MCP 连接记住客户端名（推断 agent）和最近登记的会话；同一连接可能并发调用
 type mcpConn struct {
+	id    string // Mcp-Session-Id；没带会话头的客户端是 "-"，每次调用各算一个连接。只在日志里用
 	mu    sync.Mutex
 	agent string
 	last  string
@@ -65,7 +68,7 @@ func newMCPSessions() *mcpSessions { return &mcpSessions{conns: map[string]*mcpC
 func (m *mcpSessions) create(id string) *mcpConn {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	c := &mcpConn{agent: "agent"}
+	c := &mcpConn{id: id, agent: "agent"}
 	m.conns[id] = c
 	return c
 }
@@ -73,7 +76,7 @@ func (m *mcpSessions) create(id string) *mcpConn {
 // lookup：没带会话头的客户端各次调用互不相关；带了但不认识（比如 Tick 重启过）返回 false，让客户端重新初始化
 func (m *mcpSessions) lookup(id string) (*mcpConn, bool) {
 	if id == "" {
-		return &mcpConn{agent: "agent"}, true
+		return &mcpConn{id: "-", agent: "agent"}, true
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -104,9 +107,11 @@ func (srv *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 	case http.MethodDelete:
+		sid := r.Header.Get("Mcp-Session-Id")
 		srv.mcp.mu.Lock()
-		delete(srv.mcp.conns, r.Header.Get("Mcp-Session-Id"))
+		delete(srv.mcp.conns, sid)
 		srv.mcp.mu.Unlock()
+		log.Printf("[mcp] 断开 conn=%s 来源=%s", sid, r.RemoteAddr)
 		w.WriteHeader(204)
 		return
 	default:
@@ -127,11 +132,12 @@ func (srv *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		var ok bool
 		if c, ok = srv.mcp.lookup(r.Header.Get("Mcp-Session-Id")); !ok {
+			log.Printf("[mcp] 会话已失效 conn=%s 方法=%s 来源=%s", r.Header.Get("Mcp-Session-Id"), req.Method, r.RemoteAddr)
 			writeJSON(w, 404, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{-32001, "MCP 会话已失效（Tick 可能重启过），请重新初始化"}})
 			return
 		}
 	}
-	res := srv.mcpCall(c, req)
+	res := srv.mcpCall(c, req, r.RemoteAddr)
 	if res == nil { // 通知类消息没有回复
 		w.WriteHeader(202)
 		return
@@ -139,7 +145,8 @@ func (srv *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, res)
 }
 
-func (srv *Server) mcpCall(c *mcpConn, req rpcRequest) *rpcResponse {
+// remote 只用来写日志（来源 IP:端口）
+func (srv *Server) mcpCall(c *mcpConn, req rpcRequest, remote string) *rpcResponse {
 	isRequest := len(req.ID) > 0 && string(req.ID) != "null"
 	reply := func(result any) *rpcResponse { return &rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: result} }
 	fail := func(code int, msg string) *rpcResponse {
@@ -168,6 +175,8 @@ func (srv *Server) mcpCall(c *mcpConn, req rpcRequest) *rpcResponse {
 		if slices.Contains(mcpProtocols, p.ProtocolVersion) {
 			pv = p.ProtocolVersion
 		}
+		agent, _ := c.get()
+		log.Printf("[mcp] 连接 conn=%s 客户端=%q → agent=%s 协议=%s 来源=%s", c.id, p.ClientInfo.Name, agent, pv, remote)
 		return reply(map[string]any{
 			"protocolVersion": pv,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
@@ -193,7 +202,18 @@ func (srv *Server) mcpCall(c *mcpConn, req rpcRequest) *rpcResponse {
 		if _, ok := mcpHandlers[p.Name]; !ok {
 			return fail(-32602, "没有工具 "+p.Name)
 		}
-		text, err := mcpHandlers[p.Name](srv.store, c, toolArgs(p.Arguments))
+		a := toolArgs(p.Arguments)
+		text, err := mcpHandlers[p.Name](srv.store, c, a)
+		agent, last := c.get()
+		sid := last // 没传 session_id 就是用本连接最近登记的；tick_start 之后 last 已是新会话
+		if v := a.str("session_id"); v != nil && *v != "" {
+			sid = *v
+		}
+		result := "成功"
+		if err != nil {
+			result = "失败：" + err.Error()
+		}
+		log.Printf("[mcp] %s conn=%s agent=%s 会话=%s%s %s 来源=%s", p.Name, c.id, agent, sid, a.brief(), result, remote)
 		if err != nil {
 			return reply(map[string]any{"content": []map[string]string{{"type": "text", "text": "Tick：" + err.Error()}}, "isError": true})
 		}
@@ -214,6 +234,20 @@ func (a toolArgs) str(key string) *string {
 		return &v
 	}
 	return nil
+}
+
+// brief 写进日志的参数：只取序号、状态这类短字段，不记清单、备注、通知正文
+func (a toolArgs) brief() string {
+	var b strings.Builder
+	for _, k := range []string{"n", "status", "kind", "mode", "failed", "parent_session_id", "conversation_id"} {
+		if v, ok := a[k]; ok {
+			fmt.Fprintf(&b, " %s=%v", k, v)
+		}
+	}
+	if t := a.str("title"); t != nil {
+		fmt.Fprintf(&b, " title=%q", clip(*t, 40))
+	}
+	return b.String()
 }
 
 func (a toolArgs) need(key string) (*string, error) {

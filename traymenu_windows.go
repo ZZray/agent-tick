@@ -43,6 +43,7 @@ type trayState struct {
 	Theme      colorTheme   `json:"theme"`
 	Lang       string       `json:"lang"` // 用户选的语言，"" = 跟系统
 	Strip      bool         `json:"strip"`
+	Screen     bool         `json:"screen"` // 大屏窗口开着
 	ToastLen   string       `json:"toastLen"`
 	Themes     []colorTheme `json:"themes"`
 	Version    string       `json:"version"`
@@ -59,9 +60,10 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: !f.set.NoStrip, ToastLen: f.set.ToastLen}
+		AutoUpdate: !f.set.NoAutoUpdate, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
+	st.Screen = screenOn()
 	st.Dnd = f.dnd()
 	st.Theme, st.Themes = f.theme(), themes
 	st.Autostart = autostartEnabled()
@@ -117,9 +119,11 @@ func (t *tray) act(name string, on bool, val string) {
 	case "autoupdate":
 		setFlag(&f.set.NoAutoUpdate, !on)
 	case "strip":
-		setFlag(&f.set.NoStrip, !on)
+		setFlag(&f.set.Strip, on)
 		f.inDock(func() { f.applyStripLook(); f.notifyDock() }) // 已经收着时马上在长条和小环之间换
 		f.pushHostState()
+	case "screen":
+		f.setScreen(on)
 	case "toastlen":
 		if slices.Contains(toastLens, val) {
 			f.mu.Lock()

@@ -32,6 +32,8 @@ type Server struct {
 	restart func(force bool)
 	// showPanel 打开本地完整面板窗口，hash 定位到会话（"#s_xxx"）
 	showPanel func(hash string)
+	// setScreen 开 / 关全屏大屏窗口（只做总览，给扩展屏挂着看）；没有桌面端时为 nil
+	setScreen func(on bool)
 	// theme 返回当前主题色（桌面端设置里存的）；没有桌面端时为 nil，页面用默认色
 	theme func() any
 }
@@ -99,10 +101,33 @@ func (srv *Server) guard(next http.Handler) http.Handler {
 				writeJSON(w, 415, map[string]string{"error": "请求体须为 application/json"})
 				return
 			}
+			// 写请求记一行日志（读请求太多，不记；/mcp 在 serveMCP 里自己记）。GET 不包装，免得挡住 SSE 的 Flush
+			if r.URL.Path != "/mcp" {
+				rec := &statusRecorder{ResponseWriter: w, code: 200}
+				next.ServeHTTP(rec, r)
+				from := ""
+				if byUser(r) {
+					from = "(界面)"
+				}
+				log.Printf("[api] %s %s → %d 来源=%s%s", r.Method, r.URL.Path, rec.code, r.RemoteAddr, from)
+				return
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
 }
+
+type statusRecorder struct {
+	http.ResponseWriter
+	code int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.code = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
 
 func (srv *Server) Handler() http.Handler {
 	st := srv.store
@@ -253,6 +278,18 @@ func (srv *Server) Handler() http.Handler {
 			hash = "#" + *in.Session
 		}
 		srv.showPanel(hash)
+		return 200, map[string]bool{"ok": true}, nil
+	})
+	// {"on": true}：打开大屏窗口（有扩展屏铺扩展屏）；{"on": false}：关掉。和托盘菜单「大屏模式」同一个开关
+	handle("POST /api/desktop/screen", func(r *http.Request) (int, any, error) {
+		var in struct{ On bool }
+		if err := decode(r, &in); err != nil {
+			return 0, nil, err
+		}
+		if srv.setScreen == nil {
+			return 0, nil, &apiError{404, "没有桌面端，大屏只能在桌面端打开"}
+		}
+		srv.setScreen(in.On)
 		return 200, map[string]bool{"ok": true}, nil
 	})
 	// {"force": true}：不等会话空闲，马上重启（会话都存在磁盘上，重启只断开几秒）。

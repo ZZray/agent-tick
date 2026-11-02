@@ -89,11 +89,12 @@ type deskSettings struct {
 	NoFullscreenHide bool      // 全屏时不让开（默认让开）
 	DndUntil         int64     // 勿扰到这个时间（毫秒）；期间不弹系统通知和气泡
 	Panel            panelRect // 完整面板窗口上次的位置和大小
+	Pins             []pinRec  // 钉住的任务浮窗：重启后按这里恢复；关掉浮窗 = 取消钉住，记录删掉
 	NoAutoUpdate     bool      // 关掉自动更新（默认每天检查一次，有新版就在空闲时更新）
 	Sound            string    // 通知提示音：""（默认，不响）、内置 ID，或 "file:名字.wav"（数据目录 sounds 里）
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
-	NoStrip          bool      // 贴边收起时默认缩成贯穿屏幕边缘的长条（每个任务一段颜色，悬停出子步骤卡片）；勾掉才用小环标签
+	Strip            bool      // 贴边收起时缩成贯穿屏幕边缘的长条（每个任务一段颜色，悬停出子步骤卡片）；默认关，用小环标签
 	ToastLen         string    // 右下角提醒卡停留多久："short"（一半）、""（标准）、"long"（两倍）
 }
 
@@ -109,7 +110,7 @@ func (f *floatWin) toastLen() string {
 func (f *floatWin) strip() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return !f.set.NoStrip
+	return f.set.Strip
 }
 
 // pageURL 悬浮窗、提醒卡、托盘菜单、面板的页面地址，带上界面语言
@@ -298,6 +299,7 @@ func runDesktop(srv *Server, serve func()) {
 	theFloat = f
 	srv.showFloat = func() { f.dispatch(f.summon) }
 	srv.showPanel = func(hash string) { openPanel(srv, f, hash) }
+	srv.setScreen = f.setScreen
 	srv.theme = func() any { return f.theme() }
 
 	f.w = newGlassWebView(webview2.WebViewOptions{
@@ -327,6 +329,10 @@ func runDesktop(srv *Server, serve func()) {
 	serve()
 	go runTray(srv, f)
 	go f.dockLoop()
+	go func() { // 上次钉住的任务浮窗，等页面起来再恢复
+		time.Sleep(2 * time.Second)
+		restoreTasks(f)
+	}()
 	go f.watchdog()
 	f.w.Navigate(pageURL(srv.port, "view=float"))
 	// 页面 1.5 秒内没报就绪也先显示出来，免得看不到窗口
@@ -440,6 +446,46 @@ func (f *floatWin) rememberPos() {
 	r := f.windowRect()
 	f.mu.Lock()
 	f.set.X, f.set.Y, f.set.HasPos = r.Left, r.Top, true
+	f.mu.Unlock()
+	f.saveSettings()
+}
+
+// pinRec 一个钉住的任务浮窗：会话 ID 和上次摆的位置（Has 为假表示还没摆过，按默认位置放）
+type pinRec struct {
+	SID  string
+	X, Y int32
+	Has  bool
+}
+
+// pinGet 取这个任务钉住的记录；没钉住返回 false
+func (f *floatWin) pinGet(sid string) (pinRec, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, p := range f.set.Pins {
+		if p.SID == sid {
+			return p, true
+		}
+	}
+	return pinRec{}, false
+}
+
+// pinSet 新增或更新一条钉住记录并存盘
+func (f *floatWin) pinSet(p pinRec) {
+	f.mu.Lock()
+	i := slices.IndexFunc(f.set.Pins, func(x pinRec) bool { return x.SID == p.SID })
+	if i >= 0 {
+		f.set.Pins[i] = p
+	} else {
+		f.set.Pins = append(f.set.Pins, p)
+	}
+	f.mu.Unlock()
+	f.saveSettings()
+}
+
+// pinDel 取消钉住：删记录并存盘
+func (f *floatWin) pinDel(sid string) {
+	f.mu.Lock()
+	f.set.Pins = slices.DeleteFunc(f.set.Pins, func(x pinRec) bool { return x.SID == sid })
 	f.mu.Unlock()
 	f.saveSettings()
 }
@@ -694,6 +740,13 @@ func (f *floatWin) bind() {
 	}))
 	must(f.w.Bind("tickCardClose", func() { theCard.hide() }))
 	must(f.w.Bind("tickCardPin", func(on bool) { theCard.pin(on) })) // 右键钉住
+	// 进度条擦洗：鼠标在某个会话的进度条第 index 段上停够了，在悬浮窗一侧弹这一条的细节窗；离开进度条收起
+	must(f.w.Bind("tickItemCard", func(sid, iid string, index int, cy float64) { theCard.showItem(f, sid, iid, index, cy) }))
+	must(f.w.Bind("tickItemCardClose", func() { theCard.closeItem() }))
+	must(f.w.Bind("tickItemCardWarm", func() { go theCard.warm(f) })) // 鼠标刚到进度条上就把窗口建好（隐藏着），500ms 后弹出时不用再等
+	// 任务子窗口：双击某个任务（或行上的「分离」）→ 弹成独立窗口，主列表里暂时不显示；子窗口关掉后回到主窗口
+	must(f.w.Bind("tickDetach", func(sid string, cy float64) { detachTask(f, sid, cy) }))
+	must(f.w.Bind("tickDetachedList", func() []string { return detachedIDs() }))
 }
 
 // openExternal 用系统默认程序打开链接（浏览器、codex:// 等）；拒绝本地文件和脚本协议
@@ -833,6 +886,43 @@ var theTray *tray
 // trayFlash 让托盘图标闪 n 下（亮帧和平常帧交替）；n = 0 表示马上停
 var trayFlash = make(chan int, 4)
 
+// trayCounts 进行中 / 等你的会话数，以及它们清单的完成数 / 总条数
+func trayCounts(srv *Server) (running, waiting, done, total int) {
+	for _, s := range srv.store.Sessions(false) {
+		active := isWaiting(s.Status) || s.Status == "running" || s.Status == "planning"
+		switch {
+		case isWaiting(s.Status):
+			waiting++
+		case active:
+			running++
+		}
+		if active {
+			for _, it := range s.Items {
+				total++
+				if it.Status == "done" || it.Status == "skipped" {
+					done++
+				}
+			}
+		}
+	}
+	return
+}
+
+// traySummary 托盘提示和未读预览里的一行摘要，比如“8 进行中 · 1 等你 · 清单 158/192”
+func traySummary(running, waiting, done, total int) string {
+	if running+waiting == 0 {
+		return L("没有进行中的会话", "nothing running")
+	}
+	s := fmt.Sprintf(L("%d 进行中", "%d running"), running)
+	if waiting > 0 {
+		s += fmt.Sprintf(L(" · %d 等你", " · %d waiting"), waiting)
+	}
+	if total > 0 {
+		s += fmt.Sprintf(L(" · 清单 %d/%d", " · %d/%d done"), done, total)
+	}
+	return s
+}
+
 // trayStatus 跟着数据变化更新托盘提示和图标，并负责闪动。
 // 图标上的环是活的：弧长 = 进行中会话的总完成比例（按 1/24 取整，免得每勾一项都重画），有人在等你时变橙
 func trayStatus(srv *Server, f *floatWin) {
@@ -870,35 +960,15 @@ func trayStatus(srv *Server, f *floatWin) {
 		set(base)
 	}
 	update := func() {
-		running, waiting, done, total := 0, 0, 0, 0
-		for _, s := range srv.store.Sessions(false) {
-			active := isWaiting(s.Status) || s.Status == "running" || s.Status == "planning"
-			switch {
-			case isWaiting(s.Status):
-				waiting++
-			case active:
-				running++
-			}
-			if active {
-				for _, it := range s.Items {
-					total++
-					if it.Status == "done" || it.Status == "skipped" {
-						done++
-					}
-				}
-			}
-		}
-		tip := L("Tick · 没有进行中的会话", "Tick · nothing running")
-		if running+waiting > 0 {
-			tip = fmt.Sprintf(L("Tick · %d 进行中", "Tick · %d running"), running)
-			if waiting > 0 {
-				tip += fmt.Sprintf(L(" · %d 等你", " · %d waiting"), waiting)
-			}
-			if total > 0 {
-				tip += fmt.Sprintf(L(" · 清单 %d/%d", " · %d/%d done"), done, total)
-			}
+		running, waiting, done, total := trayCounts(srv)
+		tip := "Tick · " + traySummary(running, waiting, done, total)
+		// 有未读（且没开勿扰）时鼠标停在图标上会弹自己的未读预览（摘要行写在预览里），
+		// 这时再留系统原生提示就是同时出现两个重复的提示框，所以清空
+		if srv.store.UnreadNotices() > 0 && !f.dnd() {
+			tip = ""
 		}
 		if tip != lastTip {
+			log.Printf("[托盘] 提示文字 → %q", tip)
 			systray.SetTooltip(tip)
 			lastTip = tip
 		}

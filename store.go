@@ -321,7 +321,47 @@ func OpenStore(dir string) (*Store, error) {
 	}
 	st.notices = d.Notices
 	supersedeOld(st.notices)
+	unread := 0
+	for _, n := range st.notices {
+		if !n.Read {
+			unread++
+		}
+	}
+	log.Printf("[库] 载入 %d 个会话，%d 条通知（%d 条没读）", len(st.sessions), len(st.notices), unread)
 	return st, nil
+}
+
+const (
+	noticeTTL     = 24 * time.Hour // 没读的通知放这么久还没人看，自动算已读
+	waitNoticeTTL = 72 * time.Hour // 会话还在“等你 / 受阻”的，通知多留几天；会话本身在列表里一直看得到
+)
+
+// ExpireOld 把放得太久还没读的通知自动算已读（通知历史还在，只是不再算未读、不再闪）；返回条数。
+// 子 agent 问完就退场、没收尾的会话会一直挂着“等你”，靠这个清掉它的未读
+func (st *Store) ExpireOld() int {
+	// 在锁内才能看会话状态；只在确有过期的才走 change（它会落盘并推送）
+	expired := func(n *Notice) bool {
+		ttl := noticeTTL
+		if isWaiting(n.Kind) {
+			if s := st.sessions[n.SessionID]; s != nil && isWaiting(s.Status) {
+				ttl = waitNoticeTTL
+			}
+		}
+		return !n.Read && now()-n.At > ttl.Milliseconds()
+	}
+	st.mu.Lock()
+	has := slices.ContainsFunc(st.notices, expired)
+	st.mu.Unlock()
+	if !has {
+		return 0
+	}
+	count := 0
+	_, _ = st.change("", func(*Session) error {
+		count = st.markRead(expired)
+		return nil
+	})
+	log.Printf("[通知] 过期 %d 条未读，自动算已读", count)
+	return count
 }
 
 // markDirty 在 st.mu 内调用：记下有改动，saveDelay 后写盘（已经排上就不重复排）
@@ -464,6 +504,16 @@ func (st *Store) change(sessionID string, fn func(s *Session) error) (*Session, 
 	}
 	st.mu.Unlock()
 
+	if backup != nil && snap != nil && backup.Status != snap.Status {
+		log.Printf("[会话] %s %s → %s", sessionID, backup.Status, snap.Status)
+	}
+	for _, n := range pending {
+		state := "新"
+		if n.Read {
+			state = "已读"
+		}
+		log.Printf("[通知] %s %s %s 会话=%s", n.ID, state, n.Kind, n.SessionID)
+	}
 	if hook := st.onNotice.Load(); hook != nil {
 		for _, n := range pending {
 			if !n.Read {
@@ -842,6 +892,9 @@ func (st *Store) Start(in StartInput) (s *Session, attached bool, err error) {
 			addEvent(s, "attach", "重新关联到这个会话")
 			return nil
 		})
+		if err == nil {
+			log.Printf("[会话] %s 拿回原会话 agent=%s key=%s", existing, agent, key)
+		}
 		return s, true, err
 	}
 
@@ -860,6 +913,8 @@ func (st *Store) Start(in StartInput) (s *Session, attached bool, err error) {
 		st.mu.Lock()
 		delete(st.sessions, id)
 		st.mu.Unlock()
+	} else {
+		log.Printf("[会话] %s 登记 agent=%s 父会话=%q 工作目录=%q 标题=%q", id, agent, val(parent), val(ws), clip(title, 40))
 	}
 	return s, false, err
 }

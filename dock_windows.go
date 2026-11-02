@@ -11,6 +11,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"sync/atomic"
 	"time"
@@ -25,10 +26,9 @@ var (
 )
 
 const (
-	snapDist   = 20 // 离边多近松手算吸附（逻辑像素）
-	tuckDelay  = 650 * time.Millisecond
-	untuckWait = 120 * time.Millisecond // 鼠标在窄边停这么久才滑出，免得路过误触
-	slideDur   = 200 * time.Millisecond
+	snapDist  = 8 // 离边多近松手算吸附（逻辑像素）。原来 20，放在离边一点的位置也被吸过去；拖到屏幕边上松手仍然轻松够到
+	tuckDelay = 650 * time.Millisecond
+	slideDur  = 200 * time.Millisecond
 )
 
 var (
@@ -38,7 +38,6 @@ var (
 
 type dockRuntime struct {
 	lastInside time.Time
-	enteredAt  time.Time // 收起状态下鼠标进入窄边的时刻
 	holdHover  bool      // 等你：一直露着，直到鼠标进来过再离开
 	holdUntil  time.Time // 做完类通知：露到这个时间
 }
@@ -119,6 +118,7 @@ func (f *floatWin) setTucked(on bool) {
 		f.stripAnchorUntil.Store(now() + 600)
 	}
 	f.tucked.Store(on)
+	log.Printf("[贴边] %s 边=%s 长条=%t", map[bool]string{true: "收起", false: "展开"}[on], f.dockEdge(), f.strip())
 	f.applyStripLook()
 	f.notifyDock()
 }
@@ -180,6 +180,7 @@ func (f *floatWin) afterDrag() {
 	case wa.Bottom-r.Bottom <= d:
 		edge = "bottom"
 	}
+	log.Printf("[贴边] 松手 离边 左=%d 右=%d 上=%d 下=%d 阈值=%d（物理像素）→ 停靠=%q", r.Left-wa.Left, wa.Right-r.Right, r.Top-wa.Top, wa.Bottom-r.Bottom, d, edge)
 	f.mu.Lock()
 	f.set.Dock = edge
 	f.mu.Unlock()
@@ -239,23 +240,9 @@ func (f *floatWin) dockLoop() {
 		m := int32(math.Round(6 * f.scale()))
 		inside := c.X >= r.Left-m && c.X < r.Right+m && c.Y >= r.Top-m && c.Y < r.Bottom+m
 		now := time.Now()
-		if f.tucked.Load() && f.strip() {
-			// 长条：鼠标停上去不展开，页面自己处理悬停（弹出子步骤卡片，见 card_windows.go）；点一下才展开（页面调 tickUntuck）
-			continue
-		}
 		if f.tucked.Load() {
-			// 收起时只认露出来的那条窄边（加上贴着的屏幕边缘），避免路过窗口原位置就弹出
-			if inside {
-				if f.dock.enteredAt.IsZero() {
-					f.dock.enteredAt = now
-				} else if now.Sub(f.dock.enteredAt) >= untuckWait {
-					f.dock.enteredAt = time.Time{}
-					f.dock.lastInside = now
-					f.setTucked(false)
-				}
-			} else {
-				f.dock.enteredAt = time.Time{}
-			}
+			// 收着时鼠标停上去不展开整个浮窗：长条 / 小环标签由页面自己处理悬停（弹出任务详情卡，见 card_windows.go），
+			// 双击标签（页面调 tickUntuck）才展开
 			continue
 		}
 		if inside {
@@ -278,7 +265,7 @@ func (f *floatWin) checkFullscreen() {
 	if r, _, _ := pSHQueryUserNotificationState.Call(uintptr(unsafe.Pointer(&state))); r != 0 {
 		return
 	}
-	busy := state == 2 || state == 3 || state == 4 // BUSY / D3D 全屏 / 演示模式
+	busy := (state == 2 || state == 3 || state == 4) && !screenForeground() // BUSY / D3D 全屏 / 演示模式；前台是 Tick 自己的大屏不算
 	switch {
 	case busy && f.fullscreenHide() && f.visible() && !f.fsHidden.Load():
 		f.fsHidden.Store(true)

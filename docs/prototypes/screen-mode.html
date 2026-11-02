@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Tick · 大屏模式原型（分区看板）</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- 作者 Ray Zhang。设计原型：只用受控假数据，不连 Tick 服务。令牌与悬浮窗 / 面板一致（web/index.html :root）。
+     URL 参数：?s=busy|few|wait|quiet 选场景；?clean 隐藏底部演示条；?still 不自动轮换焦点。 -->
+<style>
+:root{
+  --font:"Inter Variable",Inter,"Segoe UI Variable Text","Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei UI",sans-serif;
+  --bg:#08090A;
+  --layer-1:rgba(255,255,255,.02); --layer-2:rgba(255,255,255,.04); --layer-3:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.05); --line-strong:rgba(255,255,255,.12);
+  --text-1:#F7F8F8; --text-2:#D0D6E0; --text-3:#8A8F98; --text-4:#62666D;
+  --red:#EB5757; --orange:#F2994A; --green:#4CB782;
+  --brand:#4CB782; --brand-hi:#6EE0A6; --brand-lo:#2C9C66;
+  --ease:cubic-bezier(.25,.46,.45,.94); --ease-out:cubic-bezier(.23,1,.32,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text-2);font:400 13px/1.5 var(--font);-webkit-font-smoothing:antialiased;overflow:hidden}
+svg{display:block;flex-shrink:0}
+[hidden]{display:none!important}
+.num{font-variant-numeric:tabular-nums}
+.grow{flex:1;min-width:0}
+kbd{display:inline-grid;place-items:center;min-width:1.4em;height:1.4em;padding:0 .4em;border-radius:.3em;border:1px solid var(--line);background:var(--layer-3);font:500 .85em var(--font);color:var(--text-3)}
+.clamp1,.clamp2,.clamp3{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.clamp1{-webkit-line-clamp:1}.clamp2{-webkit-line-clamp:2}.clamp3{-webkit-line-clamp:3}
+
+/* ============ 画布骨架：顶栏 + 三区（左：等你 / 刚完成，中：在跑，右：聚焦 / 今天） ============ */
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;user-select:none;color:var(--text-1);
+  font-size:clamp(14px,.83vw,21px);
+  background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--brand) 9%,transparent),transparent 70%),var(--bg)}
+.scr::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1200ms var(--ease);
+  background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--orange) 15%,transparent),transparent 70%)}
+.scr.warn::before{opacity:1}
+.scr>*{position:relative}
+.hd{display:flex;align-items:center;gap:1.4em;height:3.4em;padding:0 1.6em;flex-shrink:0;white-space:nowrap}
+.brand{display:flex;align-items:center;gap:.55em;font-weight:600;font-size:1.05em}
+.brand svg{width:1.5em;height:1.5em}
+.sum{display:flex;align-items:baseline;gap:1.3em;color:var(--text-3)}
+.sum b{font-weight:600;color:var(--text-1);margin-right:.25em;font-size:1.1em}
+.sum .w,.sum .w b{color:var(--orange)}
+.hd .esc{font-size:.85em;color:var(--text-4)}
+.clk{display:flex;align-items:baseline;gap:.6em;color:var(--text-4)}
+.clk b{font-size:1.6em;font-weight:500;color:var(--text-1)}
+.body{flex:1;min-height:0;display:grid;grid-template-columns:22em minmax(0,1fr) 26em;gap:1.2em;padding:.2em 1.6em 1.6em}
+.zone{min-height:0;min-width:0;display:flex;flex-direction:column;gap:1em}
+.zt{display:flex;align-items:baseline;gap:.6em;font-size:.82em;letter-spacing:.04em;color:var(--text-3);text-transform:none;margin:0 0 -.2em}
+.zt b{font-weight:500;color:var(--text-4)}
+.zt.w{color:var(--orange)}.zt.w b{color:var(--orange);opacity:.7}
+
+/* ============ 通用：tile / 状态图标 / 进度段 ============ */
+.tile{width:1.5em;height:1.5em;border-radius:.4em;display:grid;place-items:center;font-size:.62em;font-weight:600;letter-spacing:.02em;
+  color:var(--text-2);background:var(--layer-3);border:1px solid var(--line);flex-shrink:0}
+.ic{width:1.05em;height:1.05em}
+.segs{display:flex;gap:.15em;height:.28em;flex:1}
+.segs i{position:relative;flex:1;min-width:2px;border-radius:2px;background:var(--line-strong);overflow:hidden}
+.segs i::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--text-2);transform:scaleX(0);transform-origin:left;
+  transition:transform 380ms var(--ease-out),background-color 200ms var(--ease)}
+.segs i.done::after{transform:scaleX(1)}
+.segs i.doing::after{transform:scaleX(.4);background:var(--brand)}
+
+/* ============ 左：等你（钉住，不跟着翻页走）+ 刚完成 ============ */
+.q{--rc:var(--orange);position:relative;overflow:hidden;display:flex;flex-direction:column;gap:.55em;padding:1em 1.1em 1.05em 1.3em;border-radius:.9em;
+  background:color-mix(in srgb,var(--orange) 8%,var(--layer-1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 40%,transparent)}
+.q::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.28em;background:var(--rc)}
+.q-h{display:flex;align-items:center;gap:.5em;font-size:.86em;color:var(--text-3)}
+.q-h .ag{color:var(--text-2)}
+.q-h .age{margin-left:auto;color:var(--orange);font-weight:600}
+.q-t{font-size:.9em;color:var(--text-3);line-height:1.35}
+.q-q{font-size:1.14em;line-height:1.5;font-weight:510;color:var(--text-1);padding:.6em .8em;border-radius:.6em;background:color-mix(in srgb,var(--orange) 12%,transparent)}
+.q-glow{position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 20%,transparent),transparent)}
+.calm{padding:1em 1.1em;border-radius:.9em;background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);color:var(--text-3);font-size:.92em;line-height:1.55}
+.calm b{display:block;color:var(--text-2);font-weight:510;margin-bottom:.15em}
+.rec{display:flex;flex-direction:column;gap:.1em}
+.ri{display:flex;gap:.7em;padding:.6em .2em;border-top:1px solid var(--line-soft)}
+.ri:first-child{border-top:0}
+.ri .ic{margin-top:.2em}
+.ri-t{font-size:.95em;color:var(--text-2);line-height:1.4}
+.ri-s{font-size:.82em;color:var(--text-4);line-height:1.45;margin-top:.1em}
+.ri-m{font-size:.78em;color:var(--text-4);margin-left:auto;white-space:nowrap;padding-top:.2em}
+
+/* ============ 中：在跑（紧凑卡，一屏放下，不翻页；放不下的折成“还有 N 个”） ============ */
+.main{position:relative;min-height:0;overflow:hidden}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(18em,1fr));grid-auto-rows:min-content;gap:.8em;align-content:start;height:100%;overflow:hidden}
+.rc{--rc:var(--brand);position:relative;display:flex;flex-direction:column;gap:.5em;padding:.85em .95em .9em 1.15em;border-radius:.8em;overflow:hidden;
+  background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);
+  transition:background-color 500ms var(--ease),box-shadow 500ms var(--ease)}
+.rc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.22em;background:var(--rc);opacity:.75;transition:opacity 400ms var(--ease)}
+.rc.dead{--rc:var(--text-4);opacity:.6}
+.rc.focus{background:color-mix(in srgb,var(--brand) 7%,var(--layer-1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 42%,transparent)}
+.rc.focus::before{opacity:1}
+.rc-h{display:flex;align-items:center;gap:.5em;font-size:.82em;color:var(--text-3)}
+.rc-h .ag{color:var(--text-2)}
+.rc-h .el{margin-left:auto;color:var(--text-4)}
+.grid.roomy{grid-template-columns:repeat(auto-fill,minmax(23em,1fr))}
+.grid.roomy .rc-t{font-size:1.12em}
+.rc-t{font-size:1.02em;font-weight:600;line-height:1.35;min-height:2.7em;color:var(--text-1)}
+.rc-n{display:flex;gap:.5em;align-items:flex-start;font-size:.86em;line-height:1.4;color:var(--text-3);min-height:1.4em}
+.rc-n .ic{margin-top:.12em}
+.rc-nx{list-style:none;display:flex;flex-direction:column;gap:.25em;font-size:.84em;color:var(--text-4);line-height:1.4}
+.rc-nx li{display:flex;gap:.5em;align-items:flex-start}.rc-nx .ic{margin-top:.12em}
+.rc-f{display:flex;align-items:center;gap:.7em}
+.rc-f .x{font-size:.8em;color:var(--text-3)}
+.ovf{position:absolute;right:0;bottom:0;padding:.45em .9em;border-radius:2em;font-size:.82em;color:var(--text-2);
+  background:color-mix(in srgb,var(--bg) 86%,transparent);box-shadow:inset 0 0 0 1px var(--line-strong);backdrop-filter:blur(8px)}
+.main-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5em;text-align:center;color:var(--text-3)}
+.main-empty b{font-size:7em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
+.main-empty span{font-size:1.25em}
+.main-empty em{font-style:normal;margin-top:1.2em;color:var(--text-4);max-width:28em;line-height:1.6}
+
+/* ============ 右：聚焦（轮流看某一个任务的完整清单）+ 今天 ============ */
+.fp{display:flex;flex-direction:column;gap:.7em;padding:1.1em 1.2em 1.1em;border-radius:.9em;background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);min-height:0;overflow:hidden}
+.fp-h{display:flex;align-items:center;gap:.5em;font-size:.84em;color:var(--text-3)}
+.fp-h .pos{margin-left:auto;color:var(--text-4)}
+.fp-t{font-size:1.22em;font-weight:600;line-height:1.35;color:var(--text-1)}
+.fp-p{display:flex;align-items:center;gap:.8em;font-size:.84em;color:var(--text-3)}
+.fp-l{list-style:none;display:flex;flex-direction:column;gap:.15em;min-height:0;overflow:hidden}
+.st{display:flex;gap:.6em;align-items:flex-start;padding:.2em 0;font-size:.92em;line-height:1.4;color:var(--text-3)}
+.st .ic{margin-top:.17em}
+.st small{display:block;margin-top:.15em;font-size:.88em;color:var(--text-4)}
+.st.doing{color:var(--text-1);font-weight:510}
+.st.doing small{color:var(--text-3);font-weight:400}
+.st.done{color:var(--text-4)}
+.st.more{padding-left:1.65em;font-size:.8em;color:var(--text-4)}
+.st.gh{padding:.5em 0 .1em 1.65em;font-size:.76em;letter-spacing:.06em;color:var(--text-4)}
+.today{padding:1em 1.2em;border-radius:.9em;background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);display:flex;flex-direction:column;gap:.7em;flex-shrink:0}
+.today-n{display:flex;align-items:baseline;gap:.5em;color:var(--text-3);font-size:.9em}
+.today-n b{font-size:2.3em;font-weight:500;color:var(--text-1);line-height:1;letter-spacing:-.02em}
+.hours{display:flex;align-items:flex-end;gap:.22em;height:2.6em}
+.hours i{flex:1;border-radius:2px 2px 0 0;background:var(--line-strong);min-height:2px;transition:height 500ms var(--ease-out)}
+.hours i.now{background:var(--brand)}
+.hours-l{display:flex;justify-content:space-between;font-size:.74em;color:var(--text-4)}
+
+/* ============ 一个任务都没有：一只钟 + 今天的一句话 ============ */
+@media (prefers-reduced-motion:reduce){.scr::before,.rc,.rc::before,.segs i::after,.hours i{transition:none}}
+
+/* ============ 演示条（只在原型里） ============ */
+.demo{position:fixed;left:50%;bottom:.9em;transform:translateX(-50%);z-index:9;display:flex;gap:.3em;align-items:center;padding:.3em;border-radius:2em;
+  background:rgba(22,23,24,.88);box-shadow:inset 0 0 0 1px var(--line-strong),0 10px 30px -8px rgba(0,0,0,.7);backdrop-filter:blur(10px);font-size:12px}
+.demo span{padding:0 .8em 0 .9em;color:var(--text-4)}
+.demo button{font:inherit;color:var(--text-2);background:none;border:0;padding:.45em .9em;border-radius:2em;cursor:pointer}
+.demo button:hover{background:rgba(255,255,255,.07)}
+.demo button.on{background:rgba(255,255,255,.12);color:var(--text-1)}
+.demo i{width:1px;height:1.2em;background:var(--line-strong)}
+.clean .demo{display:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="tick-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6EE0A6"/><stop offset="1" stop-color="#2C9C66"/></linearGradient></defs></svg>
+<div id="root"></div>
+<div class="demo" id="demo">
+  <span>场景</span>
+  <button data-s="busy">20 个在跑</button><button data-s="few">少量</button><button data-s="wait">有人等你</button><button data-s="quiet">全安静</button>
+  <i></i>
+  <button data-a="ask">来一个问题</button><button data-a="answer">回答它</button><button data-a="finish">完成一个</button><button data-a="next">换焦点</button>
+</div>
+<script>
+'use strict';
+const qs = new URLSearchParams(location.search);
+if (qs.has('clean')) document.body.classList.add('clean');
+const $ = s => document.querySelector(s);
+const MIN = 60e3;
+const AG = { Kiro: 'Ki', Codex: 'Cx', Claude: 'Cl' };
+
+// ---------- 图标（和应用里同一套语义：做完 = 绿勾圈，进行中 = 品牌色圈，没做 = 空圈） ----------
+const IC = {
+  logo: '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9.5" stroke="url(#tick-ring)" stroke-width="2"/><path d="M7.6 12.4l3 3 5.8-6.4" stroke="url(#tick-ring)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  done: '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="var(--green)"/><path d="M4.9 8.2l2.2 2.2 4-4.4" stroke="#08090A" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  doing: '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--brand)" stroke-width="1.6"/><circle cx="8" cy="8" r="2.6" fill="var(--brand)"/></svg>',
+  todo: '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--text-4)" stroke-width="1.5"/></svg>',
+  wait: '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--orange)" stroke-width="1.6"/><path d="M8 4.6v4.2" stroke="var(--orange)" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="11.2" r=".95" fill="var(--orange)"/></svg>',
+  dead: '<svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="var(--text-4)" stroke-width="1.5" stroke-dasharray="2.4 2.2"/></svg>',
+};
+
+// ---------- 受控假数据 ----------
+let uid = 0;
+const items = (texts, doneN, note) => texts.map((t, i) => ({ t, s: i < doneN ? 'done' : i === doneN ? 'doing' : 'todo', note: i === doneN ? note : '' }));
+const run = (agent, title, texts, doneN, age, note) => ({ id: 's' + ++uid, agent, title, status: 'run', startedAt: Date.now() - age * MIN, items: items(texts, doneN, note) });
+const STEPS = {
+  ui: ['读现有大屏页面和数据', '画分区草图', '写紧凑卡片布局', '接入聚焦轮换', '处理放不下的折叠', '截图自检', '补回归用例', '提交说明'],
+  api: ['梳理会话折叠接口', '补父子会话测试', '修子任务遗漏', '跑 go vet', '更新知识文档', '提测说明'],
+  fix: ['复现掉线误判', '读 liveness 逻辑', '提出两个假设', '加日志验证', '改判定条件', '回归托盘提示'],
+  doc: ['整理接入说明', '补 Codex 钩子示例', '检查中英文口径', '生成 HTML 版本'],
+};
+const TITLES = [
+  ['Kiro', '重构大屏页面为分区看板', 'ui', 4], ['Codex', '补会话折叠的 API 测试', 'api', 2], ['Claude', '定位托盘提示误报掉线', 'fix', 3],
+  ['Kiro', '整理 Codex 接入说明', 'doc', 1], ['Codex', '大屏多屏拔插自动迁移', 'ui', 1], ['Claude', '检查通知去重逻辑', 'fix', 4],
+  ['Kiro', '悬浮窗贴边动效回归', 'ui', 6], ['Codex', '更新 AGENT_PROTOCOL 文档', 'doc', 2], ['Kiro', '安装器写入常驻规则', 'api', 3],
+  ['Claude', '自动更新重启时机复查', 'fix', 2], ['Codex', '面板搜索高亮优化', 'ui', 3], ['Kiro', 'MCP 工具说明改写', 'doc', 3],
+  ['Claude', 'SSE 重连后的状态补发', 'api', 4], ['Codex', '主题色设置迁移', 'ui', 5], ['Kiro', '技能页文案校对', 'doc', 0],
+  ['Claude', '事件日志轮转', 'api', 1], ['Codex', '掉线判定回归', 'fix', 5], ['Kiro', '托盘预览已读逻辑', 'fix', 1],
+  ['Claude', '子 agent 卡片归属', 'ui', 2], ['Codex', '发布流程检查', 'api', 5],
+];
+const mkRun = n => TITLES.slice(0, n).map(([a, t, k, d], i) => run(a, t, STEPS[k], d, 3 + i * 4, ['改到第 3 个文件', '等测试结果', '正在读日志', '对照协议文档'][i % 4]));
+const mkWait = (agent, title, q, mins) => ({ id: 's' + ++uid, agent, title, status: 'wait', q, waitSince: Date.now() - mins * MIN, startedAt: Date.now() - 40 * MIN, items: items(STEPS.api, 3) });
+const mkRec = (agent, title, sum, ago) => ({ id: 's' + ++uid, agent, title, status: 'ok', sum, endedAt: Date.now() - ago * MIN });
+const HOURS = [0, 0, 1, 3, 6, 9, 5, 8, 12, 7, 4, 0];
+const SC = {
+  busy: () => ({ run: mkRun(20), wait: [mkWait('Codex', '抽取采集模块并核对回读数据', '这一步需要删除旧缓存：确认现有的自动更新文件可以一并清掉吗？还是先保留到下个版本？', 4), mkWait('Kiro', '发布 0.5.14', '版本号用 0.5.14 还是直接 0.6.0？这次改了大屏，我倾向 0.6.0。', 1)],
+    rec: [mkRec('Kiro', '修复子任务遗漏', '父任务已结束、子任务仍在跑时也显示', 6), mkRec('Claude', '页点和翻页统一口径', '按列布局的内容宽度生成同一组落点', 14), mkRec('Codex', '长步骤卡片限高', '普通步骤两行，当前步骤三行', 22), mkRec('Kiro', '快速开关大屏', '10 轮 40 次请求全部接受', 27)], today: { n: 47, done: 6 } }),
+  few: () => ({ run: mkRun(4), wait: [], rec: [mkRec('Kiro', '修复子任务遗漏', '父任务已结束、子任务仍在跑时也显示', 6), mkRec('Codex', '长步骤卡片限高', '普通步骤两行，当前步骤三行', 22), mkRec('Claude', '页点和翻页统一口径', '按列布局的内容宽度生成同一组落点', 41)], today: { n: 23, done: 3 } }),
+  wait: () => ({ run: mkRun(5), wait: [mkWait('Codex', '抽取采集模块并核对回读数据', '这一步需要删除旧缓存：确认现有的自动更新文件可以一并清掉吗？还是先保留到下个版本？', 4)],
+    rec: [mkRec('Kiro', '修复子任务遗漏', '父任务已结束、子任务仍在跑时也显示', 6), mkRec('Codex', '长步骤卡片限高', '普通步骤两行，当前步骤三行', 22)], today: { n: 31, done: 4 } }),
+  quiet: () => ({ run: [], wait: [], rec: [], today: { n: 47, done: 6 } }),
+};
+const sc = qs.get('s') in SC ? qs.get('s') : 'busy';
+let S = { ...SC[sc](), focus: 0, k: 99, scene: sc };
+
+// ---------- 小工具 ----------
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const short = ms => { const m = Math.floor(ms / MIN); return m < 1 ? '刚开始' : m < 60 ? m + ' 分钟' : Math.floor(m / 60) + ' 小时 ' + (m % 60) + ' 分'; };
+const ago = ms => { const m = Math.floor(ms / MIN); return m < 1 ? '刚刚' : m + ' 分钟前'; };
+const cur = s => s.items.find(i => i.s === 'doing');
+const doneN = s => s.items.filter(i => i.s === 'done').length;
+const segs = s => `<div class="segs">${s.items.map(i => `<i class="${i.s}"></i>`).join('')}</div>`;
+const seen = new Set();
+const clock = () => new Date().toTimeString().slice(0, 5);
+const date = () => new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+const RM = matchMedia('(prefers-reduced-motion:reduce)');
+
+// ---------- 渲染 ----------
+const quiet = () => !S.run.length && !S.wait.length;
+const waitCard = s => `<article class="q" data-key="${s.id}"><i class="q-glow"></i>
+  <div class="q-h"><span class="tile">${AG[s.agent]}</span><span class="ag">${s.agent}</span><span class="age num">等了 <span data-w="${s.id}">${mmss(Date.now() - s.waitSince)}</span></span></div>
+  <div class="q-t clamp2">${esc(s.title)}</div>
+  <div class="q-q clamp5" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden">${esc(s.q)}</div></article>`;
+const recItem = s => `<div class="ri" data-key="${s.id}">${IC.done}<div class="grow"><div class="ri-t clamp1">${esc(s.title)}</div><div class="ri-s clamp1">${s.agent} · ${esc(s.sum)}</div></div><span class="ri-m num" data-r="${s.id}">${ago(Date.now() - s.endedAt)}</span></div>`;
+const roomy = () => S.run.length <= 8;
+const runCard = s => {
+  const c = cur(s), p = doneN(s);
+  return `<article class="rc" data-key="${s.id}" data-id="${s.id}">
+    <div class="rc-h"><span class="tile">${AG[s.agent]}</span><span class="ag">${s.agent}</span><span class="el num" data-e="${s.id}">${short(Date.now() - s.startedAt)}</span></div>
+    <h3 class="rc-t clamp2">${esc(s.title)}</h3>
+    <div class="rc-n">${IC.doing}<span class="clamp1">${esc(c ? c.t : '收尾中')}</span></div>
+    ${roomy() ? `<ul class="rc-nx">${s.items.filter(i => i.s === 'todo').slice(0, 3).map(i => `<li>${IC.todo}<span class="clamp1">${esc(i.t)}</span></li>`).join('')}</ul>` : ''}
+    <div class="rc-f">${segs(s)}<span class="x num">${p}/${s.items.length}</span></div></article>`;
+};
+function focusPanel() {
+  const list = S.run.slice(0, S.k);
+  const s = list[S.focus % Math.max(1, list.length)];
+  if (!s) return `<div class="fp"><div class="fp-h">聚焦</div><div class="st more" style="padding:0">现在没有在跑的任务。</div></div>`;
+  const ci = Math.max(0, s.items.findIndex(i => i.s === 'doing'));
+  const from = Math.max(0, ci - 2), to = Math.min(s.items.length, from + 11);
+  const row = i => `<li class="st ${i.s}">${IC[i.s]}<span>${esc(i.t)}${i.note ? `<small>${esc(i.note)}</small>` : ''}</span></li>`;
+  return `<div class="fp" id="fp"><div class="fp-h"><span class="tile">${AG[s.agent]}</span>${s.agent}<span class="pos num">${S.focus % list.length + 1} / ${list.length}</span></div>
+    <h2 class="fp-t clamp3">${esc(s.title)}</h2>
+    <div class="fp-p">${segs(s)}<span class="num">${doneN(s)}/${s.items.length} · 已 ${short(Date.now() - s.startedAt)}</span></div>
+    <ol class="fp-l">${from ? `<li class="st more">前面 ${from} 项已完成</li>` : ''}${s.items.slice(from, to).map(row).join('')}${s.items.length > to ? `<li class="st more">后面还有 ${s.items.length - to} 项</li>` : ''}</ol></div>`;
+}
+const todayBlock = () => {
+  const max = Math.max(...HOURS, 1);
+  return `<div class="today"><div class="zt" style="margin:0">今天</div>
+    <div class="today-n"><b class="num">${S.today.n}</b>项已勾 · 收尾 ${S.today.done} 个任务</div>
+    <div class="hours">${HOURS.map((h, i) => `<i class="${i === HOURS.length - 1 ? 'now' : ''}" style="height:${Math.max(4, h / max * 100)}%"></i>`).join('')}</div>
+    <div class="hours-l"><span>8 点</span><span>现在</span></div></div>`;
+};
+function render() {
+  const w = S.wait.length, r = S.run.length;
+  const html = `<div class="scr${w ? ' warn' : ''}">
+    <header class="hd"><span class="brand">${IC.logo}Tick</span>
+      <span class="sum">${quiet() ? '' : `<span><b class="num">${r}</b>在跑</span>${w ? `<span class="w"><b class="num">${w}</b>等你</span>` : ''}<span>今天勾了 <b class="num">${S.today.n}</b> 项</span>`}</span>
+      <span class="grow"></span><span class="esc"><kbd>Esc</kbd> 退出</span>
+      ${quiet() ? '' : `<span class="clk"><b class="num" data-clk>${clock()}</b><span>${date()}</span></span>`}</header>
+    <div class="body">
+      <aside class="zone" id="left">
+        ${w ? `<div class="zt w">等你 <b class="num">${w}</b></div>${S.wait.map(waitCard).join('')}` : `<div class="zt">等你</div><div class="calm"><b>没有事在等你</b>有 agent 卡住或要拍板时，问题会钉在这里，不随画面轮换。</div>`}
+        <div class="zt">刚完成 <b>30 分钟内</b></div>
+        <div class="rec">${S.rec.length ? S.rec.map(recItem).join('') : '<div class="calm">还没有刚收尾的任务。</div>'}</div>
+      </aside>
+      <main class="main" id="main">${quiet()
+        ? `<div class="main-empty"><b class="num" data-clk>${clock()}</b><span>${date()}</span><em>${S.today.done ? `今天收工了 ${S.today.done} 个任务、勾了 ${S.today.n} 项。都安静着，歇会儿。` : '都安静着。agent 一开工，任务就排到这里。'}</em></div>`
+        : `<div class="grid${roomy() ? ' roomy' : ''}" id="grid">${S.run.map(runCard).join('')}</div><div class="ovf" id="more" hidden></div>`}</main>
+      <aside class="zone" id="right">${quiet() ? '' : focusPanel()}${todayBlock()}</aside>
+    </div></div>`;
+  $('#root').innerHTML = html;
+  fit();
+  paintFocus();
+  animateNew();
+}
+// 放不下的卡片折成“还有 N 个在跑”：不翻页，所有等你的事和焦点始终在屏幕上
+function fit() {
+  const g = $('#grid'); if (!g) return;
+  const cards = [...g.children]; let hidden = 0;
+  cards.forEach(c => c.hidden = false);
+  const count = lim => cards.filter(c => c.offsetTop + c.offsetHeight > lim + 1);
+  let over = count(g.clientHeight);
+  if (over.length) over = count(g.clientHeight - parseFloat(getComputedStyle(g).fontSize) * 3); // 给“还有 N 个”留一行，不盖住卡片
+  over.forEach(c => { c.hidden = true; hidden++; });
+  S.k = cards.length - hidden;
+  const m = $('#more'); m.hidden = !hidden; m.textContent = `还有 ${hidden} 个在跑`;
+}
+function paintFocus() {
+  const id = S.run.slice(0, S.k)[S.focus % Math.max(1, S.k)]?.id;
+  document.querySelectorAll('.rc').forEach(c => c.classList.toggle('focus', c.dataset.id === id));
+}
+function animateNew() {
+  const fresh = [...document.querySelectorAll('[data-key]')].filter(el => !seen.has(el.dataset.key));
+  document.querySelectorAll('[data-key]').forEach(el => seen.add(el.dataset.key));
+  if (RM.matches) return;
+  fresh.forEach((el, k) => {
+    el.animate([{ opacity: 0, transform: 'translateY(1.1em)' }, { opacity: 1, transform: 'none' }], { duration: 420, delay: Math.min(k, 16) * 35, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'backwards' });
+    const g = el.querySelector('.q-glow');
+    if (g) setTimeout(() => g.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(260%)' }], { duration: 1200, easing: 'cubic-bezier(.45,.05,.55,.95)' }), 300);
+  });
+}
+// 焦点轮换：只换右侧面板和中间那张卡的高亮，一次一个事件，不是常驻循环
+function nextFocus() {
+  if (S.k < 1) return;
+  S.focus = (S.focus + 1) % S.k;
+  paintFocus();
+  const fp = $('#fp'); if (!fp) return;
+  const wrap = document.createElement('div'); wrap.innerHTML = focusPanel();
+  fp.replaceWith(wrap.firstElementChild);
+  if (!RM.matches) $('#fp').animate([{ opacity: 0, transform: 'translateY(.6em)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.23,1,.32,1)' });
+}
+// 时钟：只改文字
+setInterval(() => {
+  const n = Date.now();
+  document.querySelectorAll('[data-clk]').forEach(e => { const t = clock(); if (e.textContent !== t) e.textContent = t; });
+  S.wait.forEach(s => { const e = document.querySelector(`[data-w="${s.id}"]`); if (e) e.textContent = mmss(n - s.waitSince); });
+  S.run.forEach(s => { const e = document.querySelector(`[data-e="${s.id}"]`); if (e) e.textContent = short(n - s.startedAt); });
+}, 1000);
+if (!qs.has('still')) setInterval(nextFocus, 10000);
+addEventListener('resize', () => { fit(); paintFocus(); });
+
+// ---------- 演示操作 ----------
+document.getElementById('demo').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.s) { S = { ...SC[b.dataset.s](), focus: 0, k: 99, scene: b.dataset.s }; seen.clear(); render(); }
+  const a = b.dataset.a;
+  if (a === 'ask') { S.wait.unshift(mkWait('Claude', '确认发布渠道', '这次发 rc 还是直接发正式版？rc 只给内部测试用。', 0)); render(); }
+  if (a === 'answer') { S.wait.pop(); render(); }
+  if (a === 'finish' && S.run.length) { const s = S.run.splice(S.focus % Math.max(1, S.k), 1)[0]; S.rec.unshift(mkRec(s.agent, s.title, '清单全部勾完', 0)); S.today.n += 2; S.today.done++; render(); }
+  if (a === 'next') nextFocus();
+  document.querySelectorAll('#demo [data-s]').forEach(x => x.classList.toggle('on', x.dataset.s === S.scene));
+});
+document.querySelector(`#demo [data-s="${sc}"]`).classList.add('on');
+render();
+</script>
+</body>
+</html>

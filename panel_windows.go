@@ -46,6 +46,8 @@ type panelWin struct {
 	dragEnd atomic.Bool
 }
 
+const wsVisible = 0x10000000
+
 func zoomed(h uintptr) bool { r, _, _ := pIsZoomed.Call(h); return r != 0 }
 
 // tellMax 把最大化状态告诉页面，好切换「最大化 / 还原」按钮

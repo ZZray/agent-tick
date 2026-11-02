@@ -875,3 +875,62 @@ func TestMCPFlow(t *testing.T) {
 		t.Fatalf("没有会话时应提示先 tick_start：%s", text)
 	}
 }
+
+// 放太久没读的通知自动算已读：普通通知 24 小时，会话还在“等你”的等你通知 72 小时；会话和通知历史都还在
+func TestExpireOld(t *testing.T) {
+	h := newHarness(t, t.TempDir())
+	st := h.srv.store
+	waiting := h.ok("POST", "/api/sessions", map[string]any{"agent": "claude", "title": "还在等", "items": []string{"一"}})["id"].(string)
+	h.ok("PATCH", "/api/sessions/"+waiting, map[string]any{"status": "waiting", "note": "选 A 还是 B？"})
+	finished := h.ok("POST", "/api/sessions", map[string]any{"agent": "claude", "title": "做完了", "items": []string{"一"}})["id"].(string)
+	h.ok("PATCH", "/api/sessions/"+finished, map[string]any{"status": "done", "summary": "好了"})
+	h.ok("POST", "/api/notices", map[string]any{"sessionId": finished, "kind": "info", "text": "顺便说一声"})
+
+	age := func(hours int) {
+		st.mu.Lock()
+		defer st.mu.Unlock()
+		for _, n := range st.notices {
+			n.At = now() - int64(hours)*3600_000
+		}
+	}
+	unread := func() (w, d, i int) {
+		for _, n := range h.notices("") {
+			if n["read"] == true {
+				continue
+			}
+			switch n["kind"] {
+			case "waiting":
+				w++
+			case "done":
+				d++
+			case "info":
+				i++
+			}
+		}
+		return
+	}
+
+	if n := st.ExpireOld(); n != 0 {
+		t.Fatalf("刚发的通知不该过期：%d", n)
+	}
+	age(25)
+	if n := st.ExpireOld(); n != 2 {
+		t.Fatalf("25 小时：做完了和 info 过期，会话还在等你的等你通知不过期，得到 %d 条", n)
+	}
+	if w, d, i := unread(); w != 1 || d != 0 || i != 0 {
+		t.Fatalf("25 小时后：%d %d %d", w, d, i)
+	}
+	age(73)
+	if n := st.ExpireOld(); n != 1 {
+		t.Fatalf("73 小时：等你通知也过期，得到 %d 条", n)
+	}
+	if w, _, _ := unread(); w != 0 {
+		t.Fatalf("等你通知应已读：%d", w)
+	}
+	if got := h.ok("GET", "/api/sessions/"+waiting, nil)["status"]; got != "waiting" {
+		t.Fatalf("过期只管通知，会话仍在等你，得到 %v", got)
+	}
+	if n := st.ExpireOld(); n != 0 {
+		t.Fatalf("没有更多可过期的：%d", n)
+	}
+}

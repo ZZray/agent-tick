@@ -13,6 +13,7 @@ import (
 	"log"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +33,7 @@ type cardWin struct {
 	shown   bool      // 窗口已经摆好显示着
 	pinned  bool      // 右键钉住：鼠标离开也不收，右键同一段或点卡片才关
 	keep    time.Time // 快捷键弹出的卡片：鼠标不在长条上也先留到这个时间
+	item    bool      // 条目细节模式：贴着悬浮窗一侧摆（strip 是悬浮窗的位置，pt.Y 是对着的纵向位置），不是长条的详情卡
 	watch_  bool      // 盯光标的协程在跑
 	pending string    // 窗口建好前要显示的内容
 	sid     string
@@ -51,17 +53,22 @@ var cardColor = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 // holdMs > 0：快捷键切到这个任务时弹出，鼠标不在长条上也先留这么久
 func (c *cardWin) show(f *floatWin, sid string, along float64, color string, holdMs float64) {
 	edge := f.dockEdge()
-	if edge == "" || !f.tucked.Load() || !strings.HasPrefix(sid, "s_") {
+	if edge == "" || !f.tucked.Load() || (sid != "*" && !strings.HasPrefix(sid, "s_")) {
 		return
 	}
-	if !cardColor.MatchString(color) {
-		color = "#4CB782"
+	// sid 为 "*"：小环标签最上面的 ✓ 标志，列出全部任务；否则是某个任务的子任务卡
+	payload := map[string]any{"all": true, "sessions": cardOverview(f)}
+	if sid != "*" {
+		s, err := f.srv.store.Session(sid)
+		if err != nil {
+			return
+		}
+		if !cardColor.MatchString(color) {
+			color = cardAccent(s.Status) // 长条按任务分色；小环标签没有任务色，用状态色
+		}
+		payload = map[string]any{"session": s, "color": color}
 	}
-	s, err := f.srv.store.Session(sid)
-	if err != nil {
-		return
-	}
-	data, err := json.Marshal(map[string]any{"session": s, "color": color})
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return
 	}
@@ -71,15 +78,112 @@ func (c *cardWin) show(f *floatWin, sid string, along float64, color string, hol
 	if edge == "top" || edge == "bottom" {
 		pt = point{r.Left + a, (r.Top + r.Bottom) / 2}
 	}
+	c.present(f, sid, data, func() {
+		c.item, c.edge, c.pt, c.strip, c.scale = false, edge, pt, r, sc
+		c.keep = time.Time{}
+		if holdMs > 0 {
+			c.keep = time.Now().Add(time.Duration(holdMs) * time.Millisecond)
+		}
+	})
+}
+
+// showItem 页面（悬浮窗）调：鼠标在 sid 这个会话的某个目标上停够了，cy 是目标在悬浮窗里的纵向中心（CSS 像素）。
+// iid 为空：整个会话，列出它的全部子任务（和长条的详情卡同一张）；否则是第 index 条（从 1 数）的细节。
+// 在悬浮窗左边或右边（哪边放得下、空间大选哪边）弹出，纵向对着目标
+func (c *cardWin) showItem(f *floatWin, sid, iid string, index int, cy float64) {
+	if f.tucked.Load() || !f.visible() || !strings.HasPrefix(sid, "s_") {
+		return
+	}
+	s, err := f.srv.store.Session(sid)
+	if err != nil {
+		return
+	}
+	s.Events = nil // 卡片用不上动态，不必跟着序列化
+	key, payload := sid, map[string]any{"session": s, "color": cardAccent(s.Status)}
+	if iid != "" {
+		i := slices.IndexFunc(s.Items, func(it *Item) bool { return it.ID == iid })
+		if i < 0 {
+			return
+		}
+		key, payload = sid+":"+iid, map[string]any{"session": s, "item": s.Items[i], "index": index}
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	r, sc := f.windowRect(), f.scale()
+	pt := point{(r.Left + r.Right) / 2, r.Top + int32(cy*sc+0.5)}
+	log.Printf("[卡片] 悬停 %s 第 %d 条，对着悬浮窗 y=%d", key, index, pt.Y)
+	c.present(f, key, data, func() {
+		c.item, c.edge, c.pt, c.strip, c.scale = true, "", pt, r, sc
+		c.keep = time.Time{}
+	})
+}
+
+// sideX 在悬浮窗 sr 的左边或右边摆一个宽 pw 的窗口，返回它的左边缘：放得下的里面选空间大的；
+// 两边都放不下就用空间大的那边（调用方再把它往工作区里挪）
+func sideX(sr, wa rect, pw, gap, m int32) int32 {
+	roomL, roomR := sr.Left-wa.Left, wa.Right-sr.Right
+	need := pw + gap + m
+	right := roomR >= need && (roomL < need || roomR >= roomL)
+	if !right && roomL < need {
+		right = roomR >= roomL
+	}
+	if right {
+		return sr.Right + gap
+	}
+	return sr.Left - pw - gap
+}
+
+// cardOverview 「全部任务」卡的内容：没结束的主任务和 30 分钟内刚结束的，等你的在前，其次在跑的，最多 12 个；
+// 钉成独立浮窗的不列（它们有自己的窗口）
+func cardOverview(f *floatWin) []*Session {
+	t := now()
+	rank := func(s *Session) int {
+		switch {
+		case isWaiting(s.Status):
+			return 0
+		case !isEnded(s.Status):
+			return 1
+		}
+		return 2
+	}
+	var out []*Session
+	for _, s := range f.srv.store.Sessions(false) {
+		if s.ParentID != "" || isDetached(s.ID) || (isEnded(s.Status) && t-s.EndedAt > 30*60_000) {
+			continue
+		}
+		s.Events = nil // 卡片用不上动态，不必跟着序列化
+		out = append(out, s)
+	}
+	slices.SortFunc(out, func(a, b *Session) int {
+		if d := rank(a) - rank(b); d != 0 {
+			return d
+		}
+		return int(b.CreatedAt - a.CreatedAt)
+	})
+	return out[:min(len(out), 12)]
+}
+
+// cardAccent 会话详情卡左边那道颜色：等你 / 受阻橙，没做成红，其余品牌绿（和长条的约定一致）
+func cardAccent(status string) string {
+	switch status {
+	case "waiting", "blocked":
+		return "#F2994A"
+	case "failed":
+		return "#E5484D"
+	}
+	return "#4CB782"
+}
+
+// present show / showItem 共用：setup 在锁内摆好位置相关的字段；窗口建好了就把内容送进去，没建好就攒着等建好
+func (c *cardWin) present(f *floatWin, key string, data []byte, setup func()) {
 	c.mu.Lock()
 	c.f = f
-	c.want, c.edge, c.pt, c.strip, c.scale = true, edge, pt, r, sc
-	c.keep = time.Time{}
-	if holdMs > 0 {
-		c.keep = time.Now().Add(time.Duration(holdMs) * time.Millisecond)
-	}
-	same := c.shown && c.sid == sid
-	c.sid = sid
+	c.want = true
+	setup()
+	same := c.shown && c.sid == key
+	c.sid = key
 	c.gen++
 	if c.w != nil && c.ready {
 		w := c.w
@@ -99,6 +203,17 @@ func (c *cardWin) show(f *floatWin, sid string, along float64, color string, hol
 	c.opening = true
 	c.mu.Unlock()
 	go c.create(f)
+}
+
+// closeItem 页面（悬浮窗）调：鼠标离开了进度条。只收条目细节窗，不碰长条的详情卡
+func (c *cardWin) closeItem() {
+	c.mu.Lock()
+	item := c.item
+	c.mu.Unlock()
+	if item {
+		log.Printf("[卡片] 条目细节窗收起：鼠标离开了进度条")
+		c.hide()
+	}
 }
 
 // create 在自己的线程上建窗口并跑消息循环，直到被销毁
@@ -169,7 +284,7 @@ func (c *cardWin) fit(cw, ch float64) {
 // place 摆在鼠标旁边：长条朝屏幕里的一侧，沿长条方向以鼠标为中心，贴着工作区时往里挪
 func (c *cardWin) place() {
 	c.mu.Lock()
-	h, pw, ph, edge, pt, sr, sc, want := c.hwnd, c.pw, c.ph, c.edge, c.pt, c.strip, c.scale, c.want
+	h, pw, ph, edge, pt, sr, sc, want, item := c.hwnd, c.pw, c.ph, c.edge, c.pt, c.strip, c.scale, c.want, c.item
 	c.mu.Unlock()
 	if h == 0 || pw <= 0 || ph <= 0 || !want {
 		return
@@ -180,12 +295,14 @@ func (c *cardWin) place() {
 	wa := mi.Work
 	gap, m := int32(10*sc+0.5), int32(8*sc+0.5)
 	var x, y int32
-	switch edge {
-	case "top":
+	switch {
+	case item:
+		x, y = sideX(sr, wa, pw, gap, m), pt.Y-ph/2
+	case edge == "top":
 		x, y = pt.X-pw/2, sr.Bottom+gap
-	case "bottom":
+	case edge == "bottom":
 		x, y = pt.X-pw/2, sr.Top-ph-gap
-	case "left":
+	case edge == "left":
 		x, y = sr.Right+gap, pt.Y-ph/2
 	default: // right
 		x, y = sr.Left-pw-gap, pt.Y-ph/2
@@ -193,6 +310,9 @@ func (c *cardWin) place() {
 	x = max(wa.Left+m, min(x, wa.Right-pw-m))
 	y = max(wa.Top+m, min(y, wa.Bottom-ph-m))
 	pSetWindowPos.Call(h, ^uintptr(0), uintptr(x), uintptr(y), uintptr(pw), uintptr(ph), swpNoActivate|0x40) // HWND_TOPMOST, SWP_SHOWWINDOW
+	if item {
+		log.Printf("[卡片] 条目细节窗摆在 %d,%d %dx%d（悬浮窗 %d,%d-%d,%d）", x, y, pw, ph, sr.Left, sr.Top, sr.Right, sr.Bottom)
+	}
 	c.mu.Lock()
 	c.shown = true
 	start := !c.watch_
@@ -203,14 +323,14 @@ func (c *cardWin) place() {
 	}
 }
 
-// watch 盯着光标：鼠标不在长条上（也不在钉住的卡片上）超过 150ms 就收起。
+// watch 盯着光标：鼠标不在长条上（条目细节窗：不在悬浮窗上；也不在钉住的卡片上）超过 150ms 就收起。
 // 页面的 pointerleave 是主要的收起途径，这里兜底：划得很快、窗口只有 6px 高时页面可能收不到离开事件
 func (c *cardWin) watch() {
 	out := time.Time{}
 	for {
 		time.Sleep(80 * time.Millisecond)
 		c.mu.Lock()
-		alive, pinned, keep, sr, sc, f := c.shown, c.pinned, c.keep, c.strip, c.scale, c.f
+		alive, pinned, keep, sr, sc, f, item := c.shown, c.pinned, c.keep, c.strip, c.scale, c.f, c.item
 		if !alive {
 			c.watch_ = false
 			c.mu.Unlock()
@@ -220,6 +340,18 @@ func (c *cardWin) watch() {
 		if pinned || time.Now().Before(keep) {
 			out = time.Time{}
 			continue
+		}
+		if item && f != nil {
+			// 条目细节窗：悬浮窗收起、藏起来就跟着收；光标要盯的是整个悬浮窗（页面离开进度条时会自己先收）
+			if f.tucked.Load() || !f.visible() {
+				log.Printf("[卡片] 条目细节窗收起：悬浮窗收起或藏起来了")
+				c.mu.Lock()
+				c.watch_ = false
+				c.mu.Unlock()
+				c.gone(f)
+				return
+			}
+			sr = f.windowRect()
 		}
 		var cur point
 		pGetCursorPos.Call(uintptr(unsafe.Pointer(&cur)))
@@ -231,6 +363,9 @@ func (c *cardWin) watch() {
 		if out.IsZero() {
 			out = time.Now()
 		} else if time.Since(out) > 150*time.Millisecond {
+			if item {
+				log.Printf("[卡片] 条目细节窗收起：光标离开了悬浮窗")
+			}
 			c.mu.Lock()
 			c.watch_ = false
 			c.mu.Unlock()
@@ -271,7 +406,7 @@ func (c *cardWin) gone(f *floatWin) {
 func (c *cardWin) hide() {
 	c.mu.Lock()
 	h, w, was := c.hwnd, c.w, c.shown
-	c.want, c.shown, c.pinned, c.sid, c.pending = false, false, false, "", ""
+	c.want, c.shown, c.pinned, c.item, c.sid, c.pending = false, false, false, false, "", ""
 	c.gen++
 	gen := c.gen
 	c.mu.Unlock()

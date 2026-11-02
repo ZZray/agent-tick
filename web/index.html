@@ -337,6 +337,20 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .it-s.sum .tx{color:var(--text-3)}
 /* 子任务：挂在主会话下，左侧一条细线连起来 */
 .kids{margin:-2px 8px 6px 15px;padding-left:10px;border-left:1px solid var(--line)}
+/* 子任务组头：整组可以收起，用 grid 0fr ↔ 1fr 过渡高度（和刚结束分组同一套） */
+.kids-h{display:flex;align-items:center;gap:6px;width:100%;height:24px;padding:0 6px;border-radius:var(--r);font-size:11.5px;color:var(--text-4);text-align:left;
+  transition:color var(--t-hover) var(--ease),background-color var(--t-hover) var(--ease)}
+.kids-h:hover{color:var(--text-2);background:var(--hover)}
+.kids-h .chev{flex-shrink:0;transition:transform var(--t-menu) var(--ease-out)}
+.kids.open>.kids-h .chev{transform:rotate(90deg)}
+.kids-t{flex-shrink:0;font-weight:510}
+.kids-c{flex-shrink:0}
+.kids-pv{flex:1;min-width:0}
+.kids-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-menu) var(--ease-out)}
+.kids.open>.kids-body{grid-template-rows:1fr}
+.kids-body>div{overflow:hidden;min-height:0}
+.kids-list{opacity:0;transition:opacity 140ms var(--ease)}
+.kids.open .kids-list{opacity:1;transition:opacity 200ms 60ms var(--ease)}
 .kid{border-radius:var(--r);transition:background-color var(--t-hover) var(--ease)}
 .kid:hover{background:var(--hover)}
 .kid-h{display:flex;align-items:center;gap:7px;width:100%;height:26px;padding:0 6px;font-size:12px;border-radius:var(--r)}
@@ -578,6 +592,8 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
    盖在悬浮窗内容上的层（通知抽屉、Agent 面板）再加一层页面内的高斯模糊，底下的列表只剩一片色块，不会和上面的字叠在一起 */
 [data-glass]{--glass:color-mix(in srgb,var(--bg-2) 78%,transparent);--glass-over:color-mix(in srgb,var(--bg-2) 86%,transparent)}
 [data-glass] .f,[data-glass] .tst,[data-glass] .mn,[data-glass] .pk-box,[data-glass] .sk-box{background:var(--glass)}
+/* 悬停卡窗口从不激活，系统给没激活的毛玻璃窗口上的是偏灰偏浅的底；盖一层更实的底色，看起来和悬浮窗（激活着）一致 */
+[data-glass] .ik-box,[data-glass] .sk-box{background:color-mix(in srgb,var(--bg-2) 94%,transparent)}
 [data-glass] .f::before{opacity:.6}
 [data-glass] .f-top{background:color-mix(in srgb,var(--bg-2) 35%,transparent);backdrop-filter:none;-webkit-backdrop-filter:none}
 [data-glass] .f-drawer{background:var(--glass-over)}
@@ -684,6 +700,7 @@ html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body,htm
 .pv-h b{color:var(--text-1);font-weight:600;font-size:13px}
 .pv-n{min-width:18px;height:16px;padding:0 5px;border-radius:8px;display:grid;place-items:center;font-size:10.5px;font-weight:650;
   background:color-mix(in srgb,var(--brand) 22%,transparent);color:var(--brand-hi)}
+.pv-sum{font-size:11px;color:var(--text-4);white-space:nowrap}
 .pv-list{display:flex;flex-direction:column;padding:4px}
 .pv-row{display:flex;align-items:flex-start;gap:9px;width:100%;padding:7px 8px;border-radius:var(--r);text-align:left;
   transition:background-color var(--t-hover) var(--ease)}
@@ -721,6 +738,30 @@ html:not([data-glass]):has(.pk-box),html:not([data-glass]):has(.pk-box) body,htm
 .sk-it.todo{color:var(--text-2)}
 .sk-it.done .tx,.sk-it.skipped .tx{color:var(--text-4)}
 .sk-fold{padding:3px 4px 3px 26px;font-size:11.5px;color:var(--text-4)}
+/* 小环标签顶上的 ✓ 悬停：全部任务 */
+.ka-box{width:320px}
+.sk-h .logo{width:16px;height:16px;flex-shrink:0}
+.ka{display:flex;align-items:flex-start;gap:8px;padding:5px 4px;border-radius:var(--r)}
+.ka>.ic{margin-top:2px;flex-shrink:0}
+.ka-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ka-t b{font-size:12.5px;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ka-t span{font-size:11.5px;color:var(--text-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ka>.num{flex-shrink:0;font-size:11.5px;color:var(--text-3);margin-top:1px}
+.ka.w .ka-t span{color:var(--orange)}
+.ka.end{opacity:.6}
+/* 条目细节：悬浮窗进度条上停够 500ms，在悬浮窗一侧弹出（view=card 的条目模式）。完整文字和备注，左边一道这一条状态的颜色 */
+.ik-box{width:320px;display:flex;flex-direction:column;gap:6px;padding:10px 13px 9px 14px;box-shadow:inset 3px 0 0 var(--c)}
+.ik-h{display:flex;align-items:center;gap:7px;min-width:0}
+.ik-h b{color:var(--text-1);font-weight:600;font-size:13px;white-space:nowrap}
+.ik-h .st{margin-left:auto;color:var(--text-3);font-size:12px;white-space:nowrap}
+.ik-tx{font-size:12.5px;line-height:1.5;color:var(--text-1);word-break:break-word;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
+.ik-nt{padding-top:7px;box-shadow:inset 0 1px 0 var(--line-soft);font-size:12px;line-height:1.55;color:var(--text-3);white-space:pre-wrap;word-break:break-word;
+  display:-webkit-box;-webkit-line-clamp:14;-webkit-box-orient:vertical;overflow:hidden}
+.ik-m{display:flex;align-items:center;gap:6px;min-width:0;color:var(--text-4);font-size:11.5px;white-space:nowrap}
+.ik-m .tile.sm{width:14px;height:14px;font-size:7.5px;border-radius:4px;flex-shrink:0}
+.ik-m .trunc{min-width:0}
+.ik-m .dot{width:2px;height:2px;border-radius:50%;background:currentColor;opacity:.7;flex-shrink:0}
+.ik-m .num{flex-shrink:0}
 
 /* 组头：一律单行，不许被挤成竖排；操作按钮只放图标，鼠标移到组头上（或键盘聚焦）才出现 */
 .g-h{white-space:nowrap;min-height:34px}
@@ -1129,6 +1170,78 @@ nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin-top
   .body.split{grid-template-columns:minmax(0,1fr)} .body.split .list{display:none} .detail{border-left:0}
 }
 @media (max-width:560px){ .row .time,.today{display:none} .facts{grid-template-columns:auto minmax(0,1fr)} .d-main{padding:16px} }
+
+/* ============ 大屏：宿主开的独立全屏窗口（view=screen）。挂在扩展屏上的状态画布：正常字号，每个任务一张带子步骤的卡片，
+   卡片按列往下排、排满一列接着往右排（像无限画布往右延伸），可以拖动 / 滚轮平移，没人动时自己每 12 秒翻一屏 ============ */
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;overflow:hidden;user-select:none;cursor:default;color:var(--text-1);
+  font-size:clamp(13px,.75vw,19px);
+  background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--brand) 9%,transparent),transparent 70%),var(--bg)}
+/* 有任务在等你：顶光从品牌色换成橙色（叠一层，只过渡透明度） */
+.scr::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1200ms var(--ease);
+  background:radial-gradient(90vw 40vh at 50% -16%,color-mix(in srgb,var(--orange) 15%,transparent),transparent 70%)}
+.scr.warn::before{opacity:1}
+.scr>*{position:relative}
+html.nocur,html.nocur *{cursor:none!important}
+.scr-h{display:flex;align-items:center;gap:1.3em;height:3em;padding:0 1.5em;flex-shrink:0;white-space:nowrap;font-size:.95em}
+.scr-brand{display:flex;align-items:center;gap:.5em;font-weight:600}
+.scr-brand .logo{width:1.4em;height:1.4em}
+.scr-sum{display:flex;align-items:baseline;gap:1.2em;color:var(--text-3)}
+.scr-sum b{font-weight:600;color:var(--text-1);margin:0 .2em 0 0}
+.scr-sum .w,.scr-sum .w b{color:var(--orange)}
+.scr-lost{color:var(--red)}
+.scr-h .grow{flex:1}
+.cv-dots{display:flex;align-items:center;gap:.4em}
+.cv-dots i{width:.4em;height:.4em;border-radius:.2em;background:var(--line-strong);transition:width 300ms var(--ease-out),background-color 300ms var(--ease)}
+.cv-dots i.on{width:1.2em;background:var(--brand)}
+.scr-esc{font-size:.85em;color:var(--text-4);transition:opacity 300ms var(--ease)}
+html.nocur .scr-esc{opacity:0}
+.scr-clk{display:flex;align-items:baseline;gap:.6em;color:var(--text-4)}
+.scr-clk b{font-size:1.5em;font-weight:500;color:var(--text-1)}
+/* 画布：多列流式排版，列满了往右长；横向滚动条藏起来，用拖动 / 滚轮 / 自动翻屏 */
+.cv-flow{flex:1;height:0;min-height:0;column-width:21em;column-gap:1em;column-fill:auto;overflow-x:auto;overflow-y:hidden;
+  padding:.4em 1.5em 1.5em;scrollbar-width:none;cursor:grab}
+.cv-flow::-webkit-scrollbar{display:none}
+.cv-flow:active{cursor:grabbing}
+.cv{--rc:var(--brand);position:relative;display:flex;flex-direction:column;gap:.6em;break-inside:avoid;margin:0 0 1em;padding:.95em 1.05em 1em 1.2em;
+  border-radius:.8em;overflow:hidden;background:var(--layer-1);box-shadow:inset 0 0 0 1px var(--line-soft);
+  transition:background-color 600ms var(--ease),box-shadow 600ms var(--ease)}
+.cv::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.25em;background:var(--rc);transition:background-color 600ms var(--ease)}
+.cv.wait{--rc:var(--orange);background:color-mix(in srgb,var(--orange) 8%,var(--layer-1));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--orange) 38%,transparent)}
+.cv.bad{--rc:var(--red)}
+.cv.dead{--rc:var(--text-4);opacity:.65}
+.cv.ok{--rc:var(--green);opacity:.8}
+.cv-glow{position:absolute;top:0;bottom:0;left:0;width:40%;pointer-events:none;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 18%,transparent),transparent)}
+.cv .tile{width:1.5em;height:1.5em;font-size:.62em;border-radius:.4em}
+.cv-h{display:flex;align-items:center;gap:.5em;font-size:.85em;color:var(--text-3)}
+.cv-a{color:var(--text-2)}
+.cv-st{color:var(--text-3)}
+.cv.wait .cv-st{color:var(--orange);font-weight:600}
+.cv-e{margin-left:auto;color:var(--text-4)}
+.cv-t{margin:0;font-size:1.06em;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.cv-q{margin:0;padding:.55em .75em;border-radius:.55em;font-size:.95em;line-height:1.5;color:var(--text-1);background:color-mix(in srgb,var(--orange) 11%,transparent);
+  display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.cv-sum{margin:0;font-size:.88em;line-height:1.5;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cv-p{display:flex;align-items:center;gap:.7em}
+.cv-p .segs{flex:1;height:.35em;gap:.15em}
+.cv-p .num{font-size:.82em;color:var(--text-3)}
+/* 子步骤：只展开正在做的那一条前后几条，前面做完的、后面没做的各折成一行 */
+.cv-st-l{list-style:none;margin:.1em 0 0;padding:0;display:flex;flex-direction:column;gap:.1em}
+.st{display:flex;gap:.55em;align-items:flex-start;padding:.14em 0;font-size:.9em;line-height:1.4;color:var(--text-3)}
+.st .ic{margin-top:.18em}
+.st>span{min-width:0;word-break:break-word}
+.cv .st>span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.cv .st.doing>span{-webkit-line-clamp:3}
+.st.doing{color:var(--text-1);font-weight:510}
+.st.blocked{color:var(--red)}
+.st.done,.st.skipped{color:var(--text-4)}
+.st.more{padding-left:1.55em;font-size:.82em;color:var(--text-4)}
+/* 一个任务都没有：一只钟 */
+.scr-idle{margin:auto;display:flex;flex-direction:column;align-items:center;gap:.5em;text-align:center;color:var(--text-3)}
+.scr-idle b{font-size:5.5em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
+.scr-idle span{font-size:1.2em}
+.scr-idle em{font-style:normal;margin-top:1em;color:var(--text-4)}
+@media (prefers-reduced-motion:reduce){.scr::before,.cv,.cv::before,.cv-dots i{transition:none}}
 </style>
 </head>
 <body>
@@ -1149,6 +1262,9 @@ const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示
 const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
 const PEEK = VIEW === 'peek';   // 鼠标停在托盘图标上弹出的未读列表（像微信）
 const CARD = VIEW === 'card';   // 鼠标停在贴边长条某一段上弹出的详情卡（具体子步骤）
+const TASK = VIEW === 'task' && typeof window.tickTaskFit === 'function'; // 从悬浮窗分离出来的单个任务的子窗口
+const TASK_SID = qs.get('sid') || '';
+const SCREEN = VIEW === 'screen'; // 宿主开的独立全屏窗口：只做总览，给扩展屏挂着看
 const WIN = qs.get('host') === 'panel' && typeof window.tickWin === 'function'; // 原生面板窗口：无边框，标题栏由页面画
 if (WIN) document.documentElement.dataset.win = '';
 const HTTP = location.protocol.startsWith('http');
@@ -1271,6 +1387,9 @@ function tr(s) {
 
 const S = {
   sessions: new Map(), notices: [], conn: 'connecting', ready: false, desktop: false,
+  detached: new Set(), // 分离成子窗口的会话 ID（宿主推来），主窗口列表不显示它们
+  kidsOpen: new Map(), // 手动展开 / 收起过的子任务组：主会话 ID → 是否展开（没手动动过的按默认）
+  scrPage: 0, scrPages: 1, // 大屏：当前页 / 总页数
   info: { mcp: `${BASE}/mcp`, exe: '' },
   view: 'active', agent: null, sel: null, detailFresh: false,
   open: new Set(), justDone: new Set(), celebrate: new Set(), dismissed: new Set(), dragging: false,
@@ -1444,6 +1563,8 @@ const IC = {
   search: L('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>', 14),
   expand: L('<rect x="3" y="3.5" width="10" height="9" rx="1.5"/><path d="M3 6.5h10"/>', 15),
   panel: L('<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>', 15),
+  detach: L('<path d="M9.5 2.5h4v4M13.5 2.5L8.5 7.5"/><path d="M12 9.5v2.2a1.8 1.8 0 0 1-1.8 1.8H4.3a1.8 1.8 0 0 1-1.8-1.8V5.8A1.8 1.8 0 0 1 4.3 4h2.2"/>', 15),
+  screen: L('<rect x="2" y="3" width="12" height="8.5" rx="1.5"/><path d="M6 14h4M8 11.5V14"/>', 15),
   x: L('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', 14),
   wMin: L('<path d="M4 8.5h8"/>', 14),
   wMax: L('<rect x="4" y="4" width="8" height="8" rx="1.2"/>', 14),
@@ -1712,6 +1833,8 @@ function renderNow() {
   if (MENU) return renderMenu();
   if (PEEK) return renderPeek();
   if (CARD) return renderCard();
+  if (TASK) return renderTask();
+  if (SCREEN) return renderScreen();
   if (FLOAT) renderFloat(root, NATIVE ? 'native' : 'page');
   else renderPanel();
   if (pip.root) { pip.root.ownerDocument.documentElement.dataset.theme = S.theme; renderFloat(pip.root, 'pip'); }
@@ -1888,9 +2011,35 @@ function startCard() {
   window.tickCardReady();
 }
 const CARD_ROWS = 10;
+// 条目细节（悬浮窗进度条上停够了弹出）：完整文字和备注，不像进度条上的小提示那样截成一行
+const ITEM_COLOR = { done: 'var(--brand)', doing: 'var(--brand-hi)', blocked: 'var(--red)', skipped: 'var(--text-4)', todo: 'var(--text-4)' };
+function renderItemCard(d) {
+  const s = d.session, it = d.item, a = agentOf(s.agent);
+  const { ms, approx } = itemMs(s, it);
+  const tm = it.status === 'todo' ? '' : it.status === 'skipped' ? '跳过' : `${approx ? '≈' : ''}${dur(ms)}`;
+  const clock = t => new Date(t).toTimeString().slice(0, 8);
+  const when = it.status === 'doing' && it.startedAt ? `开始 ${clock(it.startedAt)}` : it.doneAt ? `${it.status === 'skipped' ? '跳过' : '完成'} ${clock(it.doneAt)}` : '';
+  morph(root, `<div class="ik-box" style="--c:${ITEM_COLOR[it.status] || ITEM_COLOR.todo}">
+    <header class="ik-h">${sicon(it.status)}<b>#${d.index} ${esc(ITEM[it.status] || '')}</b><span class="st num">${esc(tm)}</span></header>
+    <div class="ik-tx">${esc(it.text)}</div>
+    ${it.note ? `<div class="ik-nt">${esc(it.note)}</div>` : ''}
+    <footer class="ik-m"><span class="tile sm" style="color:${a.color}">${esc(a.mark)}</span><span class="trunc">${esc(s.title)}</span>${when ? `<i class="dot"></i><span class="num">${when}</span>` : ''}</footer>
+  </div>`);
+}
+// 小环标签顶上的 ✓ 悬停：全部任务，一行一个（状态、标题、当前一步或等你的问题、完成数）
+function renderCardAll(d) {
+  const rows = d.sessions.map(s => {
+    const p = progress(s), step = current(s);
+    const sub = isWaiting(s) && s.statusNote ? firstLine(s.statusNote) : isEnded(s) ? (s.summary ? firstLine(s.summary) : STATUS[s.status]) : step ? step.text : firstLine(subline(s));
+    return `<div class="ka${isWaiting(s) ? ' w' : ''}${isEnded(s) ? ' end' : ''}" data-key="ka-${esc(s.id)}">${sicon(s.status)}<span class="ka-t"><b>${esc(s.title)}</b><span>${esc(sub)}</span></span><span class="num">${p.total ? `${p.done}/${p.total}` : ''}</span></div>`;
+  }).join('');
+  morph(root, `<div class="sk-box ka-box" style="--c:var(--brand)"><header class="sk-h"><span class="logo">${IC.logo}</span><b>全部任务</b><span class="num">${d.sessions.length}</span></header>${rows || '<div class="ka"><span class="ka-t"><span>都安静着</span></span></div>'}</div>`);
+}
 function renderCard() {
   const d = S.card;
   if (!d) return;
+  if (d.all) return renderCardAll(d);
+  if (d.item) return renderItemCard(d);
   const s = d.session, p = progress(s), a = agentOf(s.agent), all = s.items;
   // 清单长时只显示当前这一步附近的一段，前后各折成一行说明
   let from = 0, to = all.length;
@@ -1914,12 +2063,41 @@ function renderCard() {
   </div>`);
 }
 
+// ======================================================================
+// 任务子窗口（view=task&sid=…）：悬浮窗里双击某个任务或点「分离」后弹出的独立窗口，和悬浮窗同一套外观，只放这一个任务（展开着）。
+// 关掉窗口（叉号 / Esc）= 回到主窗口：宿主把它从分离名单里去掉，主窗口列表里又出现这个任务。
+// ======================================================================
+function startTask() {
+  window.tickTaskGlass?.().then(on => document.documentElement.toggleAttribute('data-glass', !!on));
+  S.open.add(TASK_SID);
+  // 窗口高度跟内容走：报标题栏加列表的自然高度（列表自己最多 560px，超出滚动，窗口不跟着再缩，免得来回震荡）
+  const fit = () => {
+    const el = root.firstElementChild, top = el?.querySelector('.f-top'), body = el?.querySelector('.f-body');
+    if (el && top && body) window.tickTaskFit(el.offsetWidth, top.offsetHeight + Math.min(body.scrollHeight, 560));
+  };
+  new ResizeObserver(fit).observe(root);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickTaskClose(); });
+}
+function renderTask() {
+  const s = S.sessions.get(TASK_SID);
+  // 会话删了、归档了：没有可看的东西，回主窗口（连接断开时先别关：重连后还在）
+  if (!s || s.archived) { if (S.conn === 'live') window.tickTaskClose(); return; }
+  const live = sweeper();
+  morph(root, `<div class="f native task side-right v-top"><div class="f-in" data-key="full">
+    <header class="f-top" data-drag>
+      <span class="logo">${IC.logo}</span><span class="f-brand">Tick</span><span class="f-cnt num"><span>已钉住</span></span>
+      <div class="f-acts"><button class="ib" data-act="task-close" data-tip="取消钉住，任务回到主窗口（Esc）" aria-label="取消钉住">${IC.x}</button></div>
+    </header>
+    <div class="f-body"><section class="grp"><div class="s-list">${sessionRow(s, live)}</div></section></div>
+  </div></div>`);
+}
+
 function renderPeek() {
   const d = S.peek;
   if (!d) return;
   const verb = { waiting: '在等你', blocked: '卡住了', done: '做完了', failed: '没做成' };
   morph(root, `<div class="pk-box">
-    <header class="pv-h"><span class="logo">${IC.logo}</span><b>未读</b><span class="pv-n num">${d.total}</span><span class="grow"></span>
+    <header class="pv-h"><span class="logo">${IC.logo}</span><b>未读</b><span class="pv-n num">${d.total}</span><span class="grow"></span>${d.summary ? `<span class="pv-sum num">${esc(d.summary)}</span>` : ''}
 </header>
     <div class="pv-list">${d.items.map(n => `<button class="pv-row" data-p="open" data-id="${esc(n.ID)}" data-key="pv-${esc(n.ID)}">${sicon(n.Kind)}
       <span class="pv-tx"><span class="pv-t"><b>${esc(agentOf(n.Agent).name)}</b> ${verb[n.Kind] || ''}${n.Title ? `<em>${esc(n.Title)}</em>` : ''}</span>
@@ -1962,7 +2140,7 @@ function startMenu() {
     } else if (S.menu && name in OPT) S.menu[OPT[name]] = on; // 异步项：保持刚拨的样子，下次弹出时以宿主为准
     render();
   };
-  const OPT = { pin: 'pinned', autohide: 'autoHide', fs: 'fsHide' };
+  const OPT = { pin: 'pinned', autohide: 'autoHide', fs: 'fsHide', screen: 'screen' };
   root.addEventListener('click', e => {
     const b = e.target.closest('[data-m]');
     if (!b) return;
@@ -2020,6 +2198,7 @@ function renderMenu() {
       ${sw('autohide', '贴边后自动隐藏', m.autoHide, '拖到屏幕左、右、上边缘松手即可贴边')}
       ${sw('fs', '全屏时让开', m.fsHide, '游戏、视频、演示全屏时自动隐藏')}
       ${sw('autostart', '开机启动', m.autostart)}
+      ${sw('screen', '大屏模式', m.screen, '全屏总览，给扩展屏挂着看：等你的置顶放大，放不下自动翻页，不用操作；有扩展屏铺扩展屏，Esc 退出')}
       ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '不响' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
@@ -2037,7 +2216,7 @@ function renderMenu() {
 // ======================================================================
 // 悬浮窗
 // ======================================================================
-function floatData() {
+function floatData(all = false) { // all：大屏用，不隐藏分离成子窗口的任务
   const t = now();
   const unread = S.notices.filter(n => !n.read);
   // 等你 / 受阻做成卡片，按会话状态判断：会话转为等你和那条通知是分两帧推来的，
@@ -2053,7 +2232,7 @@ function floatData() {
   // 正在跑的排最上面，其次等你 / 受阻，再是写清单，很久没动静的垫底。
   // 同一档按登记时间排（方向看逆序开关），不按最近更新排，否则 agent 每勾一条整列就跳一次
   const rank = s => (s.status === 'running' && !isDormant(s) ? 0 : isWaiting(s) ? 1 : s.status === 'planning' ? 2 : 3);
-  const live = visible();
+  const live = visible().filter(s => all || !S.detached.has(s.id)); // 分离成子窗口的任务，在子窗口关掉前不在主窗口里显示
   // 子 agent 的会话显示在主会话下面，不单独占一行（主会话不在了才单独显示）
   const top = live.filter(s => !isChild(s));
   const open = top.filter(s => !isEnded(s)).sort((a, b) => rank(a) - rank(b) || byOrder(a, b));
@@ -2506,7 +2685,7 @@ function fanHtml(d, live) {
 function tabHtml(d, live) {
   const t = now();
   const rank = s => (isWaiting(s) ? 0 : s.status === 'running' ? 1 : s.status === 'planning' ? 2 : 3);
-  const list = visible().filter(s => !isChild(s) && (!isEnded(s) || t - s.endedAt < 30 * MIN)).sort((a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt);
+  const list = visible().filter(s => !isChild(s) && !S.detached.has(s.id) && (!isEnded(s) || t - s.endedAt < 30 * MIN)).sort((a, b) => rank(a) - rank(b) || b.createdAt - a.createdAt);
   if (S.strip) return stripHtml(list); // 长条：新消息不变气泡（窗口只有 6px），有提醒卡和托盘闪动，等你的那一段变橙闪
   const sp = S.speak;
   if (sp) {
@@ -2517,7 +2696,9 @@ function tabHtml(d, live) {
   }
   const shown = list.slice(0, 4);
   const more = list.length - shown.length;
-  return `<div class="tb" data-key="tab" data-enter="fade" data-drag data-act="untuck" data-tip="${esc(list.length ? `${d.nR} 进行中${d.nW ? ` · ${d.nW} 等你` : ''}` : '都安静着')}">
+  // 小环标签：不再靠单击 / 悬停展开整个浮窗。停在顶上的 ✓ 上弹「全部任务」卡，停在某个环上弹这个任务的子任务卡（都在旁边的小窗口里，见 cardMove）；
+  // 双击标签回到浮窗（双击某个环：回到浮窗并定位到那个任务）；右键某个环：把这个任务钉成独立浮窗
+  return `<div class="tb" data-key="tab" data-enter="fade" data-drag>
     <span class="logo">${IC.logo}</span>
     ${shown.length ? '<i class="tb-sep"></i>' : ''}
     ${shown.map(s => mini(s, live)).join('')}
@@ -2576,8 +2757,8 @@ function cardShowFor(sid, along, holdMs = 0) {
   const s = S.sessions.get(sid);
   cardSid = sid;
   cardAlong = along;
-  window.tickCard(sid, along, s && S.stripColor ? S.stripColor(s) : STRIP_COLORS[0], holdMs);
-  cardSeen(sid);
+  window.tickCard(sid, along, S.strip && s && S.stripColor ? S.stripColor(s) : '', holdMs); // 小环标签没有任务色，传空让宿主按状态着色
+  if (sid !== '*') cardSeen(sid);
 }
 function cardFlush() {
   cardT = 0;
@@ -2593,9 +2774,22 @@ function cardHide(force = false) {
   if (cardSid) { cardSid = ''; window.tickCardClose(); }
 }
 // 宿主自己收起了卡片（鼠标离开的兜底、点了卡片）：页面记的状态也清掉
-window.tickCardGone = () => { clearTimeout(cardT); cardT = 0; cardPend = null; cardPinned = false; cardSid = ''; };
+window.tickCardGone = () => { clearTimeout(cardT); cardT = 0; cardPend = null; cardPinned = false; cardSid = ''; side.on = false; side.key = ''; };
+// 小环标签上的悬停：停在顶上的 ✓ 或某个环上满 500ms 才弹（划过去不弹）；已经弹着，换到别的环马上跟过去
+function ringMove(e) {
+  const g = e.target.closest?.('.tb:not(.speak) .mini[data-sid], .tb:not(.speak) > .logo');
+  if (!g) return; // 环与环之间的空隙：保持原样，免得卡片闪一下
+  const sid = g.dataset.sid || '*';
+  if (sid === cardSid) return;
+  const r = g.getBoundingClientRect();
+  cardPend = { sid, along: stripVertical() ? r.top + r.height / 2 : r.left + r.width / 2 };
+  clearTimeout(cardT);
+  if (cardSid) cardFlush();
+  else cardT = setTimeout(cardFlush, 500);
+}
 function cardMove(e) {
-  if (!S.dock.tucked || !S.strip) return cardHide();
+  if (!S.dock.tucked) return cardHide();
+  if (!S.strip) return ringMove(e);
   if (cardPinned) return; // 钉住的卡片不跟着鼠标走
   const g = e.target.closest?.('.sb-g[data-sid]');
   if (!g) return; // 段与段之间的 2px 缝：保持原样，免得卡片闪一下
@@ -2978,7 +3172,12 @@ function noticeRow(n) {
 function kidsHtml(s, live) {
   const kids = childrenOf(s);
   if (!kids.length) return '';
-  return `<div class="kids" data-flip>${kids.map(k => {
+  // 整组可以收起：组头一行写“子任务 完成数/总数”，收起时后面带还在做的那个的标题。
+  // 默认：还有子任务没结束就展开（要看它们在干什么），都结束了就收起；点组头手动切换后以手动的为准
+  const done = kids.filter(isEnded).length;
+  const open = S.kidsOpen.has(s.id) ? S.kidsOpen.get(s.id) : done < kids.length;
+  const busy = kids.find(k => !isEnded(k));
+  const rows = kids.map(k => {
     const p = progress(k);
     const open = S.open.has(k.id);
     const ticking = !!current(k)?.startedAt && live();
@@ -2990,7 +3189,11 @@ function kidsHtml(s, live) {
       </button>
       <div class="s-items"><div><div class="pad">${itemsHtml(k)}</div></div></div>
     </div>`;
-  }).join('')}</div>`;
+  }).join('');
+  return `<div class="kids${open ? ' open' : ''}" data-key="kids-${esc(s.id)}">
+    <button class="kids-h" data-act="kids" data-sid="${esc(s.id)}" aria-expanded="${open}" data-tip="${open ? '收起子任务' : '展开子任务'}">${IC.chev}<span class="kids-t">子任务</span><span class="kids-c num">${done}/${kids.length}</span><span class="kids-pv trunc">${open || !busy ? '' : esc(busy.title)}</span></button>
+    <div class="kids-body"><div><div class="kids-list" data-flip>${rows}</div></div></div>
+  </div>`;
 }
 
 function sessionRow(s, live) {
@@ -3014,6 +3217,7 @@ function sessionRow(s, live) {
       ${s.link ? `<button class="ib" data-act="open-link" data-sid="${esc(s.id)}" data-tip="回到对话">${IC.link}</button>` : ''}
       <button class="ib" data-act="relay" data-sid="${esc(s.id)}" data-tip="复制接力提示：粘给任何 agent 都能接着做">${IC.copy}</button>
       <button class="ib" data-act="open-panel-session" data-sid="${esc(s.id)}" data-tip="在面板里看完整清单和动态">${IC.panel}</button>
+      ${typeof window.tickDetach === 'function' ? `<button class="ib" data-act="detach" data-sid="${esc(s.id)}" data-tip="钉成独立浮窗（双击也行）：可以拖到别处，重启后还在原位；关掉它就取消钉住，回到这里">${IC.detach}</button>` : ''}
       <button class="ib" data-act="archive" data-sid="${esc(s.id)}" data-tip="${isEnded(s) ? '归档' : '归档：在别处已经停了的会话从列表里拿走（agent 再报进度会自动回来）'}">${IC.archive}</button>
       ${dead ? `<button class="ib" data-act="end-session" data-sid="${esc(s.id)}" data-tip="结束：标成已取消（能撤销）">${IC.x}</button>` : ''}
     </div>
@@ -3147,6 +3351,138 @@ function renderPanel() {
   list.scrollTop = keep;
   renderDetail();
   renderDeck();
+}
+
+// ======================================================================
+// 大屏（view=screen）：宿主开的独立全屏窗口（托盘菜单「大屏模式」，有扩展屏时铺扩展屏）。
+// 定位是挂在旁边那块屏上的状态画布，不是投影大屏：字号正常，信息要全——每个任务一张卡，卡里带子步骤，
+//   卡片按列往下排，排满一列接着往右排（多列流式排版，像无限画布往右延伸），拖动 / 滚轮平移；没人动时每 12 秒自己翻一屏；
+//   在等你的卡排在最前，橙色，问题原文直接摆出来，整屏顶光也变橙；刚做完的 30 分钟后离场；一个任务都没有时只剩一只钟；
+//   鼠标 3 秒不动，光标和「Esc 退出」一起藏起来。动画只在事件发生时播：开屏时卡片一张张升起、新任务的卡升起、
+//   进度和勾选状态过渡、等你的卡片出现时扫一道光；没有常驻循环。
+// ======================================================================
+const SCR_PAGE_MS = 12000, SCR_HOLD_MS = 30000; // 自动翻屏的间隔；手动拖过以后多久不自动翻
+let scrUserAt = 0;
+const scrDate = () => new Date().toLocaleDateString(EN ? 'en-US' : 'zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+const scrTime = () => new Date().toTimeString().slice(0, 5);
+const scrFlow = () => document.querySelector('.cv-flow');
+// CSS 会把 column-width 扩展到填满可见宽度；翻屏和页点都使用实际列宽及同一组落点。
+function scrStops(f) {
+  const cs = getComputedStyle(f), gap = parseFloat(cs.columnGap);
+  const width = f.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const step = width + gap, max = Math.max(0, f.scrollWidth - f.clientWidth);
+  const stops = [0];
+  for (let x = step; x < max - 4; x += step) stops.push(x);
+  if (max > 4) stops.push(max);
+  return stops;
+}
+// 右上角的页点：画布往右延伸出几屏、现在在第几屏。页点是运行时加的（data-fx），重绘不动它
+function scrDots() {
+  const f = scrFlow(), h = document.querySelector('.scr-h');
+  if (!f || !h) return;
+  let d = h.querySelector('.cv-dots');
+  const stops = scrStops(f), pages = stops.length;
+  if (pages < 2) { d?.remove(); return; }
+  if (!d) { d = document.createElement('span'); d.className = 'cv-dots'; d.setAttribute('data-fx', ''); h.querySelector('.scr-esc').before(d); }
+  const at = stops.reduce((best, x, i) => Math.abs(x - f.scrollLeft) < Math.abs(stops[best] - f.scrollLeft) ? i : best, 0);
+  const html = Array.from({ length: pages }, (_, i) => `<i class="${i === at ? 'on' : ''}"></i>`).join('');
+  if (d.dataset.h !== html) { d.dataset.h = html; d.innerHTML = html; }
+}
+// 自动翻屏：每次往右走整数列，走到头回到最左
+function scrAutoPage() {
+  const f = scrFlow();
+  if (!f || document.hidden || Date.now() - scrUserAt < SCR_HOLD_MS) return;
+  const max = f.scrollWidth - f.clientWidth;
+  if (max < 8) { if (f.scrollLeft) f.scrollTo({ left: 0 }); return; }
+  const to = scrStops(f).find(x => x > f.scrollLeft + 4) ?? 0;
+  f.scrollTo({ left: to, behavior: RM.matches ? 'auto' : 'smooth' });
+}
+function startScreen() {
+  const html = document.documentElement;
+  html.dataset.scr = '';
+  let hideT = 0;
+  const wake = () => { html.classList.remove('nocur'); clearTimeout(hideT); hideT = setTimeout(() => html.classList.add('nocur'), 3000); };
+  document.addEventListener('mousemove', wake);
+  wake();
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.tickScreenClose?.(); });
+  // 平移：按住拖，或滚轮（竖着滚也往右走）。操作过以后 30 秒内不自动翻屏
+  let drag = null;
+  document.addEventListener('pointerdown', e => { const f = e.button === 0 && e.target.closest?.('.cv-flow'); if (f) { f.setPointerCapture(e.pointerId); drag = { x: e.clientX, l: f.scrollLeft, f }; scrUserAt = Date.now(); } });
+  document.addEventListener('pointermove', e => { if (!drag) return; drag.f.scrollLeft = drag.l - (e.clientX - drag.x); scrUserAt = Date.now(); });
+  const end = () => { drag = null; };
+  document.addEventListener('pointerup', end);
+  document.addEventListener('pointercancel', end);
+  document.addEventListener('wheel', e => { const f = e.target.closest?.('.cv-flow'); if (!f) return; e.preventDefault(); f.scrollLeft += e.deltaX + e.deltaY; scrUserAt = Date.now(); }, { passive: false });
+  document.addEventListener('scroll', e => { if (e.target.classList?.contains('cv-flow')) requestAnimationFrame(scrDots); }, true);
+  setInterval(() => { const t = scrTime(); for (const el of document.querySelectorAll('[data-scr-clk]')) if (el.textContent !== t) el.textContent = t; }, 1000);
+  setInterval(scrAutoPage, SCR_PAGE_MS);
+  setInterval(schedule, 30000); // “刚做完”到点离场
+  addEventListener('resize', () => schedule());
+}
+const scrGlow = g => g.animate([{ transform: 'translateX(-100%)' }, { transform: 'translateX(260%)' }], { duration: 1200, easing: 'cubic-bezier(.45,.05,.55,.95)' });
+// 子步骤：正在做的那条前后各取几条，前面做完的、后面没做的各折成一行，一张卡最多 7 行
+function scrSteps(s) {
+  const its = s.items;
+  if (!its.length) return '';
+  let cur = its.findIndex(it => it.status === 'doing' || it.status === 'blocked');
+  if (cur < 0) cur = its.findIndex(it => it.status === 'todo');
+  if (cur < 0) cur = its.length;
+  const from = Math.max(0, cur - 1), to = Math.min(its.length, from + 5);
+  const row = it => `<li class="st ${it.status}" data-key="${esc(s.id)}-${esc(it.id)}">${sicon(it.status)}<span>${esc(it.text)}</span></li>`;
+  return `<ol class="cv-st-l">${from ? `<li class="st more" data-key="${esc(s.id)}-up">前面 ${from} 项已过</li>` : ''}${its.slice(from, to).map(row).join('')}${its.length > to ? `<li class="st more" data-key="${esc(s.id)}-dn">后面还有 ${its.length - to} 项</li>` : ''}</ol>`;
+}
+function scrCard(s) {
+  const a = agentOf(s.agent), p = progress(s);
+  const parent = s.parentId && S.sessions.get(s.parentId);
+  const tone = isWaiting(s) ? 'wait' : s.status === 'failed' ? 'bad' : isEnded(s) ? 'ok' : isDormant(s) ? 'dead' : 'run';
+  const ticking = tone === 'run' && !!current(s)?.startedAt;
+  return `<article class="cv ${tone}" data-key="c-${esc(s.id)}" data-enter="fade" data-exit="fade">
+    ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
+    <header class="cv-h"><span class="tile">${esc(a.mark)}</span><span class="cv-a">${esc(a.name)}</span>${sicon(tone === 'dead' ? 'dormant' : s.status)}<span class="cv-st">${tone === 'dead' ? '很久没动静' : STATUS[s.status]}</span>
+      <span class="cv-e num">${tone === 'wait' && s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : `<span data-clock="short" data-sid="${esc(s.id)}">${short(elapsed(s))}</span>`}</span></header>
+    <h3 class="cv-t">${esc(s.title)}</h3>
+    ${parent ? `<p class="cv-sum">↳ ${esc(parent.title)}</p>` : ''}
+    ${tone === 'wait' ? `<p class="cv-q">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>` : ''}
+    ${tone === 'ok' && s.summary ? `<p class="cv-sum">${esc(s.summary)}</p>` : ''}
+    ${p.total ? `<div class="cv-p">${segs(s, ticking)}<span class="num">${p.done}/${p.total}</span></div>` : ''}
+    ${tone === 'ok' ? '' : scrSteps(s)}
+  </article>`;
+}
+function renderScreen() {
+  // 大屏每个会话一张卡，包含子 agent 和已钉住的任务；不复用悬浮窗隐藏子会话的列表。
+  const live = visible(), t = now();
+  const waits = live.filter(isWaiting).sort((a, b) => b.waitSince - a.waitSince);
+  const active = live.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s)).sort(byOrder);
+  const stale = live.filter(s => !isWaiting(s) && isDormant(s)).sort(byOrder);
+  const recent = live.filter(s => isEnded(s) && t - s.endedAt < 30 * MIN).sort((a, b) => b.endedAt - a.endedAt);
+  const list = [...waits, ...active, ...stale, ...recent];
+  const idle = !list.length;
+  const today = itemsToday();
+  const first = !root.querySelector('.scr');
+  const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">
+    <header class="scr-h">
+      <span class="scr-brand"><span class="logo">${IC.logo}</span>Tick</span>
+      ${idle ? '' : `<span class="scr-sum">
+        <span><b class="num" data-roll>${active.length}</b>在跑</span>
+        ${waits.length ? `<span class="w"><b class="num" data-roll>${waits.length}</b>等你</span>` : ''}
+        ${today ? `<span>今天勾了 <b class="num" data-roll>${today}</b> 项</span>` : ''}
+      </span>`}
+      ${S.conn === 'lost' ? '<span class="scr-lost">和 Tick 断开了，正在重连…</span>' : ''}
+      <span class="grow"></span>
+      <span class="scr-esc"><kbd>Esc</kbd> 退出</span>
+      ${idle ? '' : `<span class="scr-clk"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span></span>`}
+    </header>
+    ${idle
+      ? `<div class="scr-idle" data-key="idle" data-enter="fade"><b class="num" data-scr-clk>${scrTime()}</b><span>${esc(scrDate())}</span><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
+      : `<div class="cv-flow" data-key="flow">${list.map(scrCard).join('')}</div>`}
+  </div>`);
+  settle(entered);
+  requestAnimationFrame(scrDots);
+  if (RM.matches) return;
+  const rise = (el, k) => el.animate([{ opacity: 0, transform: 'translateY(1.2em)' }, { opacity: 1, transform: 'none' }],
+    { duration: 420, delay: Math.min(k, 16) * 40, easing: EASE_OUT, fill: 'backwards' });
+  if (first) { root.querySelectorAll('.cv').forEach(rise); return; }
+  for (const el of entered) if (el.classList?.contains('cv')) { rise(el, 0); if (el.classList.contains('wait')) setTimeout(() => el.isConnected && scrGlow(el.querySelector('.cv-glow')), 250); }
 }
 
 // ---------- 全屏卡片：当前视图的会话铺成一桌牌，点一张翻到背面看清单 ----------
@@ -3332,6 +3668,7 @@ function focusSession(id) {
   if (NATIVE && S.dock.tucked) { S.focusAfter = id; window.tickUntuck(); return; }
   const s = S.sessions.get(id);
   S.open.add(id);
+  if (s?.parentId) S.kidsOpen.set(s.parentId, true); // 子任务收在组里：先把组打开
   if (s && isEnded(s)) S.histOpen = true; // 收起的“刚结束”里的会话：先把分组打开
   if (s && isWaiting(s)) S.open.add(`card:${id}`); // 抽屉里的卡片也展开清单
   render();
@@ -3435,6 +3772,7 @@ async function openPip() {
 
 // ============ 提示、复制、接入说明 ============
 function toast(html, opt = {}) {
+  if (SCREEN) return; // 大屏上不弹提示：没人操作，提醒由悬浮窗和右下角的提醒卡负责
   const el = document.createElement('div');
   el.className = 'toast';
   el.innerHTML = tr(`<span>${html}</span>${opt.action ? `<button class="toast-act">${esc(tr(opt.action))}</button>` : ''}`);
@@ -3644,7 +3982,21 @@ async function onClick(e) {
     case 'win-max': window.tickWin('max'); break;
     case 'win-close': window.tickWin('close'); break;
     case 'panel': NATIVE ? window.tickPanel('') : window.open(`${BASE}/`, 'tick-main'); break;
-    case 'open-panel-session': NATIVE ? window.tickPanel(`#${sid}`) : window.open(`${BASE}/#${sid}`, 'tick-main'); break;
+    case 'open-panel-session': NATIVE || TASK ? window.tickPanel(`#${sid}`) : window.open(`${BASE}/#${sid}`, 'tick-main'); break;
+    case 'kids': {
+      e.stopPropagation();
+      const kids = s ? childrenOf(s) : [];
+      const cur = S.kidsOpen.has(sid) ? S.kidsOpen.get(sid) : kids.some(k => !isEnded(k));
+      S.kidsOpen.set(sid, !cur);
+      schedule();
+      break;
+    }
+    case 'detach': {
+      const r = el.closest('[data-sid]')?.getBoundingClientRect();
+      if (sid) { scrubOff(); window.tickDetach(sid, r ? r.top + r.height / 2 : 0); }
+      break;
+    }
+    case 'task-close': window.tickTaskClose(); break;
     case 'ctx-delete-ok':
       if (sid) try { await post(`/api/sessions/${sid}`, {}, 'DELETE'); } catch (err) { toast(`没删成：${esc(err.message)}`); }
       break;
@@ -3827,7 +4179,7 @@ document.addEventListener('focusout', e => {
 // 悬浮窗用 tickDrag；无边框面板用 tickWin，面板四周的留白也能拖
 const dragZone = t => t.closest('[data-drag]') || (WIN && t.matches('.app,.side,.main') ? t : null);
 document.addEventListener('pointerdown', e => {
-  if (!(NATIVE || WIN) || e.button !== 0 || e.target.closest('button,a,input,label')) return;
+  if (!(NATIVE || WIN || TASK) || e.button !== 0 || e.target.closest('button,a,input,label')) return;
   const zone = dragZone(e.target);
   if (!zone) return;
   // 标题栏会随数据重绘被替换，松开事件挂在 document 上，并在拖动期间暂停重绘
@@ -3837,11 +4189,28 @@ document.addEventListener('pointerdown', e => {
   const end = () => {
     for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) document.removeEventListener(t, end, true);
     S.dragging = false;
-    NATIVE ? window.tickDragEnd() : window.tickWin('dragEnd');
+    TASK ? window.tickTaskDragEnd() : NATIVE ? window.tickDragEnd() : window.tickWin('dragEnd');
     schedule();
   };
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) document.addEventListener(t, end, true);
-  NATIVE ? window.tickDrag() : window.tickWin('drag');
+  TASK ? window.tickTaskDrag() : NATIVE ? window.tickDrag() : window.tickWin('drag');
+});
+// 双击会话行：把这个任务分离成独立的子窗口（只有悬浮窗里有；子窗口关闭后任务回到主窗口）
+document.addEventListener('dblclick', e => {
+  if (typeof window.tickDetach !== 'function') return;
+  // 小环标签：双击回到浮窗（双击某个环：回到浮窗并定位到那个任务）
+  if (S.dock.tucked && !S.strip && e.target.closest?.('.tb:not(.speak)')) {
+    const ring = e.target.closest('.mini[data-sid]');
+    cardHide(true);
+    if (ring) focusSession(ring.dataset.sid); else window.tickUntuck();
+    return;
+  }
+  const head = e.target.closest?.('.s-head');
+  const row = head?.closest('[data-sid]');
+  if (!row) return;
+  scrubOff();
+  const r = row.getBoundingClientRect();
+  window.tickDetach(row.dataset.sid, r.top + r.height / 2);
 });
 // ============ 节拍：循环动效改成每隔一会儿一起播一次 ============
 // 无限循环的 CSS 动画会让窗口每帧都重新合成，开着毛玻璃时常驻要吃掉四成一个核。
@@ -3866,7 +4235,7 @@ function pulse(doc) {
   q('.m-orbit, .fb-orbit').forEach(c => c.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 900, easing: ease }));
   // 边缘流光：等你 / 受阻的卡片隔一拍绕一圈；有会话在跑时整个悬浮窗边框每三拍绕一圈
   const n = (pulseN.set(doc, (pulseN.get(doc) || 0) + 1), pulseN.get(doc));
-  if (n % 2) q('.n-card').forEach(c => edgeBeam(c, c.classList.contains('blocked') ? 'var(--red)' : 'var(--orange)', 1400));
+  if (n % 2) q('.n-card, .sc.wait').forEach(c => edgeBeam(c, c.classList.contains('blocked') ? 'var(--red)' : 'var(--orange)', 1400));
 }
 // 来了新通知：悬浮窗外框（完整面板、收成横条、贴边标签都算）绕几圈光，过一阵自己停，平时不绕。
 // 等你 / 受阻绕 12 秒，没做成 8 秒，做完 6 秒，其他提醒绕一圈；勿扰时不绕
@@ -3929,7 +4298,32 @@ function applyTheme(doc) {
 }
 
 // ============ 进度条擦洗：鼠标在进度条上左右移动，显示对应那一步的内容、状态和耗时 ============
+// 停满 500ms 才出：悬浮窗（原生）在它的左边或右边弹出宿主的细节窗（view=card 的条目模式，文字不再被悬浮窗的宽度截断）；
+// 刚看过一条，挪到相邻的立刻跟过去。浏览器、面板、置顶小窗没有宿主窗口，用页面内的提示，同样等 500ms
+const SCRUB_MS = 500;
 const tips = new WeakMap(); // 每个文档（主页面 / 置顶小窗）一个提示框
+const side = { key: '', t: 0, on: false, last: 0, near: false }; // 宿主细节窗：当前停在哪一条、等待弹出的计时、是否显示着、上次收起的时刻
+let tipT = 0, tipKey = '', tipOffAt = 0; // 页面内提示：同上
+function scrubOff(doc = document) {
+  clearTimeout(side.t);
+  side.t = 0; side.key = ''; side.near = false;
+  if (side.on) { side.on = false; side.last = Date.now(); window.tickItemCardClose(); }
+  clearTimeout(tipT);
+  tipT = 0; tipKey = '';
+  const tip = tips.get(doc);
+  if (tip?.classList.contains('on')) { tip.classList.remove('on'); tipOffAt = Date.now(); }
+}
+// 停在 key 这个目标上：停满 500ms 弹出宿主细节窗；已经弹着（或刚收起不到 400ms）就立刻跟过去。
+// iid 为空：整个会话（列出全部子任务）；否则是第 index 条（从 1 数）的细节。cy 是目标在悬浮窗里的纵向中心（CSS 像素）
+function sideHover(key, sid, iid, index, cy) {
+  if (!side.near) { side.near = true; window.tickItemCardWarm(); } // 鼠标刚到目标上就让宿主把窗口建好
+  if (side.key === key) return;
+  clearTimeout(side.t);
+  side.key = key;
+  const fire = () => { side.t = 0; side.on = true; window.tickItemCard(sid, iid, index, cy); };
+  if (side.on || Date.now() - side.last < 400) fire();
+  else side.t = setTimeout(fire, SCRUB_MS);
+}
 function scrub(e) {
   const doc = e.target.ownerDocument || document;
   const bar = e.target.closest?.('.segs-wrap')?.querySelector('.segs,.pbar') || e.target.closest?.('.segs,.pbar');
@@ -3938,7 +4332,21 @@ function scrub(e) {
   const s = bar && S.sessions.get(bar.closest('[data-sid]')?.dataset.sid || S.sel);
   if (!bar || !s || !s.items.length) {
     prevHov?.classList.remove('hov');
-    tip?.classList.remove('on');
+    // 悬浮窗（原生）里进度条之外还有两处弹细节窗：展开的清单行（这一条的细节）、没展开的会话行（它的全部子任务）
+    if (typeof window.tickItemCard === 'function') {
+      const row = e.target.closest?.('.it-s[data-iid]');
+      const head = !row && e.target.closest?.('.s-head');
+      const rs = S.sessions.get((row || head)?.closest('[data-sid]')?.dataset.sid);
+      if (row && rs) {
+        const k = rs.items.findIndex(x => x.id === row.dataset.iid);
+        const rr = row.getBoundingClientRect();
+        if (k >= 0) return sideHover(`${rs.id}:${row.dataset.iid}`, rs.id, row.dataset.iid, k + 1, rr.top + rr.height / 2);
+      } else if (head && rs?.items.length && !S.open.has(rs.id)) {
+        const rr = head.getBoundingClientRect();
+        return sideHover(rs.id, rs.id, '', 0, rr.top + rr.height / 2);
+      }
+    }
+    scrubOff(doc);
     return;
   }
   const r = bar.getBoundingClientRect();
@@ -3947,6 +4355,8 @@ function scrub(e) {
   const it = s.items[i];
   const seg = bar.classList.contains('segs') ? bar.children[i] : null;
   if (prevHov !== seg) { prevHov?.classList.remove('hov'); seg?.classList.add('hov'); }
+  const at = `${s.id}:${it.id}`;
+  if (typeof window.tickItemCard === 'function') return sideHover(at, s.id, it.id, i + 1, r.top + r.height / 2);
   if (!tip) {
     tip = doc.createElement('div');
     tip.className = 'seg-tip';
@@ -3965,10 +4375,13 @@ function scrub(e) {
   const x = Math.max(6, Math.min(vw - w - 6, e.clientX - w / 2));
   const y = r.top - h - 8 < 4 ? r.bottom + 8 : r.top - h - 8;
   tip.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
-  tip.classList.add('on');
+  if (tip.classList.contains('on') || Date.now() - tipOffAt < 400) { clearTimeout(tipT); tipT = 0; tip.classList.add('on'); }
+  else if (tipKey !== at) { clearTimeout(tipT); tipT = setTimeout(() => tip.classList.add('on'), SCRUB_MS); }
+  tipKey = at;
 }
 document.addEventListener('pointermove', scrub, { passive: true });
-document.addEventListener('pointerleave', () => tips.get(document)?.classList.remove('on'));
+document.addEventListener('pointerleave', () => scrubOff());
+for (const ev of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(ev, () => scrubOff(), { capture: true, passive: true });
 
 // ============ 自绘下拉（不用原生 select：原生弹层是系统样式，和界面对不上） ============
 // pickHtml 画按钮；点开在 body 上挂一个弹层，靠近哪边空间大就往哪边开。选中后调 PICK[name](值)
@@ -4078,6 +4491,15 @@ document.addEventListener('contextmenu', e => {
   if (e.target.closest('input,textarea')) return;
   const seg = e.target.closest?.('.sb-g[data-sid]'); // 长条上右键：钉住 / 取消钉住这一段的详情卡
   if (seg && S.dock.tucked && S.strip) { e.preventDefault(); cardPinToggle(e, seg); return; }
+  // 小环标签上右键某个环：把这个任务钉成独立浮窗（和主窗口里的「分离」同一个东西；关掉那个浮窗就取消钉住）
+  const pin = e.target.closest?.('.tb:not(.speak) .mini[data-sid]');
+  if (pin && S.dock.tucked && !S.strip && typeof window.tickDetach === 'function') {
+    e.preventDefault();
+    cardHide(true);
+    const r = pin.getBoundingClientRect();
+    window.tickDetach(pin.dataset.sid, stripVertical() ? r.top + r.height / 2 : 0);
+    return;
+  }
   const row = e.target.closest('.s[data-sid], .kid[data-sid], .row[data-sid], .card[data-sid]');
   const s = row && S.sessions.get(row.dataset.sid);
   if (MENU || TOAST || PEEK || CARD) { e.preventDefault(); return; } // 小窗口里不出浏览器自带菜单
@@ -4148,7 +4570,7 @@ function tipWire(doc) {
     const t = e.target.closest?.('[data-tip]');
     if (t === tipSt.el) return;
     tipHide();
-    if (!t || !t.dataset.tip || e.pointerType === 'touch') return;
+    if (!t || !t.dataset.tip || e.pointerType === 'touch' || S.dock?.tucked) return; // 贴边收着时窗口太窄放不下提示，由详情卡代替
     tipSt.el = t;
     tipSt.t = setTimeout(() => tipShow(t), Date.now() - tipSt.last < 400 ? 0 : 450);
   }, { passive: true });
@@ -4164,7 +4586,7 @@ PICK.sound = v => {
   if (typeof window.tickSound === 'function') window.tickSound(v);
   schedule();
 };
-document.addEventListener('scroll', () => tips.get(document)?.classList.remove('on'), { capture: true, passive: true });
+document.addEventListener('scroll', () => scrubOff(), { capture: true, passive: true });
 
 // 面板：双击标题栏最大化 / 还原，和系统标题栏一样
 document.addEventListener('dblclick', e => {
@@ -4307,12 +4729,17 @@ window.tickVisible = on => {
   if (MENU) { document.title = tr('Tick 菜单'); startMenu(); return; }
   if (PEEK) { document.title = 'Tick 未读'; startPeek(); return; }
   if (CARD) { document.title = 'Tick Card'; startCard(); return; } // 窗口标题跟着页面标题走；卡片窗口没有标题栏，用不着中文
+  if (SCREEN) { document.title = 'Tick Screen'; startScreen(); await connect(); return; }
+  if (TASK) { document.title = 'Tick Task'; startTask(); await connect(); return; }
   if (FLOAT) document.title = tr('Tick 小窗');
   if (NATIVE) {
     try { const st = await window.tickState(); S.pinned = st.pinned; S.compact = st.compact; S.dnd = !!st.dnd; S.hotkey = st.hotkey || ''; } catch { /* 用默认值 */ }
   } else if (FLOAT) {
     S.compact = qs.has('pill') || store.get('compact', false);
   }
+  // 分离成子窗口的任务名单：宿主在分离 / 回归时推 tickDetached；页面刚加载（含被重新加载）时主动问一次
+  window.tickDetached = list => { S.detached = new Set(list); schedule(); };
+  if (typeof window.tickDetachedList === 'function') window.tickDetachedList().then(window.tickDetached).catch(() => {});
   await connect();
   if (NATIVE) {
     window.tickReady();
