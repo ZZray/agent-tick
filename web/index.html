@@ -1271,8 +1271,8 @@ html.nocur .scr-esc{opacity:0}
   background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--orange) 20%,transparent),transparent)}
 .cv-q{margin:2px 4px 4px;padding:.7em .9em;border-radius:var(--r-lg);font-size:13px;line-height:1.55;color:var(--text-1);
   background:color-mix(in srgb,var(--orange) 12%,transparent);word-break:break-word}
+.cv-q span.q{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .cv-q b{display:block;margin-bottom:.15em;font-size:11.5px;font-weight:600;color:var(--orange)}
-.cv-sum{margin:0 12px 8px 30px;font-size:12px;line-height:1.5;color:var(--text-3);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 /* 一个任务都没有：一只钟 */
 .scr-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5em;text-align:center;color:var(--text-3)}
 .scr-idle b{font-size:5.5em;font-weight:300;line-height:1;letter-spacing:-.02em;color:var(--text-1)}
@@ -3429,7 +3429,7 @@ function renderPanel() {
 //   动画只在事件发生时播：卡片升起、等你的卡扫一道光、视图跳转的平滑过渡；没有常驻循环。
 // ======================================================================
 const CV_GAP = 24, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.5;
-const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, seen: new Set(), userAt: 0, anim: false, drag: '', rendered: false, waitIdx: -1 };
+const CV = { pos: new Map(), view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 CV_COLS 列，先靠上再靠左
 function cvPlace(rects, w, h, cols = CV_COLS) {
@@ -3559,6 +3559,7 @@ function startScreen() {
   document.addEventListener('pointerdown', e => {
     if ((e.button !== 0 && e.button !== 1) || e.target.closest?.('.scr-h, .scr-idle')) return;
     const card = e.target.closest?.('.cv-card'), id = card?.dataset.cvid, p = id && CV.pos.get(id);
+    if (card) { CV.zi.set(id, ++CV.zTop); card.style.zIndex = CV.zTop; } // 按下的卡片置顶：展开时不被下面的邻卡压住
     g = { id, card, sx: e.clientX, sy: e.clientY, p: p && { ...p }, v: CV.view && { ...CV.view }, moved: false, pid: e.pointerId, pan: !card || e.button === 1 };
   });
   document.addEventListener('pointermove', e => {
@@ -3571,8 +3572,6 @@ function startScreen() {
       document.querySelector('.scr')?.setAttribute('data-grab', '');
       if (!g.pan) {
         CV.drag = g.id;
-        CV.zi.set(g.id, ++CV.zTop);
-        g.card.style.zIndex = CV.zTop;
         g.card.classList.add('drag');
       }
       try { document.documentElement.setPointerCapture(e.pointerId); } catch { /* 指针已经抬起 */ }
@@ -3633,14 +3632,12 @@ function cvCard(s, live) {
   return `<article class="cv-card ${tone}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-enter="fade" data-exit="fade" style="${style}">
     ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
     ${sessionRow(s, live)}
-    ${tone === 'wait' ? `<p class="cv-q"><b>${s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : '在等你'}</b>${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</p>` : ''}
-    ${tone === 'ok' && s.summary ? `<p class="cv-sum">${esc(s.summary)}</p>` : ''}
+    ${tone === 'wait' ? `<p class="cv-q"><b>${s.waitSince ? `等了 <span data-clock="waitnow" data-sid="${esc(s.id)}">${short(now() - s.waitSince)}</span>` : '在等你'}</b><span class="q">${esc(s.statusNote || '它没写具体问题，回到对话看看。')}</span></p>` : ''}
   </article>`;
 }
 function renderScreen() {
   const list = cvCards(), idle = !list.length;
   const waits = list.filter(isWaiting), running = list.filter(s => !isEnded(s) && !isWaiting(s) && !isDormant(s));
-  for (const s of list) if (!CV.seen.has(s.id)) { CV.seen.add(s.id); if (!isEnded(s)) S.open.add(s.id); } // 第一次见到的会话默认展开清单
   const today = itemsToday(), live = sweeper(3);
   const first = !root.querySelector('.scr');
   const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">

@@ -101,7 +101,7 @@ test('sub-agents ride on their parent card, but get their own card once the pare
   assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['k3', 'k2', 'p1']);
 });
 
-test('the canvas renders one card per session, shows the question on waiting cards and opens new checklists', () => {
+test('the canvas renders one card per session, shows the question on waiting cards and leaves checklists folded like the float window', () => {
   const ctx = screen([
     { id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] },
     { id: 'w', agent: 'kiro', status: 'waiting', createdAt: 1, waitSince: NOW - 3 * MIN, updatedAt: NOW, title: 'task w', statusNote: 'delete the cache?', items: [] },
@@ -112,9 +112,8 @@ test('the canvas renders one card per session, shows the question on waiting car
   assert.match(ctx.markup, /class="scr warn"/);
   assert.match(ctx.markup, /delete the cache\?/);
   assert.match(ctx.markup, /data-cv="wait"/);
-  assert.match(ctx.markup, /all green/);
   assert.match(ctx.markup, /visibility:hidden/, 'cards without a stored spot wait for the layout pass');
-  assert.deepEqual([...ctx.S.open].sort(), ['a', 'w']);
+  assert.deepEqual([...ctx.S.open], [], 'cards start folded; opening one is the user\'s click, same as the float window');
 });
 
 test('stored card spots are used as they are and an empty board shows the clock', () => {
