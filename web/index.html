@@ -2356,16 +2356,18 @@ function startMenu() {
     S.menu = st;
     if (!MENU_SUB) S.menuDisplay = false;
     render();
-    // 每次弹出都重播一次入场（宫格依次弹出），并把焦点放进来，方便 Esc 关掉
-    const box = root.querySelector('.mn');
-    if (box && !RM.matches) {
-      box.animate([{ opacity: 0, transform: 'translateY(8px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT });
-      box.querySelectorAll('.mn-tile').forEach((el, i) => el.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }],
-        { duration: 300, delay: 40 + i * 28, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }));
-    }
     if (!MENU_SUB) root.querySelector('.mn')?.focus();
     // 隐藏的原生窗口可能不执行 rAF；先同步报尺寸，宿主才能显示窗口。
     window.tickMenuMeasure(true);
+  };
+  // 入场动画只在宿主真正显示窗口之后播放：隐藏中的 WebView 时间轴不走，
+  // 在这里之前起动画会让内容停在 opacity:0，窗口出现时只剩毛玻璃灰块。
+  window.tickMenuShown = () => {
+    const box = root.querySelector('.mn');
+    if (!box || RM.matches) return;
+    box.animate([{ opacity: 0, transform: 'translateY(8px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT });
+    box.querySelectorAll('.mn-tile').forEach((el, i) => el.animate([{ opacity: 0, transform: 'scale(.9)' }, { opacity: 1, transform: 'none' }],
+      { duration: 300, delay: 40 + i * 28, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' }));
   };
   window.tickMenuHidden = () => { cancelHover(); pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
   // 开关先在界面上拨过去，再等宿主改；宿主回来的状态和点的不一样就是没改成，拨回去并说一声。

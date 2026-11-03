@@ -38,6 +38,7 @@ func setWindowContext(wnd uintptr, data interface{}) {
 type browser interface {
 	Embed(hwnd uintptr) bool
 	Resize()
+	Show() error
 	Navigate(url string)
 	NavigateToString(htmlContent string)
 	Init(script string)
@@ -343,6 +344,14 @@ func (w *webview) CreateWithOptions(opts WindowOptions) bool {
 
 	if !w.browser.Embed(w.hwnd) {
 		return false
+	}
+	if opts.Hidden {
+		// A controller created under a hidden parent starts invisible. Prepare
+		// its content now; the parent HWND still controls when it appears.
+		if err := w.browser.Show(); err != nil {
+			log.Printf("Showing initially hidden WebView controller failed: %v", err)
+			return false
+		}
 	}
 	w.browser.Resize()
 	return true

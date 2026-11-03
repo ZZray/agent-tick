@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/jchv/go-webview2/internal/w32"
@@ -83,14 +84,12 @@ func (i *ICoreWebView2Controller) AddAcceleratorKeyPressed(eventHandler *ICoreWe
 }
 
 func (i *ICoreWebView2Controller) PutIsVisible(isVisible bool) error {
-	var err error
-
-	_, _, err = i.vtbl.PutIsVisible.Call(
+	hr, _, _ := i.vtbl.PutIsVisible.Call(
 		uintptr(unsafe.Pointer(i)),
 		uintptr(boolToInt(isVisible)),
 	)
-	if err != windows.ERROR_SUCCESS {
-		return err
+	if int32(hr) < 0 {
+		return fmt.Errorf("put_IsVisible failed with HRESULT 0x%08x", uint32(hr))
 	}
 	return nil
 }

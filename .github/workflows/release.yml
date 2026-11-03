@@ -28,6 +28,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test -count=1 ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test -count=1 github.com/jchv/go-webview2/pkg/edge
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: UI tests
         run: node --test web/*.test.cjs
       - name: Build

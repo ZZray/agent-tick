@@ -550,6 +550,8 @@ func (m *menuWin) fit(cw, ch float64) {
 				m.w.Eval("window.tickMenuFocus && tickMenuFocus()")
 			}
 		}
+		// 窗口已显示，页面这时才开始入场动画（隐藏期间时间轴不走）
+		m.w.Eval("window.tickMenuShown && tickMenuShown()")
 		if m.parent == nil {
 			go m.watchOutside(h, gen)
 		}
