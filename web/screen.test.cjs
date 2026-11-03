@@ -168,6 +168,17 @@ test('temporary rail expansion preserves the camera and preference, supports key
   assert.doesNotMatch(html, /\.scr-side\[data-compact\]\[data-peek\]\{[^}]*width:/, 'the column that owns the canvas geometry stays fixed');
 });
 
+test('rail animation ignores repeated direction, reverses from the visible frame, and cancels for reduced motion', async () => {
+  const ctx=screen(), attrs=new Set(), animations=[];
+  const inner={animate(frames){const a={frames,cancelled:false,cancel(){this.cancelled=true;},finished:Promise.resolve()};animations.push(a);return a;}};
+  const side={querySelector:()=>inner,hasAttribute:name=>attrs.has(name),toggleAttribute:(name,on)=>on?attrs.add(name):attrs.delete(name)};
+  ctx.document.querySelector=s=>s==='.scr-side'?side:null;ctx.RM.matches=false;ctx.getComputedStyle=()=>({clipPath:'inset(0px 40px 0px 0px)'});ctx.run('CV.railCompact=true');
+  ctx.cvSetRailPeek(true);ctx.cvSetRailPeek(true);assert.equal(animations.length,1,'same-direction pointer and focus events do not restart');
+  await Promise.resolve();ctx.cvSetRailPeek(true);assert.equal(animations.length,1,'Tab within an expanded sidebar does not flash closed');
+  ctx.cvSetRailPeek(false);ctx.cvSetRailPeek(true);assert.equal(animations[1].cancelled,true);assert.equal(animations[2].frames[0].clipPath,'inset(0px 40px 0px 0px)');
+  ctx.RM.matches=true;ctx.cvSetRailPeek(true);assert.equal(animations[2].cancelled,true);assert.equal(ctx.run('CV.railAnimation'),null);assert.ok(attrs.has('data-peek'));
+});
+
 test('ancestor and child module cards describe the actual current descendant step', () => {
   const owner = { id: 'p', title: 'API验收', status: 'running', updatedAt: NOW, items: [
     { id: 'old', group: '验证', text: '环境检查', status: 'done' },
@@ -545,6 +556,94 @@ function layoutWorld(ctx, heights, positions, selected='a', migrating=false) {
   ctx.run("CV.nodes=new Map([...S.sessions]);CV.pos=new Map(Object.entries(setupPositions));CV.sizes=new Map(Object.keys(setupHeights).map(id=>[id,{w:380,h:120}]));CV.focusSid=selected;CV.migrateLayout=migrating;CV.follow=false;CV.view={x:99,y:77,z:1.1}");
   return {els,fits:()=>fits};
 }
+
+test('returning saved module positions avoid real agent cards without rearranging clean positions', () => {
+  for (const direction of ['horizontal', 'vertical']) for (const collide of [true, false]) {
+    const tasks = [
+      { id: 'p', status: 'running', updatedAt: NOW, items: [] },
+      { id: 'agent', parentId: 'p', status: 'running', updatedAt: NOW, items: [] },
+      { id: 'module', ownerId: 'p', parentId: 'p', status: 'running', items: [] },
+    ];
+    const ctx = screen(tasks), positions = { p: { x: 0, y: 0 }, agent: { x: 0, y: 300 }, module: { x: collide ? 100 : 600, y: 300 } };
+    const { els, fits } = layoutWorld(ctx, { p: 120, agent: 140, module: 170 }, positions, 'p');
+    els.find(el => el.dataset.cvid === 'module').offsetWidth = 220;
+    ctx.directionFixture = direction;
+    ctx.run("CV.direction=directionFixture;CV.sizes=new Map([['p',{w:380,h:120}],['agent',{w:380,h:140}]])");
+    ctx.cvLayout();
+    const rects = els.map(el => ({ ...ctx.run(`CV.pos.get('${el.dataset.cvid}')`), w: el.offsetWidth, h: el.offsetHeight }));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.equal(overlap(rects[i], rects[j]), false, `${direction}, collide=${collide}`);
+    assert.deepEqual(plain(ctx.run("CV.pos.get('p')")), positions.p);
+    if (!collide) assert.deepEqual(plain(ctx.run('Object.fromEntries(CV.pos)')), positions, 'restored hand positions remain if already clear');
+    const settled = plain(ctx.run('[...CV.pos]'));
+    ctx.cvLayout();
+    assert.deepEqual(plain(ctx.run('[...CV.pos]')), settled, 'stable SSE layout does not move the repaired tree again');
+    assert.equal(fits(), 0);
+  }
+});
+
+test('resize observations merge actual size changes and use arrange targets instead of animation offsets', () => {
+  const ctx = screen(['a', 'b'].map(id => ({ id, status: 'running', updatedAt: NOW, items: [] })));
+  const watch = ctx.cvWatch, positions = { a: { x: 0, y: 0 }, b: { x: 0, y: 168 } };
+  const { els } = layoutWorld(ctx, { a: 120, b: 120 }, positions, 'a');
+  ctx.cvWatch = watch;
+  const frames = [], observed = [];
+  let callback, layouts = 0, maps = 0;
+  ctx.ResizeObserver = class { constructor(fn) { callback = fn; } observe(el) { observed.push(el); } };
+  ctx.requestAnimationFrame = fn => { frames.push(fn); return frames.length; };
+  ctx.cvMapUpdate = () => { maps++; };
+  const layout = ctx.cvLayout;
+  ctx.cvLayout = () => { layouts++; layout(); };
+  ctx.cvWatch(ctx.document.querySelector('.cv-world'));
+  const entries = els.map(target => ({ target }));
+  callback(entries);
+  assert.equal(frames.length, 0, 'the initial observer delivery matches measured sizes and does not relayout');
+  ctx.run('CV.arranging=1');
+  // In-flight DOM positions overlap even though target positions are distinct.
+  for (const el of els) { el.offsetLeft = 0; el.offsetTop = 0; }
+  els[0].offsetHeight = 130;
+  callback(entries); callback(entries); ctx.cvEdgesSoon();
+  assert.equal(frames.length, 1, 'resize and drag-edge refresh share one frame');
+  frames.shift()();
+  assert.equal(layouts, 1); assert.equal(maps, 1);
+  assert.deepEqual(plain(ctx.run('Object.fromEntries(CV.pos)')), positions, 'animation intermediates cannot trigger false collisions');
+  els[0].offsetHeight = 204;
+  callback(entries); callback(entries); frames.shift()();
+  assert.equal(layouts, 2);
+  const settled = plain(ctx.run('Object.fromEntries(CV.pos)'));
+  assert.equal(overlap({ ...settled.a, w: 380, h: 204 }, { ...settled.b, w: 380, h: 120 }), false, 'real asynchronous growth is resolved without another SSE');
+  callback(entries);
+  assert.equal(frames.length, 0, 'the post-layout observer delivery cannot loop');
+  ctx.cvLayout();
+  assert.deepEqual(plain(ctx.run('Object.fromEntries(CV.pos)')), settled);
+  assert.equal(observed.length, 2, 'existing cards are observed once');
+});
+
+test('edge flow is an independent remembered menu preference and stops only the dynamic paths', () => {
+  const task = { id: 'a', status: 'running', updatedAt: NOW, items: [{ id: 'i', status: 'doing' }] };
+  const ctx = screen([task]), events = screenEvents(ctx);
+  assert.equal(ctx.run('CV.edgeFlow'), true);
+  const classes = new Set(), svg = { children: [], classList: { toggle: (name, on) => on ? classes.add(name) : classes.delete(name) } };
+  const world = { querySelector: () => svg, querySelectorAll: () => [] };
+  ctx.document.querySelector = s => s === '.cv-world' ? world : null;
+  ctx.run('CV.more=true');
+  assert.match(ctx.cvHudHtml(), /data-cv="edge-flow" role="switch" aria-checked="true"/);
+  events.fire('click', { target: { closest: s => s === '[data-cv]' ? { dataset: { cv: 'edge-flow' } } : s === '.cv-tools' ? {} : null } });
+  assert.equal(ctx.run('CV.edgeFlow'), false);
+  assert.equal(classes.has('flow-off'), true);
+  assert.equal(ctx.flowing(task), true, 'the preference does not change execution state used elsewhere');
+  assert.match(ctx.cvHudHtml(), /data-cv="edge-flow" role="switch" aria-checked="false"/);
+  let saved; ctx.store.set = (_, value) => { saved = value; }; ctx.setTimeout = fn => { fn(); return 0; }; ctx.cvSave();
+  assert.equal(saved.edgeFlow, false);
+  ctx.store.get = () => saved; ctx.cvLoad(); assert.equal(ctx.run('CV.edgeFlow'), false);
+  ctx.store.get = () => ({}); ctx.cvLoad(); assert.equal(ctx.run('CV.edgeFlow'), true);
+  ctx.document.hidden = true; ctx.cvEdges();
+  assert.equal(classes.has('paused'), true);
+  assert.equal(classes.has('flow-off'), false);
+  assert.match(html, /\.cv-edges\.flow-off \.cv-flow\{display:none;animation:none\}/);
+  assert.match(html, /\.cv-edges \.cv-flow\{[^}]*stroke-dasharray:2\.5 97\.5[^}]*animation:cv-flow 6s/);
+  assert.match(html, /@media \(prefers-reduced-motion:reduce\)[^\n]*\.cv-edges \.cv-flow\{display:none;animation:none\}/);
+  assert.match(html, /\[data-idle\] \*,\[data-idle\] \*::after,\[data-idle\] \*::before\{animation-play-state:paused!important\}/);
+});
 
 test('same-ID height growth locally avoids collisions and preserves selected-root position and manual camera', () => {
   const tasks=['a','b','c'].map(id=>({id,title:id,status:'running',updatedAt:NOW,items:[]}));

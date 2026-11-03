@@ -1238,7 +1238,7 @@ html.nocur,html.nocur *{cursor:none!important}
 .scr-side{position:relative;z-index:120;width:15.5em;font-size:1.06em;min-height:0}
 .scr-side-inner{position:absolute;inset:0;display:flex;flex-direction:column;gap:1.1em;padding:1em .7em .9em;background:var(--bg)}
 .scr-side[data-compact]{width:4.4em;align-items:stretch}
-.scr-side[data-compact][data-peek] .scr-side-inner{width:min(17.5em,calc(100vw - 16px));border-right:1px solid var(--line);box-shadow:12px 0 30px #0002}
+.scr-side[data-compact][data-peek] .scr-side-inner{width:min(15.5em,calc(100vw - 16px));border-right:1px solid var(--line);box-shadow:12px 0 30px #0002}
 .scr-brand{display:flex;align-items:center;gap:.55em;flex:none;height:2.2em;padding:0 .45em;font-size:1em}
 .scr-brand .logo{width:1.45em;height:1.45em}
 .scr-brand b{font-weight:600;color:var(--text-1)}
@@ -1304,9 +1304,10 @@ html.nocur .scr-esc{opacity:0}
 /* 细流线与世界一起移动；只有正在执行的分支有短高亮，等待和完成时留下静态连接。 */
 .cv-edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;color:var(--text-3)}
 .cv-edges path{fill:none;stroke:currentColor;stroke-width:1.1;stroke-opacity:.52;vector-effect:non-scaling-stroke}
-.cv-edges .cv-flow{stroke:var(--brand);stroke-width:1.6;stroke-opacity:0;stroke-dasharray:9 91;stroke-linecap:round;animation:cv-flow 2.4s linear infinite;animation-play-state:paused}
+.cv-edges .cv-flow{stroke:var(--brand);stroke-width:1.6;stroke-opacity:0;stroke-dasharray:2.5 97.5;stroke-linecap:round;animation:cv-flow 6s linear infinite;animation-play-state:paused}
 .cv-edges .live>.cv-flow{stroke-opacity:.8;animation-play-state:running}
 .cv-edges.paused .cv-flow{animation-play-state:paused}
+.cv-edges.flow-off .cv-flow{display:none;animation:none}
 @keyframes cv-flow{to{stroke-dashoffset:-100}}
 /* 整理布局：卡片滑到新位置 */
 .cv-world.arranging>.cv-card{transition:left 420ms var(--ease-out),top 420ms var(--ease-out),box-shadow 240ms var(--ease),opacity 400ms var(--ease)}
@@ -1319,6 +1320,8 @@ html.nocur .scr-esc{opacity:0}
 .cv-card.bad{box-shadow:0 0 0 1px color-mix(in srgb,var(--red) 30%,transparent),0 18px 40px -20px rgba(0,0,0,.7)}
 .cv-card.ok{opacity:.8}
 .cv-card.dead{opacity:.65}
+.cv-card.wait{--rc:var(--orange)}.cv-card.bad{--rc:var(--red)}
+.cv-card:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--rc) 65%,var(--line-strong)),0 22px 48px -20px rgba(0,0,0,.75)}
 .cv-card>.s:hover{background:transparent}
 .cv-card>.s.open:hover{background:var(--layer-1)}
 .cv-card .s-quick,.cv-card .s-more,.cv-card .it-acts{display:none}
@@ -1444,7 +1447,7 @@ button.scr-kpi.wait:focus-visible{outline:2px solid var(--orange);outline-offset
 .cv-module.run .cv-mod-current .step-dot{color:var(--brand)}
 .cv-mod-item.doing{margin:0 -8px;padding:6px 8px;border-radius:var(--r-sm);color:var(--text-1);background:color-mix(in srgb,var(--brand) 7%,transparent);box-shadow:inset 2px 0 0 var(--brand)}
 .cv-mod-item.doing>span:first-child{color:var(--brand)}
-@media (prefers-reduced-motion:reduce){.cv-card .tx.sweep{animation:none;background:none;color:var(--text-1)!important}}
+@media (prefers-reduced-motion:reduce){.cv-card .tx.sweep,[data-theme=light] .cv-card .tx.sweep{animation:none;background:none;color:var(--text-1)!important}}
 .cv-q .q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal}
 .cv-history p{max-height:150px;overflow:auto;color:var(--text-3);overflow-wrap:anywhere}
 .cv-history small{color:var(--text-4)}
@@ -3827,7 +3830,7 @@ function renderPanel() {
 //   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.25, CV_RAIL_FORCE = 960;
-const CV = { direction: 'horizontal', follow: true, followScope: 'current', overview: false, minimap: true, railCompact: false, more: false, mapBounds: null, mapDrag: null, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, focusTopology: null, needsFocus: false, migrateLayout: false, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { direction: 'horizontal', follow: true, followScope: 'current', overview: false, minimap: true, edgeFlow: true, railCompact: false, more: false, mapBounds: null, mapDrag: null, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, focusTopology: null, needsFocus: false, migrateLayout: false, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -4005,7 +4008,7 @@ function cvSave() {
   clearTimeout(cvSaveT);
   cvSaveT = setTimeout(() => {
     const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
-    store.set('canvas', { layoutVersion: 3, direction: CV.direction, follow: CV.follow, followScope: CV.followScope, minimap: CV.minimap, railCompact: CV.railCompact, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+    store.set('canvas', { layoutVersion: 3, direction: CV.direction, follow: CV.follow, followScope: CV.followScope, minimap: CV.minimap, edgeFlow: CV.edgeFlow, railCompact: CV.railCompact, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
   }, 300);
 }
 function cvLoad() {
@@ -4014,6 +4017,7 @@ function cvLoad() {
   CV.follow = d?.follow !== false;
   CV.followScope = d?.followScope === 'global' ? 'global' : 'current';
   CV.minimap = d?.minimap !== false;
+  CV.edgeFlow = d?.edgeFlow !== false;
   CV.railCompact = d?.railCompact === true;
   CV.focusSid = typeof d?.focusSid === 'string' ? d.focusSid : '';
   CV.migrateLayout = !!d && d.layoutVersion !== 3;
@@ -4121,7 +4125,7 @@ function cvHudHtml() {
       <button data-cv="minimap" aria-label="小地图" data-tip="${CV.minimap ? '收起小地图' : '展开小地图'}" aria-pressed="${CV.minimap}">${icon('<path d="M3 5l4-2 6 2 4-2v12l-4 2-6-2-4 2zM7 3v12m6-10v12"/>')}</button>
       <button data-cv="more" aria-label="更多画布选项" data-tip="更多画布选项" aria-expanded="${CV.more}" aria-controls="cv-more">${icon('<circle cx="4" cy="10" r=".8"/><circle cx="10" cy="10" r=".8"/><circle cx="16" cy="10" r=".8"/>')}</button>
       </div>
-      ${CV.more ? `<div class="cv-more" id="cv-more" aria-label="更多画布选项"><button data-cv="overview" aria-pressed="${CV.overview}">全局概览<small>${CV.overview ? '已开启' : '所有任务'}</small></button><button data-cv="direction">流程方向<small>${CV.direction === 'vertical' ? '竖向 ↓' : '横向 →'}</small></button><button data-cv="arrange" data-tip="按父子流程整理布局">整理布局<small>父子成组</small></button><div class="cv-follow-scope" role="group" aria-label="跟随范围"><button data-cv="follow-scope" data-scope="current" aria-pressed="${CV.followScope !== 'global'}">跟随当前会话<small>${CV.followScope !== 'global' ? '✓' : ''}</small></button><button data-cv="follow-scope" data-scope="global" aria-pressed="${CV.followScope === 'global'}">全局跟随<small>${CV.followScope === 'global' ? '✓' : ''}</small></button></div></div>` : ''}
+      ${CV.more ? `<div class="cv-more" id="cv-more" aria-label="更多画布选项"><button data-cv="overview" aria-pressed="${CV.overview}">全局概览<small>${CV.overview ? '已开启' : '所有任务'}</small></button><button data-cv="direction">流程方向<small>${CV.direction === 'vertical' ? '竖向 ↓' : '横向 →'}</small></button><button data-cv="arrange" data-tip="按父子流程整理布局">整理布局<small>父子成组</small></button><button data-cv="edge-flow" role="switch" aria-checked="${CV.edgeFlow}">连线流动<small>${CV.edgeFlow ? '已开启' : '已关闭'}</small></button><div class="cv-follow-scope" role="group" aria-label="跟随范围"><button data-cv="follow-scope" data-scope="current" aria-pressed="${CV.followScope !== 'global'}">跟随当前会话<small>${CV.followScope !== 'global' ? '✓' : ''}</small></button><button data-cv="follow-scope" data-scope="global" aria-pressed="${CV.followScope === 'global'}">全局跟随<small>${CV.followScope === 'global' ? '✓' : ''}</small></button></div></div>` : ''}
     </div></aside>`;
 }
 function cvCloseMore() {
@@ -4402,9 +4406,9 @@ function cvLayout() {
       }
     }
   }
-  // 同 ID 卡片长高时只避让实际碰撞的子树，不为刷新或导航重排全图。
+  // 新卡、保存位置重新出现的卡、尺寸变化的卡，只避让实际碰撞的子树；稳定刷新不重排全图。
   const sizes = CV.sizes || new Map();
-  const changed = [...els].filter(([id, el]) => migrating || sizes.has(id) && (sizes.get(id).w !== el.offsetWidth || sizes.get(id).h !== el.offsetHeight));
+  const changed = [...els].filter(([id, el]) => migrating || !sizes.has(id) || sizes.get(id).w !== el.offsetWidth || sizes.get(id).h !== el.offsetHeight);
   for (const [changedId] of changed) for (const [otherId] of rects) {
     const a = rects.get(changedId), b = rects.get(otherId);
     if (changedId === otherId || !a || !b || !(a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y)) continue;
@@ -4444,6 +4448,7 @@ function cvEdges() {
     world.prepend(svg);
   }
   svg.classList.toggle('paused', !!document.hidden);
+  svg.classList.toggle('flow-off', !CV.edgeFlow);
   const rects = new Map();
   // 用实际排版位置（offsetLeft / offsetTop）而不是记下的坐标：整理布局的移动动画里，箭头跟着卡片走
   for (const el of world.querySelectorAll(':scope>.cv-card')) if (CV.pos.has(el.dataset.cvid)) rects.set(el.dataset.cvid, { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
@@ -4490,13 +4495,25 @@ function cvExecutionBeams() {
     } else if (!fx) edgeBeam(el, 'var(--brand)', 6000, true);
   }
 }
-let cvRO = null, cvEdgeRaf = 0;
+let cvRO = null, cvEdgeRaf = 0, cvResizePending = false;
 const cvWatched = new WeakSet();
-function cvEdgesSoon() {
-  if (!cvEdgeRaf) cvEdgeRaf = requestAnimationFrame(() => { cvEdgeRaf = 0; cvEdges(); cvMapUpdate(); });
+function cvEdgesSoon(resized = false) {
+  cvResizePending ||= resized;
+  if (!cvEdgeRaf) cvEdgeRaf = requestAnimationFrame(() => {
+    cvEdgeRaf = 0;
+    const layout = cvResizePending; cvResizePending = false;
+    if (layout) cvLayout(); else cvEdges();
+    cvMapUpdate();
+  });
 }
 function cvWatch(world) {
-  cvRO ||= new ResizeObserver(cvEdgesSoon);
+  cvRO ||= new ResizeObserver(entries => {
+    const changed = entries.some(({ target: el }) => {
+      const id = el.dataset.cvid, size = CV.sizes?.get(id);
+      return CV.nodes.has(id) && (!size || size.w !== el.offsetWidth || size.h !== el.offsetHeight);
+    });
+    if (changed) cvEdgesSoon(true);
+  });
   for (const el of world.querySelectorAll(':scope>.cv-card')) if (!cvWatched.has(el)) { cvWatched.add(el); cvRO.observe(el); }
 }
 // 「整理」：按父子成块重新排布所有卡片（卡片滑到新位置，箭头跟着走），再把全部收进视野
@@ -4566,17 +4583,37 @@ function cvDetailHtml() {
     <div class="cv-detail-body">${children.length ? children.map(s => `<div class="cv-detail-item"><button class="cleanup-title" data-cv="details" data-owner-id="${esc(s.id)}">${esc(s.title)}</button><p>${esc(STATUS[s.status] || s.status)} · ${esc(firstLine(s.statusNote || (s.items || []).find(it => it.status === 'doing')?.text || ''))}</p></div>`).join('') : `${node.statusNote ? `<div class="cv-detail-item"><b>${esc(STATUS[node.status] || node.status)}</b><pre>${esc(node.statusNote)}</pre></div>` : ''}${items.map(it => `<details class="cv-detail-item" data-item-id="${esc(it.id)}"${it.status === 'doing' || it.status === 'blocked' ? ' open' : ''}><summary>${esc(it.text)}<span class="cv-result ${esc(it.status === 'skipped' ? 'unverified' : it.result || '')}">${esc(it.status === 'skipped' ? '已跳过' : resultLabel[it.result] || ({done:'已完成',skipped:'已跳过',doing:'进行中',blocked:'等依赖',todo:'待执行'})[it.status] || it.status)}</span></summary>${it.note ? `<p>记录</p><pre>${esc(it.note)}</pre>` : ''}${it.evidence ? `<p>证据</p><pre>${esc(it.evidence)}</pre>` : ''}${it.resultHistory?.length ? `<details class="cv-result-history"><summary>结果记录 ${it.resultHistory.length}</summary>${it.resultHistory.map(report => `<section><p>${esc(new Date(report.at).toLocaleString())} · ${esc(resultLabel[report.result] || report.result)}</p>${report.note ? `<pre>${esc(report.note)}</pre>` : ''}${report.evidence ? `<pre>${esc(report.evidence)}</pre>` : ''}</section>`).join('')}</details>` : ''}${!it.note && !it.evidence && !it.resultHistory?.length ? '<p class="t4">暂无补充记录。</p>' : ''}</details>`).join('')}${!items.length ? '<p class="t4">此筛选下没有步骤。</p>' : ''}`}</div></aside>`;
 }
 // 临时展开只改变侧栏内部浮层；不改持久偏好、画布矩形或镜头。
-function cvSetRailPeek(open) {
-  CV.railPeek = !!open && (CV.railCompact || innerWidth <= CV_RAIL_FORCE);
-  document.querySelector('.scr-side')?.toggleAttribute('data-peek', CV.railPeek);
+function cvSetRailPeek(open, fromPinned = false) {
+  const side = document.querySelector('.scr-side'), inner = side?.querySelector?.('.scr-side-inner');
+  const compact = CV.railCompact || innerWidth <= CV_RAIL_FORCE, desired = !!open && compact;
+  if (!fromPinned && !RM.matches && compact && desired === !!CV.railPeek &&
+      (CV.railAnimation || side?.hasAttribute?.('data-peek') === desired)) return;
+  const wasOpen = fromPinned || side?.hasAttribute?.('data-peek');
+  const moving = CV.railAnimation;
+  const from = moving && inner ? getComputedStyle(inner).clipPath : open ? 'inset(0 calc(100% - 4.4em) 0 0)' : 'inset(0 0 0 0)';
+  CV.railAnimation = null; moving?.cancel();
+  CV.railPeek = desired;
+  const animate = !RM.matches && !!inner?.animate && (CV.railCompact || innerWidth <= CV_RAIL_FORCE) && (CV.railPeek || wasOpen);
+  CV.railClosing = animate && !CV.railPeek;
+  side?.toggleAttribute('data-peek', CV.railPeek || CV.railClosing);
   document.querySelector('[data-cv="rail"]')?.setAttribute('aria-expanded', String(CV.railPeek || !(CV.railCompact || innerWidth <= CV_RAIL_FORCE)));
+  if (!animate) return;
+  const animation = inner.animate([{ clipPath: from === 'none' ? 'inset(0 0 0 0)' : from },
+    { clipPath: CV.railPeek ? 'inset(0 0 0 0)' : 'inset(0 calc(100% - 4.4em) 0 0)' }], { duration: 180, easing: EASE_OUT });
+  CV.railAnimation = animation;
+  animation.finished.then(() => {
+    if (CV.railAnimation !== animation) return;
+    CV.railAnimation = null; CV.railClosing = false;
+    side.toggleAttribute('data-peek', CV.railPeek);
+    schedule();
+  }, () => {});
 }
 function startScreen() {
   const html = document.documentElement;
   html.dataset.scr = '';
   cvLoad();
   document.addEventListener('visibilitychange', () => { cvEdges(); cvExecutionBeams(); if (!document.hidden) cvNewContent(new Set(), false); });
-  RM.addEventListener?.('change', cvExecutionBeams);
+  RM.addEventListener?.('change', () => { cvExecutionBeams(); cvSetRailPeek(CV.railPeek); });
   let hideT = 0;
   const wake = () => { html.classList.remove('nocur'); clearTimeout(hideT); hideT = setTimeout(() => html.classList.add('nocur'), 3000); };
   document.addEventListener('mousemove', wake);
@@ -4755,10 +4792,11 @@ function startScreen() {
     else if (b.dataset.cv === 'out') zoomBy(0.8);
     else if (b.dataset.cv === 'reset-zoom') zoomBy(1 / (CV.view?.z || 1));
     else if (b.dataset.cv === 'minimap') { CV.minimap = !CV.minimap; cvSave(); schedule(); }
+    else if (b.dataset.cv === 'edge-flow') { CV.edgeFlow = !CV.edgeFlow; cvEdges(); cvSave(); schedule(); }
     else if (b.dataset.cv === 'rail') {
       if (innerWidth <= CV_RAIL_FORCE) { CV.railDismissed = !!CV.railPeek; cvSetRailPeek(!CV.railPeek); return; }
       // 导航变宽变窄会改变可用视口；跟随中就把当前流程重新放回视野中间。
-      CV.railCompact = !CV.railCompact; CV.railDismissed = CV.railCompact; cvSetRailPeek(false); cvSave(); schedule();
+      CV.railCompact = !CV.railCompact; CV.railDismissed = CV.railCompact; cvSetRailPeek(false, CV.railCompact); cvSave(); schedule();
       requestAnimationFrame(() => { if (cvFollowing()) cvFitView(e.detail !== 0); document.querySelector('[data-cv="rail"]')?.focus(); });
     }
     else if (b.dataset.cv === 'more') { if (CV.more) cvCloseMore(); else { CV.more = true; schedule(); } }
@@ -4821,8 +4859,8 @@ function cvModuleCard(node) {
     from = Math.max(0, at - 1); to = Math.min(node.items.length, at + 5);
   }
   const fold = text => `<li class="cv-mod-fold"><button data-cv="module-all" data-module-id="${esc(node.id)}">${text}</button></li>`;
-  return `<article class="cv-card ${tone} cv-module${node.focusLeaf ? '' : ' ancestor'}${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-enter="fade" data-exit="fade" style="${style}">
-    <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${CV.detail?.id === node.id}" data-tip="${esc(node.modulePath)}"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
+  return `<article class="cv-card ${tone} cv-module${node.focusLeaf ? '' : ' ancestor'}${CV.drag === node.id ? ' drag' : ''}" data-key="cv-${esc(node.id)}" data-cvid="${esc(node.id)}" data-tip="${esc(node.modulePath)}&#10;拖动调整位置 · 点击标题查看模块详情" data-enter="fade" data-exit="fade" style="${style}">
+    <button class="cv-mod-head" data-cv="module" data-module-id="${esc(node.id)}" aria-expanded="${CV.detail?.id === node.id}" data-tip="${esc(node.modulePath)}&#10;拖动调整位置 · 点击查看模块详情"><i class="cv-mod-dot"></i><span class="cv-mod-copy"><span class="cv-mod-name">${esc(node.title)}</span><span class="cv-mod-meta">${label} · ${esc(node.modulePath)}</span></span><span class="cv-mod-count">${node.done}/${node.total}</span></button>
     ${node.allItems.some(it => it.result) ? `<div class="cv-result-summary">${cvResultSummary(node.allItems)}</div>` : ''}
     ${!open && current ? `<div class="cv-mod-current" data-tip="${esc(current.group ? `${current.group} · ${current.text}` : current.text)}"><span class="step-dot" aria-hidden="true">●</span><span class="step-text">${current.status === 'doing' ? '' : `<small>${current.status === 'blocked' ? '等待依赖' : '下一步'}</small>`}${esc(current.text)}</span></div>` : ''}
     ${open ? `<ul class="cv-mod-list">${from ? fold(`前面 ${from} 项`) : ''}${node.items.slice(from, to).map(it => `<li class="cv-mod-item ${it.status}"><span>${({ done: '✓', skipped: '−', doing: '●', blocked: '!', todo: '·' })[it.status]}</span><span>${esc(it.text)}</span></li>`).join('')}${to < node.items.length ? fold(`后面还有 ${node.items.length - to} 项`) : ''}${all && node.items.length > 8 ? fold('收起清单') : ''}${!node.items.length ? '<li class="cv-mod-fold">子流程展开在右侧</li>' : ''}</ul>` : ''}
@@ -4840,7 +4878,7 @@ function cvCard(s, live) {
   const childSummary = childCount > shownChildren ? `<div class="cv-child-summary"><button data-cv="children" data-owner-id="${esc(s.id)}">另有 ${childCount - shownChildren} 个子任务 · 查看</button></div>` : '';
   const scopeHtml = scope.groups.length ? `<div class="cv-scope"><div class="cv-scope-tools">${['before', 'after', 'other'].filter(part => scope[part].length).map(part => `<button data-cv="scope" data-owner-id="${esc(s.id)}" data-part="${part}" aria-expanded="${selected === part}">${scopeLabel[part]} ${scope[part].length} 个流程</button>`).join('')}</div>${selected && shown.length ? `<ul class="cv-scope-list" aria-label="${scopeLabel[selected]}流程">${shown.map(g => { const done = g.items.filter(it => ['done', 'skipped'].includes(it.status)).length, blocked = g.items.filter(it => it.status === 'blocked').length; return `<li${blocked ? ' class="blocked"' : ''}><span data-tip="${esc(g.path)}">${esc(g.path)}</span><span>${done}/${g.items.length}${blocked ? ` · ${blocked}受阻` : ''}</span></li>`; }).join('')}</ul>` : ''}</div>` : '';
   const doing = (s.status === 'running' || s.status === 'planning') && !isDormant(s);
-  return `<article class="cv-card ${tone}${doing ? ' doing' : ''}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-enter="fade" data-exit="fade" style="${style}">
+  return `<article class="cv-card ${tone}${doing ? ' doing' : ''}${CV.drag === s.id ? ' drag' : ''}" data-key="cv-${esc(s.id)}" data-cvid="${esc(s.id)}" data-tip="${esc(s.title)}&#10;拖动调整位置 · 点击标题展开步骤" data-enter="fade" data-exit="fade" style="${style}">
     ${tone === 'wait' ? '<i class="cv-glow" aria-hidden="true"></i>' : ''}
     ${sessionRow(s, live)}
       ${scopeHtml}${childSummary}
@@ -4902,7 +4940,7 @@ function renderScreen() {
   const overallPct = overallItems.length ? Math.round(overallDone / overallItems.length * 100) : 0;
   const first = !root.querySelector('.scr');
   const entered = morph(root, `<div class="scr${waits.length ? ' warn' : ''}">
-    <aside class="scr-side"${railCompact ? ' data-compact' : ''}${railCompact && CV.railPeek ? ' data-peek' : ''}><div class="scr-side-inner">
+    <aside class="scr-side"${railCompact ? ' data-compact' : ''}${railCompact && (CV.railPeek || CV.railClosing) ? ' data-peek' : ''}><div class="scr-side-inner">
       <div class="scr-brand"><span class="logo">${IC.logo}</span><b>Tick</b><small>任务进度</small></div>
     ${roots.length ? `<nav class="cv-rail"${railCompact ? ' data-compact' : ''} aria-label="任务进度导航">
       <div class="cv-rail-h"><span>任务</span><b class="num">${roots.length}</b><button data-cv="rail" aria-label="${railCompact ? innerWidth <= CV_RAIL_FORCE ? '展开或收起任务栏' : '固定展开任务栏' : '收起任务栏'}" data-tip="${railCompact ? innerWidth <= CV_RAIL_FORCE ? '展开或收起任务栏' : '固定展开任务栏' : '收起任务栏'}（[ 和 ] 切换任务）" aria-expanded="${!railCompact || !!CV.railPeek}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="${railCompact ? 'M8 5l5 5-5 5' : 'M12 5l-5 5 5 5'}"/></svg></button></div>
