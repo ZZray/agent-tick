@@ -267,7 +267,7 @@ test('mini-map camera updates retain node DOM geometry until positions, sizes or
   const svg = { setAttribute() {} }, frame = { setAttribute: (key, value) => frameAttrs.set(key, value) };
   const map = { querySelector: s => s === 'svg' ? svg : s === '.cv-map-nodes' ? group : frame };
   ctx.document.querySelector = s => s === '.cv-minimap' ? map : null;
-  ctx.document.querySelectorAll = () => [{ dataset: { cvid: 'a' }, offsetWidth: 380, offsetHeight: 200 }];
+  ctx.document.querySelectorAll = () => [{ querySelector: () => null, dataset: { cvid: 'a' }, offsetWidth: 380, offsetHeight: 200 }];
   ctx.run("CV.nodes.set('a',{id:'a'});CV.pos.set('a',{x:20,y:40});CV.focusSid='a';CV.view={x:50,y:60,z:1}");
   ctx.cvMapUpdate(); assert.equal(writes, 1); const x = frameAttrs.get('x');
   ctx.run('CV.view.x+=100'); ctx.cvMapUpdate(); assert.equal(writes, 1); assert.equal(frameAttrs.get('x'), x - 100);
@@ -360,7 +360,7 @@ test('root navigation and overview preserve every projected ID and world coordin
   const tasks = ['a','b','c'].map((id,i)=>({id,status:'running',title:`${id} ${'long title '.repeat(20)}`,updatedAt:NOW,createdAt:i,items:[{id:'current',group:'API / 当前模块',text:'current API',status:'doing'}]}));
   const ctx=screen(tasks);ctx.renderScreen();
   const ids=plain([...ctx.run('CV.nodes.keys()')]);
-  const elements=ids.map((id,i)=>({dataset:{cvid:id},offsetWidth:320,offsetHeight:120,style:{},id}));
+  const elements=ids.map((id,i)=>({querySelector:()=>null,dataset:{cvid:id},offsetWidth:320,offsetHeight:120,style:{},id}));
   ctx.document.querySelectorAll=()=>elements;
   const stage={getBoundingClientRect:()=>({left:240,top:66,width:1672,height:1126})},detail={offsetWidth:420};
   ctx.document.querySelector=s=>s==='.cv-stage'?stage:s==='.cv-detail'?detail:null;
@@ -400,13 +400,13 @@ test('with following switched off, non-selected root state or module updates do 
 test('auto-follow jumps to a new waiting notice first, follows updates in the selected root at once, and waits out the dwell before switching roots', () => {
   const tasks=['a','b','c'].map((id,i)=>({id,status:'running',createdAt:i,updatedAt:NOW+i,title:id,items:[{id:'x',text:`${id} step`,status:'todo'}]}));
   const ctx=screen(tasks);let clock=50000;ctx.Date=class extends Date{static now(){return clock;}};
-  ctx.run("CV.focusSid='a'");ctx.renderScreen();
+  ctx.run("CV.followScope='global';CV.focusSid='a'");ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'a','the first render records signatures without treating existing work as an update');
   tasks[1].status='waiting';tasks[1].waitSince=NOW;ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'b','a new waiting notice wins');assert.equal(ctx.run('CV.needsFocus'),true);
   assert.equal(ctx.run('CV.followAt'),50000);
   // Use real geometry to initiate the requested camera; scheduling alone is not a viewed wait.
-  ctx.document.querySelectorAll = selector => selector === '.cv-world>.cv-card' ? tasks.map(s => ({dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})) : [];
+  ctx.document.querySelectorAll = selector => selector === '.cv-world>.cv-card' ? tasks.map(s => ({querySelector:()=>null,dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})) : [];
   ctx.run("CV.pos=new Map([['a',{x:0,y:0}],['b',{x:450,y:0}],['c',{x:900,y:0}]])");
   ctx.cvFitView(false);
 
@@ -415,13 +415,13 @@ test('auto-follow jumps to a new waiting notice first, follows updates in the se
   clock+=1000;tasks[2].items[0].status='doing';ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'b','another root waits until the current target has been shown for 8 seconds');
   assert.equal(ctx.run('CV.followQueued'),'c');
-  clock+=8000;ctx.cvFollowGo([ctx.run('CV.followQueued')]);
+  clock+=8000;ctx.cvFollowGo([ctx.run('CV.followQueued')]);clock+=240;ctx.cvRevealPending();
   assert.equal(ctx.run('CV.focusSid'),'c');assert.equal(ctx.run('CV.followQueued'),'');
   ctx.run('CV.needsFocus=false');tasks[2].items[0].status='done';ctx.renderScreen();
-  assert.equal(ctx.run('CV.focusSid'),'c');assert.equal(ctx.run('CV.needsFocus'),true,'progress inside the selected root refocuses immediately');
+  assert.equal(ctx.run('CV.focusSid'),'c');assert.equal(ctx.run('CV.needsFocus'),false,'finishing the current step holds the camera during the handoff gap');
   ctx.run('CV.needsFocus=false');ctx.cvPauseFollow();tasks[0].items[0].status='doing';ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'c','a manual pause keeps the camera where the user put it');assert.equal(ctx.run('CV.lastActive'),'a');
-  clock+=15100;ctx.cvResumeFollow();
+  clock+=15100;ctx.cvResumeFollow();ctx.cvRevealPending();
   assert.equal(ctx.run('CV.focusSid'),'a','resuming after the idle period goes to the latest activity');assert.equal(ctx.run('CV.pauseUntil'),0);
   assert.equal(plain(ctx.cvFollowState()).state,'on');
   ctx.run('CV.follow=false');assert.equal(plain(ctx.cvFollowState()).state,'off');
@@ -434,11 +434,11 @@ test('waiting backlog is consumed only by a real camera move and respects dwell 
     {id:'live',title:'working',status:'running',updatedAt:NOW,items:[{id:'i',text:'step',status:'todo'}]},
   ];
   const ctx=screen(tasks);let clock=50000;ctx.Date=class extends Date{static now(){return clock;}};
-  ctx.renderScreen();ctx.renderScreen();ctx.renderScreen();
+  ctx.run("CV.followScope='global'");ctx.renderScreen();ctx.renderScreen();ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'newer');
   assert.equal(ctx.run('CV.seenWaits.size'),0,'three renders do not pretend a pending camera reached a question');
   ctx.cvFitView(false);assert.equal(ctx.run('CV.seenWaits.size'),0,'missing DOM geometry cannot consume the question');
-  ctx.document.querySelectorAll=selector=>selector==='.cv-world>.cv-card'?tasks.map(s=>({dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})):[];
+  ctx.document.querySelectorAll=selector=>selector==='.cv-world>.cv-card'?tasks.map(s=>({querySelector:()=>null,dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})):[];
   ctx.run("CV.pos=new Map([['older',{x:0,y:0}],['newer',{x:450,y:0}],['live',{x:900,y:0}]])");
   ctx.cvFitView(false);
   assert.equal(ctx.run("CV.seenWaits.has('newer:200')"),true);assert.equal(ctx.run('CV.pendingWait'),null);
@@ -455,8 +455,87 @@ test('waiting backlog is consumed only by a real camera move and respects dwell 
   assert.equal(ctx.run('CV.pendingWait'),null,'resolved pending questions cannot block normal follow');
 });
 
+function handoffCamera(summaryGroup = '') {
+  const tasks = [
+    {id:'p',title:'parent',status:'running',updatedAt:NOW,items:[{id:'summary',status:'doing',group:summaryGroup}]},
+    {id:'b',parentId:'p',title:'B',status:'running',updatedAt:NOW,items:[{id:'b1',status:'todo'}]},
+    {id:'c',parentId:'p',title:'C',status:'running',updatedAt:NOW,items:[{id:'c1',status:'doing'}]},
+  ];
+  const ctx=screen(tasks),timers=new Map(),moves=[];let clock=10000,sequence=0;
+  ctx.Date=class extends Date{static now(){return clock;}};
+  ctx.setTimeout=(fn,ms)=>{const id=++sequence;timers.set(id,{fn,at:clock+ms});return id;};ctx.clearTimeout=id=>timers.delete(id);
+  ctx.cvSave=()=>{};ctx.cvApply=()=>moves.push(ctx.run('CV.focusOwner || CV.focusSid'));
+  ctx.run("CV.focusSid='p';CV.pos=new Map([['p',{x:0,y:0}],['b',{x:500,y:0}],['c',{x:1000,y:0}]])");
+  ctx.renderScreen();
+  ctx.document.querySelectorAll=selector=>selector==='.cv-world>.cv-card'?[...ctx.run('CV.nodes.keys()')].map(id=>({querySelector:()=>null,dataset:{cvid:id},offsetWidth:380,offsetHeight:180})):[];
+  ctx.run("CV.focusOwner='c'");ctx.cvFitView(false);moves.length=0;
+  return {ctx,tasks,moves,timers,time:value=>{clock=value;},advance:until=>{
+    let turns=0;
+    while([...timers.values()].some(t=>t.at<=until)) {
+      assert.ok(turns++<50,'timers settle within the bounded test clock');
+      const [id,t]=[...timers].sort((a,b)=>a[1].at-b[1].at)[0];timers.delete(id);clock=t.at;t.fn();
+    }
+    clock=until;
+  }};
+}
+
+test('C-to-B execution handoff holds the gap and travels directly without a parent stop', () => {
+  for (const group of ['', '调度 / 汇总']) {
+  const {ctx,tasks,moves,time,advance}=handoffCamera(group);
+  const before=plain(ctx.run('CV.view'));
+  time(10100);tasks[2].items[0].status='done';ctx.renderScreen();advance(10500);
+  assert.deepEqual(moves,[]);assert.deepEqual(plain(ctx.run('CV.view')),before,'C done / B todo keeps the visible camera');
+  time(10600);tasks[1].items[0].status='doing';ctx.renderScreen();
+  advance(11199);assert.deepEqual(moves,[],'a real same-root switch observes the short dwell');
+  advance(11200);assert.deepEqual(moves,['b']);assert.equal(ctx.run('CV.focusOwner'),'b');
+  time(11300);tasks[0].items[0].status='done';ctx.renderScreen();advance(11600);
+  assert.deepEqual(moves,['b'],'parent rollup cannot steal the executing leaf');
+  time(11700);tasks[2].items[0].status='doing';ctx.renderScreen();
+  time(11800);tasks[2].items[0].status='done';ctx.renderScreen();advance(13000);
+  assert.deepEqual(moves,['b'],'a queued leaf that ended before the timer is not visited');
+  assert.match(ctx.run("CV.sigs.get('c')"), /done/, 'off-canvas source updates remain in the signature history');
+  time(13100);tasks[2].items[0].status='doing';ctx.renderScreen();
+  assert.equal(ctx.run('CV.autoSince'),13100,'returning doing child is observed without another external report');
+  for(let t=13200;t<=13800;t+=100){time(t);ctx.cvFollowGo(['c']);}
+  assert.ok(ctx.run('CV.autoDue')<=13900,'continuous updates have an 800ms merge bound');
+  advance(13900);assert.deepEqual(moves,['b','c'],'the actual camera moves within the 800ms bound despite updates every 100ms');
+  }
+});
+
+test('default current scope contains waiting and update follow, while the scope menu changes no camera', () => {
+  const tasks=[
+    {id:'p',title:'current project',status:'running',updatedAt:NOW,items:[{id:'i',status:'doing'}]},
+    {id:'kid',parentId:'p',title:'delegate',status:'running',updatedAt:NOW,items:[{id:'k',status:'doing'}]},
+    {id:'other',title:'other project',status:'running',updatedAt:NOW,items:[{id:'x',status:'todo'}]},
+  ];
+  const ctx=screen(tasks),events=screenEvents(ctx);ctx.run("CV.focusSid='p';CV.view={x:90,y:120,z:1}");ctx.renderScreen();
+  assert.equal(ctx.run('CV.followScope'),'current');
+  tasks[2].status='waiting';tasks[2].waitSince=300;ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'p');assert.equal(ctx.run('CV.pendingWait'),null);
+  tasks[1].status='waiting';tasks[1].waitSince=100;ctx.renderScreen();
+  assert.equal(ctx.run('CV.pendingWait.id'),'kid','the newer foreign wait does not mask the current project question');
+  const before=plain(ctx.run('CV.view'));
+  ctx.run("CV.followQueued='other';CV.more=true");ctx.renderScreen();
+  assert.match(ctx.markup,/data-scope="current" aria-pressed="true"/);
+  events.fire('click',{target:{closest:selector=>selector==='[data-cv]'?{dataset:{cv:'follow-scope',scope:'global'}}:selector==='.cv-tools'?{}:null}});
+  ctx.renderScreen();
+  assert.equal(ctx.run('CV.followScope'),'global');assert.equal(ctx.run('CV.followQueued'),'');assert.equal(ctx.run('CV.pendingWait'),null);
+  assert.deepEqual(plain(ctx.run('CV.view')),before,'changing scope alone never moves the camera');
+  let saved;ctx.store.set=(_,value)=>{saved=value;};ctx.setTimeout=fn=>{fn();return 0;};ctx.cvSave();
+  assert.equal(saved.followScope,'global');ctx.store.get=()=>saved;ctx.cvLoad();assert.equal(ctx.run('CV.followScope'),'global');
+  ctx.store.get=()=>({followScope:'unknown'});ctx.cvLoad();assert.equal(ctx.run('CV.followScope'),'current');
+});
+
+test('rendered world retains the runtime camera duration during in-flight SSE morphs', () => {
+  const ctx=screen([{id:'p',title:'task',status:'running',updatedAt:NOW,items:[{id:'i',status:'doing'}]}]);
+  ctx.run("CV.anim=true;CV.camMs=640;CV.view={x:45,y:50,z:1}");ctx.renderScreen();
+  assert.match(ctx.markup,/class="cv-world anim"[^>]*style="[^"]*transition-duration:640ms/);
+  ctx.S.sessions.get('p').title='updated';ctx.renderScreen();
+  assert.match(ctx.markup,/transition-duration:640ms/,'a title-only SSE cannot reset animation duration to the CSS default');
+});
+
 function layoutWorld(ctx, heights, positions, selected='a', migrating=false) {
-  const els=Object.entries(heights).map(([id,h])=>({dataset:{cvid:id},offsetWidth:380,offsetHeight:h,style:{}}));
+  const els=Object.entries(heights).map(([id,h])=>({querySelector:()=>null,dataset:{cvid:id},offsetWidth:380,offsetHeight:h,style:{}}));
   const world={querySelectorAll:()=>els};
   ctx.document.querySelector=s=>s==='.cv-world'?world:null;
   ctx.document.querySelectorAll=()=>els;
@@ -508,7 +587,7 @@ test('readable vertical fallback places the current leaf near the bottom so ance
   const task={id:'p',status:'running',title:'root',updatedAt:NOW,items:[{id:'api',group:'API / 当前',text:'current API',status:'doing'}]};
   const ctx=screen([task]);ctx.innerWidth=1280;ctx.innerHeight=800;ctx.renderScreen();
   const nodes=plain([...ctx.run('CV.nodes.values()')]);
-  const els=nodes.map((n,i)=>({dataset:{cvid:n.id},offsetWidth:n.ownerId?320:380,offsetHeight:i===0?320:120}));
+  const els=nodes.map((n,i)=>({querySelector:()=>null,dataset:{cvid:n.id},offsetWidth:n.ownerId?320:380,offsetHeight:i===0?320:120}));
   ctx.document.querySelectorAll=()=>els;ctx.document.querySelector=s=>s==='.scr-h'?{offsetHeight:70}:s==='.cv-rail'?{offsetWidth:96}:null;
   ctx.cvApply=()=>{};
   ctx.nodesFixture=nodes;ctx.run("CV.direction='vertical';CV.focusSid='p';CV.pos=new Map(nodesFixture.map((n,i)=>[n.id,{x:0,y:i*400}]))");
@@ -908,10 +987,10 @@ test('stored card spots are used as they are and an empty board shows the clock'
 
 function cameraScreen() {
   const ctx = screen([
-    { id: 'a', status: 'running', updatedAt: NOW, items: [] },
-    { id: 'b', status: 'running', updatedAt: NOW, items: [] },
+    { id: 'a', status: 'running', updatedAt: NOW, items: [{id:'a-step',status:'doing'}] },
+    { id: 'b', status: 'running', updatedAt: NOW, items: [{id:'b-step',status:'doing'}] },
   ]);
-  const els = ['a', 'b'].map(id => ({ dataset: { cvid: id }, offsetWidth: 380, offsetHeight: 180 }));
+  const els = ['a', 'b'].map(id => ({ querySelector: () => null, dataset: { cvid: id }, offsetWidth: 380, offsetHeight: 180 }));
   ctx.document.querySelectorAll = selector => selector === '.cv-detail, .cv-history, .cv-history-error' ? [] : els;
   ctx.document.querySelector = selector => selector === '.scr-h' ? { offsetHeight: 56 } : null;
   let clock = 10000, nextId = 0;
@@ -928,31 +1007,16 @@ function cameraScreen() {
   };
 }
 
-test('selected topology updates coalesce into a camera focus, wait for interaction, and ignore title or progress refreshes', () => {
-  const { ctx, timers, fire, time } = cameraScreen();
-  let arranged = 0;
-  ctx.cvFitView = () => { arranged++; };
-  ctx.run('CV.interacting=true;CV.userAt=10000');
-  ctx.renderScreen(); ctx.renderScreen();
-  assert.equal(timers.size, 1);
-  fire();
-  assert.equal(arranged, 0);
-  ctx.run('CV.interacting=false;CV.userAt=10060'); time(10060);
-  fire();
-  assert.equal(arranged, 1);
-  ctx.S.sessions.get('a').title = 'new title';
+test('automatic current-session focus holds the viewport when its selected root ends', () => {
+  const { ctx, timers, fire } = cameraScreen();
   ctx.renderScreen();
-  assert.equal(timers.size, 0, 'a title refresh keeps the user layout and camera');
-  ctx.S.sessions.get('b').status = 'done';
-  ctx.renderScreen();
-  assert.equal(timers.size, 1, 'selected completion focuses the remaining root without a global tidy');
-  fire();
-  assert.equal(arranged, 2);
-  ctx.S.sessions.get('a').items = [{ id: 'new-step', status: 'doing' }];
-  ctx.renderScreen();
-  assert.equal(timers.size, 1, 'an item status change is an update that auto-follow moves the camera to');
-  fire();
-  assert.equal(arranged, 3); assert.equal(ctx.run('CV.focusSid'), 'a');
+  const before=plain(ctx.run('CV.view'));
+  ctx.S.sessions.get('b').status='done';ctx.S.sessions.get('b').endedAt=NOW;ctx.renderScreen();
+  while(timers.size) fire();
+  assert.equal(ctx.run('CV.focusSid'),'b','current scope does not select another project after completion');
+  assert.deepEqual(plain(ctx.run('CV.view')),before);
+  ctx.S.sessions.get('a').items=[{id:'new',status:'doing'}];ctx.renderScreen();
+  assert.deepEqual(plain(ctx.run('CV.view')),before);
 });
 
 test('legacy saved canvases upgrade once while the current layout schema keeps a matching topology', () => {
@@ -991,14 +1055,14 @@ test('waiting structure and compact parent context request focus while ordinary 
   assert.equal(ctx.run('CV.needsFocus'), false, 'editing the question does not introduce another structure change');
   parent.status = 'running';
   ctx.renderScreen();
-  assert.equal(ctx.run('CV.needsFocus'), true, 'removing the question also compacts the lane');
+  assert.equal(ctx.run('CV.needsFocus'), false, 'removing a question does not retreat to a parent while its child has no doing step');
   ctx.run('CV.needsFocus=false');
   const beforeContextIds = plain([...ctx.run('CV.nodes.keys()')]).sort();
   parent.status = 'done'; parent.endedAt = NOW;
   ctx.renderScreen();
   assert.deepEqual(plain([...ctx.run('CV.nodes.keys()')]).sort(), beforeContextIds, 'the live child retains the same parent ID');
   assert.equal(ctx.run("CV.nodes.get('p').canvasContext"), true);
-  assert.equal(ctx.run('CV.needsFocus'), true, 'a compact ended parent has a different structure despite keeping its ID');
+  assert.equal(ctx.run('CV.needsFocus'), false, 'a compact ended parent does not move the camera without a current execution target');
 });
 
 test('explicit expansion and closing coalesce a camera update without globally rearranging the canvas', () => {
@@ -1025,7 +1089,7 @@ test('overview suppresses automatic focus but preserves the existing explicit ar
 
 test('fit and arrange ignore outgoing morph ghosts', () => {
   const ctx = screen();
-  const els = ['a', 'ghost'].map(id => ({ dataset: { cvid: id }, offsetWidth: 380, offsetHeight: 100, style: {} }));
+  const els = ['a', 'ghost'].map(id => ({ querySelector: () => null, dataset: { cvid: id }, offsetWidth: 380, offsetHeight: 100, style: {} }));
   const world = { classList: { add() {}, remove() {} }, querySelectorAll: () => els };
   ctx.document.querySelectorAll = () => els;
   ctx.document.querySelector = selector => selector === '.cv-world' ? world : null;
@@ -1133,7 +1197,7 @@ test('task refresh preserves tidy animation and a repeated tidy replaces its cle
   const ctx = screen([{ id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] }]);
   const timers = new Map();
   let timerId = 0, clock = 0;
-  const card = { dataset: { cvid: 'a' }, offsetWidth: 380, offsetHeight: 100, style: {} };
+  const card = { querySelector: () => null, dataset: { cvid: 'a' }, offsetWidth: 380, offsetHeight: 100, style: {} };
   const makeWorld = () => {
     const classes = new Set(['cv-world']);
     return { classes, classList: { add: c => classes.add(c), remove: c => classes.delete(c) }, querySelectorAll: () => [card] };

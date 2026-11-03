@@ -582,6 +582,10 @@ kbd{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 
 .f>.edge-fx{border-radius:8px} /* 悬浮窗的圆角是系统画的（DWM），CSS 里没有，这里补上同样的 8px */
 .edge-fx b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   background:conic-gradient(from 0deg,transparent 0 62%,color-mix(in srgb,var(--fx) 30%,transparent) 80%,var(--fx) 94%,transparent 100%)}
+/* 执行节点：100px 渐变段沿 1px 边框匀速走，复用通知流光的遮罩与 data-fx 生命周期。 */
+.cv-execution-beam{opacity:.85}
+.cv-execution-beam b{left:0;top:0;transform:none;offset-path:inset(0 round var(--beam-radius));offset-anchor:90% 50%;
+  background:linear-gradient(to left,var(--fx),color-mix(in srgb,var(--fx) 70%,transparent) 70%,transparent)}
 
 /* ============ 自绘提示框 ============ */
 .ui-tip{position:fixed;z-index:70;left:0;top:0;max-width:min(280px,calc(100vw - 12px));padding:5px 9px 6px;border-radius:var(--r);pointer-events:none;white-space:pre-line;overflow-wrap:anywhere;
@@ -1274,7 +1278,8 @@ button.cv-wait b{font-weight:600;margin-right:.2em}
 .cv-tools .cv-follow.paused .sw.on{background:color-mix(in srgb,var(--brand) 40%,var(--line-strong))}
 .cv-tools .cv-follow b{font-weight:500;font-variant-numeric:tabular-nums}
 [data-scr] .ui-tip{z-index:200}
-.cv-more{position:absolute;right:0;bottom:calc(100% + 8px);width:196px;max-width:calc(100vw - 32px);padding:5px;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);box-shadow:0 12px 36px #0003;pointer-events:auto}
+.cv-more{position:absolute;right:0;bottom:calc(100% + 8px);width:196px;max-width:calc(100vw - 32px);max-height:calc(100vh - 160px);overflow-y:auto;padding:5px;border:1px solid var(--line);border-radius:12px;background:var(--bg-2);box-shadow:0 12px 36px #0003;pointer-events:auto}
+.cv-follow-scope{border-top:1px solid var(--line-soft);margin-top:4px;padding-top:4px}
 .cv-more button{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;padding:0 10px;border-radius:7px;background:none;color:var(--text-2);font:inherit;font-size:12px;text-align:left;cursor:pointer}
 .cv-more button:hover{background:var(--hover)}
 .cv-more button small{color:var(--text-3);font-size:11px}
@@ -3822,7 +3827,7 @@ function renderPanel() {
 //   卡片与视图只在事件发生时过渡；细流线仅在对应分支正在执行时流动。
 // ======================================================================
 const CV_GAP = 24, CV_ARROW = 72, CV_COLS = 3, CV_ZMIN = 0.25, CV_ZMAX = 2.5, CV_ZFIT = 1.25, CV_RAIL_FORCE = 960;
-const CV = { direction: 'horizontal', follow: true, overview: false, minimap: true, railCompact: false, more: false, mapBounds: null, mapDrag: null, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, focusTopology: null, needsFocus: false, migrateLayout: false, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
+const CV = { direction: 'horizontal', follow: true, followScope: 'current', overview: false, minimap: true, railCompact: false, more: false, mapBounds: null, mapDrag: null, detail: null, detailFilter: 'all', focusOwner: '', focusSid: '', forcedSession: '', pos: new Map(), nodes: new Map(), openModules: new Set(), allModules: new Set(), moduleLists: new Map(), history: false, cleanup: false, historyOpen: new Set(), topology: null, focusTopology: null, needsFocus: false, migrateLayout: false, needsArrange: false, pendingReveal: new Set(), revealT: 0, interacting: false, view: null, zi: new Map(), zTop: 1, userAt: 0, anim: false, arranging: 0, drag: '', rendered: false, waitIdx: -1 };
 const cvClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 // 找一块不压着别的卡的空位：候选点取原点、已有卡片的右侧和下方（隔一个间距），最多 cols 列，先靠上再靠左。
 // limitX 给定时直接当作 x 的上限（整理布局时，宽的父子块用它保证右边缘不超出窗口）
@@ -3914,7 +3919,7 @@ function cvCards() {
   const parents = all.filter(s => isEnded(s) && branchActive(s)).map(s => ({ ...s, canvasContext: true }));
   const ordered = [...waits, ...active, ...stale, ...parents];
   const roots = ordered.filter(s => !isChild(s));
-  if (!roots.some(s => s.id === CV.focusSid)) CV.focusSid = roots.find(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id || roots[0]?.id || '';
+  if (!CV.focusSid || !S.sessions.has(CV.focusSid) || CV.followScope === 'global' && !roots.some(s => s.id === CV.focusSid)) CV.focusSid = roots.find(s => s.status === 'running' && (s.items || []).some(it => it.status === 'doing'))?.id || roots[0]?.id || '';
   const kept = new Set(roots.map(s => s.id));
   const visit = owner => {
     const children = ordered.filter(s => s.parentId === owner.id).sort((a, b) => a.createdAt - b.createdAt);
@@ -4000,13 +4005,14 @@ function cvSave() {
   clearTimeout(cvSaveT);
   cvSaveT = setTimeout(() => {
     const ids = new Set(cvFlowNodes([...S.sessions.values()]).map(n => n.id));
-    store.set('canvas', { layoutVersion: 3, direction: CV.direction, follow: CV.follow, minimap: CV.minimap, railCompact: CV.railCompact, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
+    store.set('canvas', { layoutVersion: 3, direction: CV.direction, follow: CV.follow, followScope: CV.followScope, minimap: CV.minimap, railCompact: CV.railCompact, focusSid: CV.focusSid, topology: CV.topology, pos: Object.fromEntries([...CV.pos].filter(([k]) => ids.has(k))), view: CV.view });
   }, 300);
 }
 function cvLoad() {
   const d = store.get('canvas', null);
   CV.direction = d?.direction === 'vertical' ? 'vertical' : 'horizontal';
   CV.follow = d?.follow !== false;
+  CV.followScope = d?.followScope === 'global' ? 'global' : 'current';
   CV.minimap = d?.minimap !== false;
   CV.railCompact = d?.railCompact === true;
   CV.focusSid = typeof d?.focusSid === 'string' ? d.focusSid : '';
@@ -4115,7 +4121,7 @@ function cvHudHtml() {
       <button data-cv="minimap" aria-label="小地图" data-tip="${CV.minimap ? '收起小地图' : '展开小地图'}" aria-pressed="${CV.minimap}">${icon('<path d="M3 5l4-2 6 2 4-2v12l-4 2-6-2-4 2zM7 3v12m6-10v12"/>')}</button>
       <button data-cv="more" aria-label="更多画布选项" data-tip="更多画布选项" aria-expanded="${CV.more}" aria-controls="cv-more">${icon('<circle cx="4" cy="10" r=".8"/><circle cx="10" cy="10" r=".8"/><circle cx="16" cy="10" r=".8"/>')}</button>
       </div>
-      ${CV.more ? `<div class="cv-more" id="cv-more" aria-label="更多画布选项"><button data-cv="overview" aria-pressed="${CV.overview}">全局概览<small>${CV.overview ? '已开启' : '所有任务'}</small></button><button data-cv="direction">流程方向<small>${CV.direction === 'vertical' ? '竖向 ↓' : '横向 →'}</small></button><button data-cv="arrange" data-tip="按父子流程整理布局">整理布局<small>父子成组</small></button></div>` : ''}
+      ${CV.more ? `<div class="cv-more" id="cv-more" aria-label="更多画布选项"><button data-cv="overview" aria-pressed="${CV.overview}">全局概览<small>${CV.overview ? '已开启' : '所有任务'}</small></button><button data-cv="direction">流程方向<small>${CV.direction === 'vertical' ? '竖向 ↓' : '横向 →'}</small></button><button data-cv="arrange" data-tip="按父子流程整理布局">整理布局<small>父子成组</small></button><div class="cv-follow-scope" role="group" aria-label="跟随范围"><button data-cv="follow-scope" data-scope="current" aria-pressed="${CV.followScope !== 'global'}">跟随当前会话<small>${CV.followScope !== 'global' ? '✓' : ''}</small></button><button data-cv="follow-scope" data-scope="global" aria-pressed="${CV.followScope === 'global'}">全局跟随<small>${CV.followScope === 'global' ? '✓' : ''}</small></button></div></div>` : ''}
     </div></aside>`;
 }
 function cvCloseMore() {
@@ -4129,11 +4135,13 @@ function cvCloseMore() {
 function cvFocusRoot(id, anim = true) {
   if (!CV.nodes.has(id)) return;
   clearTimeout(CV.revealT); CV.revealT = 0; CV.pendingReveal.clear(); CV.needsFocus = false; CV.needsArrange = false;
+  CV.autoTarget = ''; CV.followQueued = ''; CV.pendingWait = null; CV.latestWaitSince = -1;
   CV.focusSid = id; CV.focusOwner = ''; CV.overview = false;
   CV.focusTopology = JSON.stringify([...CV.nodes.values()].filter(n => cvRootId(n) === id).map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
   cvFitView(anim); schedule();
 }
 function cvFitCurrent(anim) {
+  CV.autoTarget = ''; CV.manualFocus = false;
   CV.overview = false; clearTimeout(CV.revealT); CV.revealT = 0; CV.pendingReveal.clear(); CV.needsFocus = false;
   CV.pauseUntil = 0; clearTimeout(CV.resumeT); // 「适应」等于回到当前：暂停中的跟随立刻接上
   cvFitView(anim); schedule();
@@ -4146,7 +4154,8 @@ function cvFitView(anim) {
   if (!CV.overview) {
     const family = [...CV.nodes.values()].filter(n => cvRootId(n) === CV.focusSid);
     const owner = CV.focusOwner && family.find(n => n.id === CV.focusOwner);
-    target = owner || family.find(n => n.focusLeaf && (n.items || []).some(it => it.status === 'doing')) || family.find(n => !n.ownerId && n.status === 'running' && (n.items || []).some(it => it.status === 'doing')) || CV.nodes.get(CV.focusSid);
+    const executing = cvExecutionLeaf(CV.focusSid);
+    target = owner || family.find(n => n.id === executing) || CV.nodes.get(CV.focusSid);
     const path = new Set(); let at = target;
     while (at && !path.has(at.id)) { path.add(at.id); at = CV.nodes.get(at.parentId); }
     selected = els.filter(el => path.has(el.dataset.cvid));
@@ -4154,7 +4163,10 @@ function cvFitView(anim) {
   const rects = selected.map(el => { const p = CV.pos.get(el.dataset.cvid); return p && { ...p, w: el.offsetWidth, h: el.offsetHeight }; }).filter(Boolean);
   if (!rects.length) return;
   const fit = cvFit(rects, area.w, area.h, 0, 24);
-  const from = CV.view;
+  // CSS transition 自带从当前可见帧重定向；距离也从这一帧算，不从上次尚未到达的终点算。
+  const world = document.querySelector('.cv-world');
+  const matrix = CV.anim && world ? new DOMMatrixReadOnly(getComputedStyle(world).transform) : null;
+  const from = matrix ? { x: matrix.m41 + (CV.sx || 0), y: matrix.m42 + (CV.sy || 0), z: matrix.a } : CV.view;
   CV.view = { x: fit.x + area.x, y: fit.y + area.y, z: fit.z };
   // 横向流程往右长：当前路径放得下时靠左对齐，右边留给后面的模块，不再居中后把右侧的子流程挤出面板。
   if (!CV.overview && CV.direction !== 'vertical') CV.view.x = area.x + 24 - Math.min(...rects.map(r => r.x)) * CV.view.z;
@@ -4169,6 +4181,7 @@ function cvFitView(anim) {
   // 镜头时长按屏幕上移动的距离算：近处 320ms，跨任务的远跳最长 760ms。
   const dist = from ? Math.hypot(CV.view.x - from.x, CV.view.y - from.y) + Math.abs(CV.view.z - from.z) * 400 : 0;
   cvApply(anim, Math.round(cvClamp(320 + dist * 0.3, 320, 760))); cvSave();
+  if (target && target.id !== CV.autoLastLeaf) { CV.autoLastLeaf = target.id; CV.autoLastAt = Date.now() + (CV.camMs || 0); }
   // 只有实际算出并启动了对应镜头，才把等待计为已展示；60ms 合并期间的重绘不能消费队列。
   const pending = CV.pendingWait;
   if (pending && target?.id === pending.leaf && waitingForUser(S.sessions.get(pending.id) || {})) {
@@ -4191,8 +4204,22 @@ function cvRevealPending() {
   if ((!CV.pendingReveal.size && !CV.needsArrange && !CV.needsFocus) || document.hidden || !cvFollowing() || CV.overview && !CV.needsArrange) return;
   const delay = 1200 - (Date.now() - CV.userAt);
   if (CV.interacting || delay > 0) { CV.revealT = setTimeout(cvRevealPending, CV.interacting ? 1200 : delay); return; }
+  if (!CV.needsArrange && !CV.manualFocus && !CV.pendingWait) {
+    const target = CV.autoTarget || cvExecutionLeaf(CV.focusSid);
+    if (!target || !CV.nodes.has(target) || !cvFollowAllowed(target) || cvExecutionLeaf(target) !== target) {
+      CV.autoTarget = ''; CV.needsFocus = false; CV.pendingReveal.clear();
+      if (!CV.nodes.has(CV.focusOwner)) CV.focusOwner = '';
+      return; // doing 交接空窗：保留当前画面，不追 todo，不后退到汇总卡。
+    }
+    if (Date.now() < CV.autoDue) { CV.revealT = setTimeout(cvRevealPending, CV.autoDue - Date.now()); return; }
+    const nextRoot = cvRootId(CV.nodes.get(target));
+    if (nextRoot !== CV.focusSid) { CV.followAt = Date.now(); CV.focusSid = nextRoot; schedule(); }
+    CV.focusOwner = target === nextRoot ? '' : target;
+    CV.autoTarget = '';
+  }
   if (CV.needsArrange) cvArrange();
   else cvFitView(true);
+  CV.manualFocus = false;
   CV.needsFocus = false; CV.pendingReveal.clear();
   if (CV.ping) { const id = CV.ping; CV.ping = ''; setTimeout(() => cvPing(id, true), CV.camMs || 0); }
 }
@@ -4201,7 +4228,7 @@ function cvNewContent(ids, first) {
   const allOutside = first && els.length && !els.some(cvHeaderVisible);
   for (const el of els) if (cvRootId(CV.nodes.get(el.dataset.cvid)) === CV.focusSid && (allOutside || !first && ids.has(el.dataset.cvid)) && !cvHeaderVisible(el)) CV.pendingReveal.add(el.dataset.cvid);
   if ((CV.pendingReveal.size || CV.needsArrange || CV.needsFocus) && !CV.revealT) {
-    CV.revealT = setTimeout(cvRevealPending, 60); // 合并一小批连着到达的新会话/模块。
+    CV.revealT = setTimeout(cvRevealPending, CV.pendingWait || CV.manualFocus || CV.needsArrange ? 60 : CV.autoTarget ? Math.max(0, CV.autoDue - Date.now()) : CV_FOLLOW_MERGE);
   }
 }
 // 归档沿用自动整理；普通展开/收起仅请求局部避让后的镜头更新。
@@ -4211,6 +4238,7 @@ function cvRequestArrange() {
   cvNewContent(new Set(), false);
 }
 function cvRequestFocus() {
+  CV.manualFocus = true; CV.autoTarget = '';
   CV.needsFocus = true;
   CV.userAt = Date.now();
   cvNewContent(new Set(), false);
@@ -4218,8 +4246,8 @@ function cvRequestFocus() {
 // ============ 自动跟随 ============
 // 开关三种状态：跟随中；手动看画布后先暂停，停手 15 秒自动接着跟（看详情期间一直暂停）；用户关掉并记住。
 // 跟随目标：没看过的新「等你」优先；其次是刚更新进度的会话，同一主任务里立刻跟，换主任务要先在当前目标停够 8 秒，避免几个 agent 同时报进度时来回跳。
-const CV_FOLLOW_IDLE = 15000, CV_FOLLOW_DWELL = 8000;
-Object.assign(CV, { pauseUntil: 0, resumeT: 0, followAt: 0, followQueued: '', pendingWait: null, latestWaitSince: -1, seenWaits: new Set(), sigs: new Map(), lastActive: '', ping: '', pinged: new Map() });
+const CV_FOLLOW_IDLE = 15000, CV_FOLLOW_DWELL = 8000, CV_FOLLOW_MERGE = 240, CV_LEAF_DWELL = 1200;
+Object.assign(CV, { pauseUntil: 0, resumeT: 0, followAt: 0, followQueued: '', autoTarget: '', autoSince: 0, autoDue: 0, autoLastLeaf: '', autoLastAt: 0, manualFocus: false, pendingWait: null, latestWaitSince: -1, seenWaits: new Set(), sigs: new Map(), lastActive: '', ping: '', pinged: new Map() });
 // 概览不算暂停条件：概览里仍允许归档后的整理，只是不由跟随移动镜头（见 cvFollowGo）。
 const cvFollowing = () => CV.follow && !CV.detail && Date.now() >= CV.pauseUntil;
 function cvFollowState() {
@@ -4245,33 +4273,65 @@ function cvResumeFollow() {
   cvFollowGo(CV.lastActive ? [CV.lastActive] : [], true);
   schedule();
 }
+const cvFollowAllowed = id => CV.followScope === 'global' || cvRootId(CV.nodes.get(id)) === CV.focusSid;
+// 找真实执行叶；父会话的汇总 doing 不盖过仍在执行或准备交接的子 agent。
+function cvExecutionLeaf(id) {
+  const below = (node, ancestor) => {
+    const seen = new Set();
+    while (node && !seen.has(node.id)) { if (node.id === ancestor) return true; seen.add(node.id); node = CV.nodes.get(node.parentId); }
+    return false;
+  };
+  const nodes = [...CV.nodes.values()];
+  const candidates = nodes.filter(node => {
+    const owner = node.ownerId ? S.sessions.get(node.ownerId) : node;
+    if (owner?.status !== 'running' || !(node.items || []).some(it => it.status === 'doing') || !below(node, id)) return false;
+    // 有真实子 agent 在执行或准备接棒时，父会话自己的分组汇总也不抢镜头。
+    return !nodes.some(child => !child.ownerId && child.parentId === owner.id && ['running', 'planning'].includes(child.status));
+  });
+  const leaves = candidates.filter(node => !candidates.some(other => other !== node && below(other, node.id)));
+  return leaves.find(node => node.id === CV.focusOwner || node.id === CV.autoLastLeaf)?.id || leaves.sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0]?.id || '';
+}
 function cvFollowGo(changed, force = false) {
   if (!cvFollowing() || CV.overview) return;
+  if (CV.followQueued && (!CV.nodes.has(CV.followQueued) || !cvFollowAllowed(CV.followQueued))) CV.followQueued = '';
+  if (CV.autoTarget && (!cvFollowAllowed(CV.autoTarget) || cvExecutionLeaf(CV.autoTarget) !== CV.autoTarget)) {
+    CV.autoTarget = '';
+    if (!CV.manualFocus && !CV.needsArrange && !CV.pendingWait) {
+      clearTimeout(CV.revealT); CV.revealT = 0; CV.needsFocus = false; CV.pendingReveal.clear();
+    }
+  }
   const waitKey = s => `${s.id}:${s.waitSince || 0}`;
   if (CV.pendingWait) {
     const pending = S.sessions.get(CV.pendingWait.id);
-    if (!pending || !waitingForUser(pending) || pending.archived || !CV.nodes.has(pending.id) || waitKey(pending) !== CV.pendingWait.key) CV.pendingWait = null;
+    if (!pending || !waitingForUser(pending) || pending.archived || !CV.nodes.has(pending.id) || !cvFollowAllowed(pending.id) || waitKey(pending) !== CV.pendingWait.key) CV.pendingWait = null;
   }
-  const wait = cvCards().filter(s => waitingForUser(s) && CV.nodes.has(s.id) && !CV.seenWaits.has(waitKey(s))).sort((a, b) => (b.waitSince || 0) - (a.waitSince || 0))[0];
+  const wait = cvCards().filter(s => waitingForUser(s) && CV.nodes.has(s.id) && cvFollowAllowed(s.id) && !CV.seenWaits.has(waitKey(s))).sort((a, b) => (b.waitSince || 0) - (a.waitSince || 0))[0];
   const rootOf = id => cvRootId(CV.nodes.get(id));
   if (wait && CV.pendingWait?.key === waitKey(wait) && !force) return;
   if (wait && (wait.waitSince || 0) <= CV.latestWaitSince && !force && Date.now() - CV.followAt < CV_FOLLOW_DWELL) {
     CV.followQueued = wait.id; return;
   }
-  let pick = wait?.id;
-  if (!pick) {
-    const ids = changed.filter(id => CV.nodes.has(id));
-    pick = ids.findLast(id => rootOf(id) === CV.focusSid);
-    if (!pick && ids.length) {
-      const other = ids[ids.length - 1];
-      if (force || Date.now() - CV.followAt >= CV_FOLLOW_DWELL) pick = other; else CV.followQueued = other;
-    }
+  if (!wait) {
+    const ids = changed.filter(id => CV.nodes.has(id) && cvFollowAllowed(id));
+    const current = ids.filter(id => rootOf(id) === CV.focusSid);
+    let leaf = (current.length ? current : ids).map(cvExecutionLeaf).filter(Boolean).at(-1);
+    if (!leaf && force) leaf = cvExecutionLeaf(CV.focusSid);
+    if (!leaf) return;
+    const nextRoot = rootOf(leaf);
+    if (nextRoot !== CV.focusSid && !force && Date.now() - CV.followAt < CV_FOLLOW_DWELL) { CV.followQueued = CV.nodes.get(leaf)?.ownerId || leaf; return; }
+    // 父汇总及同一步反复上报不会重启镜头；其他真实执行叶用尾沿合并后直接切过去。
+    if (!force && leaf === CV.autoLastLeaf) return;
+    if (!CV.autoTarget) CV.autoSince = Date.now();
+    CV.followQueued = ''; CV.pendingWait = null; CV.autoTarget = leaf;
+    CV.autoDue = force ? Date.now() : Math.max(Math.min(Date.now() + CV_FOLLOW_MERGE, CV.autoSince + 800), CV.autoLastAt + CV_LEAF_DWELL);
+    CV.ping = leaf; CV.needsFocus = true;
+    clearTimeout(CV.revealT); CV.revealT = 0;
+    cvNewContent(new Set(), false); return;
   }
-  if (!pick) { if (force) { CV.needsFocus = true; cvNewContent(new Set(), false); } return; }
-  CV.followQueued = '';
-  const root = rootOf(pick);
+  CV.autoTarget = ''; CV.followQueued = '';
+  const root = rootOf(wait.id);
   if (!root) return;
-  const leaf = cvLeafOf(pick);
+  const leaf = wait.id;
   if (wait) {
     CV.pendingWait = { id: wait.id, key: waitKey(wait), leaf };
     CV.latestWaitSince = Math.max(CV.latestWaitSince, wait.waitSince || 0);
@@ -4280,6 +4340,7 @@ function cvFollowGo(changed, force = false) {
   CV.focusSid = root; CV.focusOwner = leaf === root ? '' : leaf; CV.overview = false;
   CV.ping = leaf;
   CV.needsFocus = true;
+  clearTimeout(CV.revealT); CV.revealT = 0;
   cvNewContent(new Set(), false);
 }
 // 会话当前正在执行的模块节点；没有模块时就是会话自己的卡片。
@@ -4287,6 +4348,7 @@ const cvLeafOf = id => [...CV.nodes.values()].find(n => n.ownerId === id && n.fo
 // 正在更新的节点描一圈品牌色，1.1 秒内向外散开消失；同一节点 3 秒内只描一次，跟随到达的目标不受限。
 function cvPing(id, force = false) {
   const el = [...document.querySelectorAll('.cv-world>.cv-card')].find(e => e.dataset.cvid === id);
+  if (el?.querySelector(':scope > .cv-execution-beam')) return;
   if (!el?.animate || RM.matches || !force && Date.now() - (CV.pinged.get(id) || 0) < 3000) return;
   CV.pinged.set(id, Date.now());
   const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim() || '#4cb782';
@@ -4409,6 +4471,25 @@ function cvEdges() {
   for (const edge of existing.values()) edge.remove();
 }
 // 卡片展开 / 收起 / 内容变化时高度会变，箭头端点跟着变：用 ResizeObserver 合并到下一帧重画
+// 只标真实执行叶；父模块从条目汇总，不再重复绕光。离场卡也清理，避免 done 后留下残光。
+function cvExecutionBeams() {
+  const active = new Set();
+  if (!RM.matches && !document.hidden && !S.hostHidden) {
+    for (const node of CV.nodes.values()) {
+      const owner = node.ownerId ? S.sessions.get(node.ownerId) : node;
+      if (owner?.status !== 'running' || isDormant(owner) || !(node.items || []).some(it => it.status === 'doing')) continue;
+      if ([...CV.nodes.values()].some(child => !child.ownerId && child.parentId === owner.id && ['running', 'planning'].includes(child.status))) continue;
+      if (node.ownerId && node.focusLeaf) active.add(node.id);
+      else if (!node.ownerId && ![...CV.nodes.values()].some(n => n.ownerId === node.id && n.focusLeaf && n.items.some(it => it.status === 'doing'))) active.add(node.id);
+    }
+  }
+  for (const el of document.querySelectorAll('.cv-world>.cv-card')) {
+    const fx = el.querySelector(':scope > .cv-execution-beam');
+    if (!active.has(el.dataset.cvid) || el.hasAttribute('data-leaving')) {
+      if (fx) { for (const animation of fx.getAnimations({ subtree: true })) animation.cancel(); fx.remove(); }
+    } else if (!fx) edgeBeam(el, 'var(--brand)', 6000, true);
+  }
+}
 let cvRO = null, cvEdgeRaf = 0;
 const cvWatched = new WeakSet();
 function cvEdgesSoon() {
@@ -4494,7 +4575,8 @@ function startScreen() {
   const html = document.documentElement;
   html.dataset.scr = '';
   cvLoad();
-  document.addEventListener('visibilitychange', () => { cvEdges(); if (!document.hidden) cvNewContent(new Set(), false); });
+  document.addEventListener('visibilitychange', () => { cvEdges(); cvExecutionBeams(); if (!document.hidden) cvNewContent(new Set(), false); });
+  RM.addEventListener?.('change', cvExecutionBeams);
   let hideT = 0;
   const wake = () => { html.classList.remove('nocur'); clearTimeout(hideT); hideT = setTimeout(() => html.classList.add('nocur'), 3000); };
   document.addEventListener('mousemove', wake);
@@ -4659,6 +4741,12 @@ function startScreen() {
       else { CV.follow = true; CV.pauseUntil = 0; CV.detail = null; CV.overview = false; CV.userAt = 0; cvFollowGo(CV.lastActive ? [CV.lastActive] : [], true); }
       cvSave(); schedule();
     }
+    else if (b.dataset.cv === 'follow-scope') {
+      CV.followScope = b.dataset.scope === 'global' ? 'global' : 'current'; CV.scopeChanged = true;
+      CV.autoTarget = ''; CV.followQueued = ''; CV.pendingWait = null; CV.latestWaitSince = -1;
+      CV.pendingReveal.clear(); CV.needsFocus = false; clearTimeout(CV.revealT); CV.revealT = 0;
+      cvSave(); schedule();
+    }
     else if (b.dataset.cv === 'details') cvOpenDetails(b.dataset.ownerId);
     else if (b.dataset.cv === 'children') cvOpenDetails(b.dataset.ownerId, true);
     else if (b.dataset.cv === 'detail-close') { CV.detail = null; cvPauseFollow(); schedule(); }
@@ -4786,7 +4874,7 @@ function renderScreen() {
   const topology = JSON.stringify(nodes.map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
   const nextNodes = new Map(nodes.map(n => [n.id, n]));
   const focusTopology = JSON.stringify(nodes.filter(n => cvRootId(n, nextNodes) === CV.focusSid).map(n => [n.id, n.parentId || '', !n.ownerId && isWaiting(n), !!n.canvasContext]).sort((a, b) => a[0].localeCompare(b[0])));
-  if (CV.topology !== topology && CV.focusTopology !== focusTopology) CV.needsFocus = true;
+  // 拓扑刷新只更新投影；自动镜头由执行目标统一调度，不能在步骤交接空窗回到父卡。
   CV.topology = topology; CV.focusTopology = focusTopology;
   CV.nodes = nextNodes;
   for (const node of nodes) {
@@ -4808,7 +4896,7 @@ function renderScreen() {
   const running = active.filter(s => !isChild(s) && !list.some(k => k.parentId === s.id && waitingForUser(k)));
   const runningKids = active.filter(isChild);
   const today = itemsToday(), live = sweeper(3);
-  const focused = roots.find(s => s.id === CV.focusSid) || roots[0];
+  const focused = roots.find(s => s.id === CV.focusSid);
   // 窄屏或用户收起时导航只剩圆环，当前任务标题回到顶栏；展开时标题在导航里，顶栏只放全局数字。
   const railCompact = CV.railCompact || innerWidth <= CV_RAIL_FORCE;
   const overallPct = overallItems.length ? Math.round(overallDone / overallItems.length * 100) : 0;
@@ -4845,13 +4933,14 @@ function renderScreen() {
     ${cvDetailHtml()}
     ${idle
       ? `<div class="scr-idle" data-key="idle" data-enter="fade"><em>都安静着。agent 一开工，任务就排到这里。</em></div>`
-      : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
+      : `<div class="cv-world${CV.anim ? ' anim' : ''}${CV.arranging ? ' arranging' : ''}" data-key="world" style="transform:${cvTransform()};transition-duration:${CV.anim && CV.camMs ? `${CV.camMs}ms` : ''}">${nodes.map(s => s.ownerId ? cvModuleCard(s) : cvCard(s, live)).join('')}</div>`}
 
     </div></main>
   </div>`);
   settle(entered);
   cvHudLayout();
   cvLayout();
+  cvExecutionBeams();
   cvMapUpdate();
   const cards = entered.filter(el => el.classList?.contains('cv-card'));
   const wasFirst = !CV.rendered;
@@ -4864,13 +4953,15 @@ function renderScreen() {
   cvNewContent(fresh, wasFirst);
   // 跟随：会话状态或任一条目状态变了就算「正在更新」（只改标题、问题措辞或耗时不算），按更新时间排，最后一个最新。
   const changed = [];
-  for (const s of [...list].sort((a, b) => (a.updatedAt || 0) - (b.updatedAt || 0))) {
+  // 签名跟踪源会话，不能只看当前投影：暂时折叠的子 agent 也可能先 done 再重新 doing。
+  for (const s of visible().sort((a, b) => (a.updatedAt || 0) - (b.updatedAt || 0))) {
     const sig = `${s.status}|${(s.items || []).map(it => it.status).join(',')}`;
     if (CV.sigs.get(s.id) !== sig && (CV.sigs.has(s.id) || !wasFirst)) changed.push(s.id);
     CV.sigs.set(s.id, sig);
   }
   if (changed.length) CV.lastActive = changed[changed.length - 1];
-  cvFollowGo(changed);
+  if (changed.length || !CV.scopeChanged) cvFollowGo(changed);
+  CV.scopeChanged = false;
   for (const id of changed) if (cvLeafOf(id) !== CV.ping) cvPing(cvLeafOf(id));
 }
 
@@ -5865,7 +5956,7 @@ function iconSig(svg, kind, color) {
 }
 const pulseN = new WeakMap();
 // 一束光沿元素边框转一圈后自己删掉：容器用遮罩只露出 1px 的边，里面一块锥形渐变旋转（只动 transform）
-function edgeBeam(el, color, dur = 1800) {
+function edgeBeam(el, color, dur = 1800, continuous = false) {
   if (!el || RM.matches || el.querySelector(':scope > .edge-fx')) return;
   const doc = el.ownerDocument;
   const fx = doc.createElement('i');
@@ -5877,6 +5968,13 @@ function edgeBeam(el, color, dur = 1800) {
   b.style.width = b.style.height = `${d}px`;
   fx.appendChild(b);
   el.appendChild(fx);
+  if (continuous) {
+    fx.classList.add('cv-execution-beam');
+    fx.style.setProperty('--beam-radius', getComputedStyle(el).borderRadius);
+    b.style.width = b.style.height = '100px';
+    b.animate([{ offsetDistance: '0%' }, { offsetDistance: '100%' }], { duration: dur, easing: 'linear', iterations: Infinity });
+    return;
+  }
   fx.animate([{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: dur });
   b.animate([{ transform: 'translate(-50%,-50%) rotate(0deg)' }, { transform: 'translate(-50%,-50%) rotate(360deg)' }],
     { duration: dur, easing: 'cubic-bezier(.45,.05,.55,.95)' }).finished.finally(() => fx.remove()).catch(() => {});
@@ -6295,6 +6393,7 @@ S.hostHidden = false;
 function setIdle() {
   if (TOAST || MENU) return; // 提醒卡的倒计时靠动画走，不能暂停；菜单只在看得见时存在
   const idle = S.hostHidden || (document.hidden && !pip.win) || (S.dock.tucked && !visible().some(s => s.status === 'running'));
+  if (SCREEN) cvExecutionBeams();
   if (idle === S.idle) return;
   S.idle = idle;
   document.documentElement.toggleAttribute('data-idle', idle);
