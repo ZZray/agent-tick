@@ -30,8 +30,8 @@ const mcpInstructions = `Tick 是用户本机的任务看板和通知窗口，�
 - 一个对话只有一个会话：同一对话来了新任务，用 tick_plan mode=append 追加到原会话，不要再 tick_start（原会话 finish 过也照样追加）。不要省略或伪造 conversation_id 来另开重复会话；tick_start 返回里列出的“没收尾的会话”只处理本对话自己开的。
 - 目标实质变化时用 tick_rename 更新标题，保留稳定主题，例如 Tick · 展开与标题优化。标题简短，普通步骤和追问不改名；旧名保留供搜索，清单、状态及对话关联不变。
 - 每完成一条马上 done，做完全部（或用户说不用做了）必须 tick_finish，不要让做完的会话挂在进行中。
-- 清单要完整：从第一步到验证、提交，每条一个能检查的结果。多个流程或职责必须用 "# 模块名"、"# 父流程 / 子流程" 分段；按实际工作单元划分，通常一至三层足够，简单短任务可不分组，不要每条步骤造一个模块。模块名简短稳定，让大屏能显示当前流程；计划变了用 tick_plan。
-- 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。不要攒到最后一起勾。计划变了用 tick_plan。
+- 清单要完整：从第一步到验证、提交，每条写清对象、动作和可检查的结果。多个流程或职责必须用 "# 模块名"、"# 父流程 / 子流程" 分段，让无限画布能读出“大模块 → 子模块 → 当前步骤”。按实际工作单元划分，通常一至三层足够，简单短任务可不分组，不要每条步骤造一个模块。先列已知模块范围，未来项保持 todo；模块名简短稳定，计划变了用 tick_plan。
+- 每条开始前 tick_item status=doing，做完马上 status=done 并在 note 写结果或证据。切换模块前核对旧 doing，依赖受阻的标 blocked 并写恢复条件；长步骤用 note 更新真实阶段与证据入口，不能只改标题或编造百分比。不要攒到最后一起勾。
 - 需要用户决定或操作时必须走 Tick：tick_notify kind=waiting，message 写成一眼能答的问题（给选项和建议）。卡在环境或权限上用 kind=blocked。
 - 用户回答后的第一个动作就是更新 Tick：马上 tick_item status=doing 下一条（会话自动回到进行中）；回答改变了计划就先 tick_plan 重发清单；只是追问就再 kind=waiting，不用做了就 tick_finish。不要让会话一直停在“等你”。
 - 一条预计超过 10 分钟（全量编译、长测试）：doing 时在 note 写预计多久，跑完马上 done。Tick 30 分钟收不到更新会标成“可能掉线了”。
@@ -346,7 +346,7 @@ func schema(props map[string]any, required ...string) map[string]any {
 var sidProp = map[string]any{"type": "string", "description": "会话 ID（tick_start 返回的 s_ 开头那串）。省略时用本连接最近登记的会话。"}
 
 const itemsDesc = "完整清单：从第一步到验证、提交，按执行顺序把整件事要做的每一步都写上，每条一个能检查的结果，不要只写几个大阶段。" +
-	"多个流程或职责必须用 \"# 模块名\" 或 \"# 父流程 / 子流程\" 分段（例：[\"# 导出 / 后端\", \"加接口\", \"补测试\", \"# 导出 / 界面\", \"接页面\"]）。按实际工作单元分组，通常一至三层足够，简单短任务可不分组，不要每条步骤建一个模块；doing 标识当前流程，标题行不算条目、不占序号"
+	"多个流程或职责必须用 \"# 大模块 / 子模块\" 分段（例：[\"# 首轮验证 / 数据处理 / 二维处理\", \"调用二维傅里叶变换，核对输出矩阵尺寸\"]），让无限画布读出模块路径与当前步骤。步骤写清对象、动作和可检查的结果，先列已知模块范围，未来项保持todo。按实际工作单元分组，通常一至三层足够，简单短任务可不分组，不要每条步骤建一个模块；doing 标识当前步骤，标题行不算条目、不占序号，父模块自动汇总不重复登记"
 
 var itemSchema = map[string]any{"oneOf": []any{map[string]any{"type": "string"}, schema(map[string]any{
 	"id":   map[string]any{"type": "string", "description": "完整清单重命名/移动时填写已有稳定ID，新条目省略"},
@@ -375,7 +375,7 @@ var mcpTools = []map[string]any{
 			"n":          map[string]any{"type": "integer", "minimum": 1, "description": "条目序号，从 1 开始"},
 			"item_id":    map[string]any{"type": "string", "description": "稳定条目ID，与n二选一；清单重排后仍指同一条"},
 			"status":     map[string]any{"type": "string", "enum": []string{"doing", "done", "skipped", "todo", "blocked"}},
-			"note":       map[string]any{"type": "string", "description": "结果、证据或原因，一句话"},
+			"note":       map[string]any{"type": "string", "description": "当前真实阶段、结果、证据或原因，一句话；长步骤更新此处，不编造百分比"},
 			"result":     map[string]any{"type": "string", "enum": itemResults, "description": "显式验收结果；done仅执行结束，不自动通过。可不改status只更新result/evidence"},
 			"evidence":   map[string]any{"type": "string", "description": "证据或Run链接/路径，最多2000字符"},
 		})},

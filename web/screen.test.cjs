@@ -24,6 +24,7 @@ function screen(sessions = []) {
     STATUS: {running:'进行中',planning:'写清单',waiting:'等你',blocked:'等依赖',paused:'待续',done:'完成'},
     isEnded: s => ['done', 'failed', 'cancelled'].includes(s.status),
     isDormant: s => s.status === 'running' && s.updatedAt < NOW - 30 * MIN,
+    lastSign: s => s.updatedAt,
     byOrder: (a, b) => b.createdAt - a.createdAt,
     sessionRow: s => `<div class="s" data-sid="${s.id}">${s.title}</div>`, sweeper: () => () => false, short: () => '1m',
     itemsToday: () => 3, S: { conn: 'live', sessions: byId, open: new Set() },
@@ -61,9 +62,12 @@ test('canvas HUD keeps common controls below the canvas and moves occasional act
   const task = { id: 'a', title: '<Task> ' + 'long title '.repeat(30), status: 'running', updatedAt: NOW, items: [{ id: 'i', text: 'now', status: 'doing' }] };
   const ctx = screen([task]); ctx.renderScreen();
   const header = ctx.markup.match(/<header class="scr-h">([\s\S]*?)<\/header>/)[1];
-  assert.match(header, /scr-title[^>]*title="&lt;Task>/);
-  assert.match(header, /总进度 0\/1/);
-  assert.match(header, /data-scr-date/);
+  assert.doesNotMatch(header, /scr-title/, 'the expanded rail carries the selected title, so the header keeps only global numbers');
+  assert.match(ctx.markup, /cv-rail-task[^>]*aria-pressed="true"[^>]*data-tip="&lt;Task>/);
+  assert.match(header, /<b class="num">0%<\/b>总进度/);
+  assert.match(header, /scr-kpi zero[^>]*data-tip="没有要你处理的"><b class="num">0<\/b>等你/, 'zero waits keep the same number rhythm and explain themselves in the tip');
+  assert.match(header, /scr-clk[\s\S]*data-scr-clk[\s\S]*data-scr-date/, 'time and date stay in the top-right header');
+  assert.match(ctx.markup, /<aside class="scr-side">[\s\S]*<\/aside>\s*<main class="scr-main">\s*<header class="scr-h">[\s\S]*<div class="cv-stage">/, 'inverted-L shell: side column, then an inset panel whose header sits above the canvas stage');
   assert.doesNotMatch(header, /cv-tools|data-cv="(out|in|arrange|overview|direction)"/);
   assert.match(ctx.markup, /class="cv-hud"/);
   for (const action of ['out', 'reset-zoom', 'in', 'fit', 'follow', 'minimap', 'more']) assert.match(ctx.markup, new RegExp(`data-cv="${action}"`));
@@ -92,15 +96,94 @@ test('mini-map projects the readable viewport through the exact camera inverse a
 test('safe viewport avoids the HUD and details while narrow layouts keep a scrollable toolbar available', () => {
   const ctx = screen();
   const flags = new Set(), hud = { offsetHeight: 170, offsetWidth: 282, style: {}, toggleAttribute: (name, on) => on ? flags.add(name) : flags.delete(name) };
-  const detail = { offsetWidth: 470, style: {} }, head = { offsetHeight: 76 }, rail = { offsetWidth: 96 };
-  ctx.document.querySelector = s => ({ '.cv-hud': hud, '.cv-detail': detail, '.scr-h': head, '.cv-rail': rail })[s] || null;
+  const detail = { offsetWidth: 470, style: {} }, stage = { getBoundingClientRect: () => ({ left: 240, top: 66, width: 1672, height: 1126 }) };
+  ctx.document.querySelector = s => ({ '.cv-hud': hud, '.cv-detail': detail, '.cv-stage': stage })[s] || null;
   ctx.document.querySelectorAll = () => [detail]; ctx.cvHudLayout();
-  assert.equal(hud.style.right, '502px'); assert.equal(detail.style.top, '88px');
-  assert.deepEqual(plain(ctx.cvViewport()), { x: 116, y: 92, w: 1302, h: 906 });
-  ctx.innerWidth = 800; ctx.cvHudLayout(); assert.equal(hud.style.maxWidth, '172px'); assert.equal(flags.has('data-compact'), true);
-  ctx.innerWidth = 640; ctx.cvHudLayout(); assert.equal(hud.style.maxWidth, '72px'); assert.equal(flags.has('data-obscured'), false);
+  assert.equal(hud.style.right, '494px', 'the toolbar sits inside the canvas panel, left of the details pane');
+  assert.deepEqual(plain(ctx.cvViewport()), { x: 256, y: 82, w: 1672 - 16 - 498, h: 1126 - 16 - 198 }, 'the readable area is the canvas panel minus details and toolbar');
+  assert.deepEqual([ctx.run('CV.sx'), ctx.run('CV.sy')], [240, 66], 'the world layer is offset by the panel origin');
+  ctx.run('CV.view={x:300,y:200,z:1}'); assert.equal(ctx.run('cvTransform()'), 'translate(60px,134px) scale(1)', 'CV.view stays in window coordinates');
+  const narrow = w => { stage.getBoundingClientRect = () => ({ left: 60, top: 66, width: w, height: 600 }); ctx.cvHudLayout(); };
+  narrow(684); assert.equal(hud.style.maxWidth, '178px'); assert.equal(flags.has('data-compact'), true);
+  narrow(560); assert.equal(hud.style.maxWidth, '72px'); assert.equal(flags.has('data-obscured'), false);
   assert.match(html, /\.cv-tool-row\{[^}]*overflow-x:auto/);
   assert.doesNotMatch(html, /\.cv-hud\[data-obscured\]/);
+});
+
+test('task rail collapses to rings, remembers the choice, and [ ] cycle roots without moving nodes', () => {
+  const tasks = ['a', 'b', 'c'].map((id, i) => ({ id, status: 'running', title: `${id} root`, updatedAt: NOW, createdAt: i, items: [{ id: 'x', text: `${id} now`, status: 'doing' }] }));
+  const ctx = screen(tasks), events = screenEvents(ctx); ctx.run("CV.focusSid='a'"); ctx.renderScreen();
+  assert.doesNotMatch(ctx.markup, /class="cv-rail" data-compact/);
+  assert.match(ctx.markup, /<span class="cv-rail-meta"><span>a now<\/span><\/span>/, 'expanded rows show the current step in grey without repeating the running status');
+  events.fire('click', { target: { closest: s => s === '[data-cv]' ? { dataset: { cv: 'rail' } } : null } });
+  assert.equal(ctx.run('CV.railCompact'), true); ctx.renderScreen();
+  assert.match(ctx.markup, /class="cv-rail" data-compact/);
+  assert.match(ctx.markup.match(/<header class="scr-h">([\s\S]*?)<\/header>/)[1], /scr-title[^>]*data-tip="a root"/, 'a collapsed rail moves the selected title into the header');
+  let saved; ctx.store.set = (_, v) => { saved = v; };
+  const timer = ctx.setTimeout; ctx.setTimeout = fn => { fn(); return 0; }; ctx.cvSave(); ctx.setTimeout = timer;
+  assert.equal(saved.railCompact, true);
+  ctx.store.get = () => ({ railCompact: true }); ctx.cvLoad(); assert.equal(ctx.run('CV.railCompact'), true);
+  ctx.store.get = () => ({}); ctx.cvLoad(); assert.equal(ctx.run('CV.railCompact'), false);
+  ctx.innerWidth = 900; ctx.renderScreen();
+  assert.match(ctx.markup, /class="cv-rail" data-compact/);
+  assert.match(ctx.markup, /data-cv="rail"/, 'narrow windows retain a touch-accessible temporary expansion button');
+  ctx.innerWidth = 1920; ctx.renderScreen();
+  ctx.run(`CV.pos=new Map([['a',{x:0,y:0}],['b',{x:0,y:400}],['c',{x:0,y:800}]])`);
+  const positions = plain(ctx.run('[...CV.pos]'));
+  ctx.document.querySelectorAll = s => s === '.cv-rail-task' ? ['a', 'b', 'c'].map(id => ({ dataset: { ownerId: id } })) : [];
+  ctx.document.querySelector = s => s === '.cv-rail-task[aria-pressed="true"]' ? { dataset: { ownerId: ctx.run('CV.focusSid') } } : null;
+  ctx.run("CV.focusSid='a'");
+  const order = [']', ']', ']', '['].map(key => { events.fire('keydown', { key }); return ctx.run('CV.focusSid'); });
+  assert.deepEqual(order, ['b', 'c', 'a', 'c']);
+  assert.deepEqual(plain(ctx.run('[...CV.pos]')), positions);
+});
+
+test('temporary rail expansion preserves the camera and preference, supports keyboard and narrow touch', () => {
+  const ctx = screen(), events = screenEvents(ctx);
+  const attributes = new Set(), side = { toggleAttribute: (key, on) => on ? attributes.add(key) : attributes.delete(key), matches: () => false };
+  const button = { setAttribute() {}, focus() {} };
+  const target = { closest: selector => selector === '.scr-side' ? side : null, matches: selector => selector === ':focus-visible' };
+  ctx.document.querySelector = selector => selector === '.scr-side' ? side : selector === '[data-cv="rail"]' ? button : null;
+  ctx.run('CV.railCompact=true; CV.view={x:211,y:137,z:1.2}');
+  const before = plain(ctx.run('CV.view'));
+  let saved = 0; ctx.store.set = () => { saved++; };
+  events.fire('pointerover', { target, relatedTarget: null, pointerType: 'mouse' });
+  assert.equal(ctx.run('CV.railPeek'), true); assert.ok(attributes.has('data-peek'));
+  assert.equal(ctx.run('CV.railCompact'), true); assert.equal(saved, 0); assert.deepEqual(plain(ctx.run('CV.view')), before);
+  events.fire('pointerout', { target, relatedTarget: null });
+  assert.equal(ctx.run('CV.railPeek'), false);
+  events.fire('focusin', { target }); assert.equal(ctx.run('CV.railPeek'), true);
+  events.fire('keydown', { key: 'Escape', target });
+  assert.equal(ctx.run('CV.railPeek'), false); assert.equal(ctx.closed, undefined, 'Escape closes the floating rail before the screen');
+  events.fire('focusin', { target }); assert.equal(ctx.run('CV.railPeek'), false, 'restoring toggle focus after Escape does not reopen it');
+  events.fire('focusout', { target, relatedTarget: null });
+  events.fire('focusin', { target }); assert.equal(ctx.run('CV.railPeek'), true);
+  events.fire('focusout', { target, relatedTarget: null });
+  ctx.innerWidth = 900;
+  const clickTarget = { closest: selector => selector === '[data-cv]' ? { dataset: { cv: 'rail' } } : null };
+  events.fire('click', { target: clickTarget }); assert.equal(ctx.run('CV.railPeek'), true);
+  events.fire('click', { target: clickTarget }); assert.equal(ctx.run('CV.railPeek'), false);
+  assert.equal(ctx.run('CV.railCompact'), true); assert.equal(saved, 0); assert.deepEqual(plain(ctx.run('CV.view')), before);
+  assert.match(html, /\.scr-side\[data-compact\]\[data-peek\] \.scr-side-inner\{width:/, 'only the inner floating surface grows');
+  assert.doesNotMatch(html, /\.scr-side\[data-compact\]\[data-peek\]\{[^}]*width:/, 'the column that owns the canvas geometry stays fixed');
+});
+
+test('ancestor and child module cards describe the actual current descendant step', () => {
+  const owner = { id: 'p', title: 'API验收', status: 'running', updatedAt: NOW, items: [
+    { id: 'old', group: '验证', text: '环境检查', status: 'done' },
+    { id: 'current', group: '验证 / 二维处理', text: '调用FFT并核对输出维度', status: 'doing' },
+    { id: 'future', group: '验证 / 谱图分析', text: '未来分析', status: 'todo' },
+  ] };
+  const ctx = screen([owner]); ctx.renderScreen();
+  const modules = ctx.cvFlowNodes().filter(node => node.ownerId);
+  assert.deepEqual(plain(modules.map(node => node.modulePath)), ['验证', '验证 / 二维处理']);
+  for (const node of modules) {
+    const card = ctx.cvModuleCard(node);
+    assert.match(card, /step-dot[^>]*aria-hidden="true">●<\/span><span class="step-text">调用FFT并核对输出维度/);
+    assert.doesNotMatch(card, /当前步骤/);
+    assert.match(card, /验证 \/ 二维处理 · 调用FFT并核对输出维度/);
+  }
+  assert.equal(modules[0].done, 1); assert.equal(modules[0].total, 3, 'parent counts are still derived once from real items');
 });
 
 test('menu dismissal, mini-map preference and 100-percent reset preserve node coordinates and camera contracts', () => {
@@ -116,7 +199,7 @@ test('menu dismissal, mini-map preference and 100-percent reset preserve node co
   click('reset-zoom'); const reset = plain(ctx.run('CV.view')); assert.equal(reset.z, 1);
   assert.equal((center.x - reset.x) / reset.z, (center.x - view.x) / view.z);
   assert.equal((center.y - reset.y) / reset.z, (center.y - view.y) / view.z);
-  assert.deepEqual(plain(ctx.run('[...CV.pos]')), positions); assert.equal(ctx.run('CV.follow'), false);
+  assert.deepEqual(plain(ctx.run('[...CV.pos]')), positions); assert.equal(ctx.run('CV.follow'), true); assert.equal(ctx.run('cvFollowing()'), false, 'manual zoom pauses following without turning the switch off');
   ctx.store.get = () => ({ minimap: false }); ctx.cvLoad(); assert.equal(ctx.run('CV.minimap'), false);
   ctx.store.get = () => ({}); ctx.cvLoad(); assert.equal(ctx.run('CV.minimap'), true);
 });
@@ -141,7 +224,7 @@ test('mini-map click, drag and arrow navigation change only the camera at its ex
   events.fire('keydown', { key: 'Escape' });
   assert.equal(ctx.run('CV.mapDrag'), null); assert.equal(ctx.run('CV.interacting'), false); assert.equal(ctx.closed, undefined, 'Escape ends map dragging before closing the screen');
   const before = ctx.run('CV.view.x'); events.fire('keydown', { target, key: 'ArrowRight' });
-  assert.equal(ctx.run('CV.view.x'), before - 96); assert.equal(ctx.run('CV.view.z'), 1.5); assert.equal(ctx.run('CV.follow'), false);
+  assert.equal(ctx.run('CV.view.x'), before - 96); assert.equal(ctx.run('CV.view.z'), 1.5); assert.equal(ctx.run('CV.follow'), true); assert.ok(ctx.run('CV.pauseUntil') > Date.now(), 'map navigation pauses following');
   assert.deepEqual(plain(ctx.run('[...CV.pos]')), pos);
 });
 
@@ -169,12 +252,12 @@ test('camera actions after closing More measure the restored map height before t
     ctx.run('CV.more=true;CV.view={x:50,y:60,z:1}'); menuVisible = true; measured.length = 0;
     events.fire('click', { target: { closest: selector => selector === '[data-cv]' ? { dataset: { cv: action, ownerId: 'a' } } : selector === '.cv-tools' && action !== 'root' ? {} : null } });
     assert.equal(menuVisible, false, action);
-    assert.deepEqual(measured, [1200 - 16 - 202], `${action} reads the full map+toolbar height once, not the shorter open-menu HUD`);
+    assert.deepEqual(measured, [1200 - 16 - 198], `${action} reads the full map+toolbar height once, not the shorter open-menu HUD`);
   }
   for (const key of ['f', '0', '+', '-']) {
     ctx.run('CV.more=true;CV.view={x:50,y:60,z:1}'); menuVisible = true; measured.length = 0;
     events.fire('keydown', { key });
-    assert.deepEqual(measured, [982], key);
+    assert.deepEqual(measured, [986], key);
   }
 });
 
@@ -216,9 +299,9 @@ test('a card the user parked at the origin is not covered by the next one', () =
 test('fit centers the cards and never zooms in past the fit cap', () => {
   const ctx = screen();
   const v = ctx.cvFit([{ x: 0, y: 0, w: 380, h: 200 }], 1920, 1200, 56);
-  assert.equal(v.z, 1.5);
-  assert.equal(v.x, (1920 - 380 * 1.5) / 2);
-  assert.equal(Math.round(v.y), Math.round(56 + (1200 - 56 - 200 * 1.5) / 2));
+  assert.equal(v.z, 1.25, 'auto-fit stops at 125% so cards stay in proportion with the shell');
+  assert.equal(v.x, (1920 - 380 * 1.25) / 2);
+  assert.equal(Math.round(v.y), Math.round(56 + (1200 - 56 - 200 * 1.25) / 2));
   const wide = ctx.cvFit([{ x: -2000, y: 0, w: 380, h: 200 }, { x: 4000, y: 3000, w: 380, h: 200 }], 1920, 1200, 56);
   assert.ok(wide.z >= 0.25 && wide.z < 0.4);
   const empty = ctx.cvFit([], 1920, 1200, 56);
@@ -261,8 +344,8 @@ test('shared canvas keeps every root and only current real child branches at 219
   assert.deepEqual(plain(nodes.filter(n => n.ownerId === 'p').map(n => n.modulePath)), ['API', 'API / 模块5']);
   ctx.renderScreen();
   assert.match(ctx.markup, /另有 10 个子任务/);
-  assert.match(ctx.markup, /总进度 101\/219/);
-  assert.match(ctx.markup, /10项等依赖/);
+  assert.match(ctx.markup, /data-tip="画布上主任务清单的合计：101\/219"><b class="num">46%<\/b>总进度/);
+  assert.match(ctx.markup, />10<\/b>等依赖/);
   assert.doesNotMatch(ctx.markup, /项等你/);
   const fresh = { id: 'new', title: 'new root', status: 'running', createdAt: 99, updatedAt: NOW, items: [] };
   ctx.S.sessions.set(fresh.id, fresh);
@@ -279,8 +362,8 @@ test('root navigation and overview preserve every projected ID and world coordin
   const ids=plain([...ctx.run('CV.nodes.keys()')]);
   const elements=ids.map((id,i)=>({dataset:{cvid:id},offsetWidth:320,offsetHeight:120,style:{},id}));
   ctx.document.querySelectorAll=()=>elements;
-  const rail={offsetWidth:96},head={offsetHeight:80},detail={offsetWidth:420};
-  ctx.document.querySelector=s=>s==='.cv-rail'?rail:s==='.scr-h'?head:s==='.cv-detail'?detail:null;
+  const stage={getBoundingClientRect:()=>({left:240,top:66,width:1672,height:1126})},detail={offsetWidth:420};
+  ctx.document.querySelector=s=>s==='.cv-stage'?stage:s==='.cv-detail'?detail:null;
   ctx.cvApply=()=>{};ctx.run(`CV.pos=new Map(${JSON.stringify(ids.map((id,i)=>[id,{x:(i%3)*420,y:Math.floor(i/3)*600}]))})`);
   const coordinates=plain(ctx.run('[...CV.pos]'));
   ctx.run("CV.pendingReveal.add('a');CV.needsFocus=true;CV.needsArrange=true");
@@ -300,18 +383,76 @@ test('root navigation and overview preserve every projected ID and world coordin
   assert.deepEqual(plain(ctx.run('[...CV.pos]')),coordinates);
   assert.match(ctx.markup, /class="cv-rail" aria-label="任务进度导航"/);
   assert.doesNotMatch(ctx.markup,/cv-root-switch/);
-  assert.match(ctx.markup,/title="a long title/,'long root labels keep a complete hover title');
-  assert.deepEqual(plain(ctx.cvViewport()),{x:116,y:96,w:1352,h:1088});
+  assert.match(ctx.markup,/data-tip="a long title/,'long root labels keep a complete hover title');
+  assert.deepEqual(plain(ctx.cvViewport()),{x:256,y:82,w:1672-16-448,h:1126-32});
 });
 
-test('non-selected root state or module updates do not schedule camera focus or change selection', () => {
+test('with following switched off, non-selected root state or module updates do not schedule camera focus or change selection', () => {
   const tasks=['a','b'].map((id,i)=>({id,status:'running',createdAt:i,updatedAt:NOW,title:id,items:[]}));
-  const ctx=screen(tasks);ctx.renderScreen();ctx.run("CV.focusSid='a';CV.focusTopology=null");ctx.renderScreen();
+  const ctx=screen(tasks);ctx.run('CV.follow=false');ctx.renderScreen();ctx.run("CV.focusSid='a';CV.focusTopology=null");ctx.renderScreen();
   ctx.run('CV.needsFocus=false;CV.needsArrange=false;CV.pendingReveal.clear()');
   tasks[1].status='waiting';tasks[1].statusNote='new background question';ctx.renderScreen();
   assert.equal(ctx.run('CV.focusSid'),'a');assert.equal(ctx.run('CV.needsFocus'),false);assert.equal(ctx.run('CV.needsArrange'),false);
   tasks[1].items=[{id:'new',group:'后台 / 新模块',text:'background API',status:'doing'}];ctx.renderScreen();
   assert.equal(ctx.run('CV.needsFocus'),false);
+});
+
+test('auto-follow jumps to a new waiting notice first, follows updates in the selected root at once, and waits out the dwell before switching roots', () => {
+  const tasks=['a','b','c'].map((id,i)=>({id,status:'running',createdAt:i,updatedAt:NOW+i,title:id,items:[{id:'x',text:`${id} step`,status:'todo'}]}));
+  const ctx=screen(tasks);let clock=50000;ctx.Date=class extends Date{static now(){return clock;}};
+  ctx.run("CV.focusSid='a'");ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'a','the first render records signatures without treating existing work as an update');
+  tasks[1].status='waiting';tasks[1].waitSince=NOW;ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'b','a new waiting notice wins');assert.equal(ctx.run('CV.needsFocus'),true);
+  assert.equal(ctx.run('CV.followAt'),50000);
+  // Use real geometry to initiate the requested camera; scheduling alone is not a viewed wait.
+  ctx.document.querySelectorAll = selector => selector === '.cv-world>.cv-card' ? tasks.map(s => ({dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})) : [];
+  ctx.run("CV.pos=new Map([['a',{x:0,y:0}],['b',{x:450,y:0}],['c',{x:900,y:0}]])");
+  ctx.cvFitView(false);
+
+  ctx.run('CV.needsFocus=false');tasks[1].statusNote='reworded question';ctx.renderScreen();
+  assert.equal(ctx.run('CV.needsFocus'),false,'rewording an already seen question does not move the camera');
+  clock+=1000;tasks[2].items[0].status='doing';ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'b','another root waits until the current target has been shown for 8 seconds');
+  assert.equal(ctx.run('CV.followQueued'),'c');
+  clock+=8000;ctx.cvFollowGo([ctx.run('CV.followQueued')]);
+  assert.equal(ctx.run('CV.focusSid'),'c');assert.equal(ctx.run('CV.followQueued'),'');
+  ctx.run('CV.needsFocus=false');tasks[2].items[0].status='done';ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'c');assert.equal(ctx.run('CV.needsFocus'),true,'progress inside the selected root refocuses immediately');
+  ctx.run('CV.needsFocus=false');ctx.cvPauseFollow();tasks[0].items[0].status='doing';ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'c','a manual pause keeps the camera where the user put it');assert.equal(ctx.run('CV.lastActive'),'a');
+  clock+=15100;ctx.cvResumeFollow();
+  assert.equal(ctx.run('CV.focusSid'),'a','resuming after the idle period goes to the latest activity');assert.equal(ctx.run('CV.pauseUntil'),0);
+  assert.equal(plain(ctx.cvFollowState()).state,'on');
+  ctx.run('CV.follow=false');assert.equal(plain(ctx.cvFollowState()).state,'off');
+});
+
+test('waiting backlog is consumed only by a real camera move and respects dwell across repeated renders', () => {
+  const tasks = [
+    {id:'older',title:'older question',status:'waiting',waitSince:100,updatedAt:NOW,items:[]},
+    {id:'newer',title:'newer question',status:'waiting',waitSince:200,updatedAt:NOW,items:[]},
+    {id:'live',title:'working',status:'running',updatedAt:NOW,items:[{id:'i',text:'step',status:'todo'}]},
+  ];
+  const ctx=screen(tasks);let clock=50000;ctx.Date=class extends Date{static now(){return clock;}};
+  ctx.renderScreen();ctx.renderScreen();ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'newer');
+  assert.equal(ctx.run('CV.seenWaits.size'),0,'three renders do not pretend a pending camera reached a question');
+  ctx.cvFitView(false);assert.equal(ctx.run('CV.seenWaits.size'),0,'missing DOM geometry cannot consume the question');
+  ctx.document.querySelectorAll=selector=>selector==='.cv-world>.cv-card'?tasks.map(s=>({dataset:{cvid:s.id},offsetWidth:380,offsetHeight:180})):[];
+  ctx.run("CV.pos=new Map([['older',{x:0,y:0}],['newer',{x:450,y:0}],['live',{x:900,y:0}]])");
+  ctx.cvFitView(false);
+  assert.equal(ctx.run("CV.seenWaits.has('newer:200')"),true);assert.equal(ctx.run('CV.pendingWait'),null);
+  ctx.renderScreen();clock+=7999;ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'newer');assert.equal(ctx.run('CV.followQueued'),'older');
+  clock+=2;ctx.cvFollowGo([ctx.run('CV.followQueued')]);
+  assert.equal(ctx.run('CV.focusSid'),'older');assert.equal(ctx.run("CV.seenWaits.has('older:100')"),false);
+  // A genuinely newer question can preempt the old backlog before its camera executes.
+  tasks[2].status='waiting';tasks[2].waitSince=300;ctx.renderScreen();
+  assert.equal(ctx.run('CV.focusSid'),'live');assert.equal(ctx.run("CV.seenWaits.has('older:100')"),false);
+  ctx.cvFitView(false);assert.equal(ctx.run("CV.seenWaits.has('live:300')"),true);
+  clock+=8001;ctx.renderScreen();assert.equal(ctx.run('CV.pendingWait.id'),'older');
+  tasks[0].status='done';tasks[0].endedAt=NOW;ctx.renderScreen();
+  assert.equal(ctx.run('CV.pendingWait'),null,'resolved pending questions cannot block normal follow');
 });
 
 function layoutWorld(ctx, heights, positions, selected='a', migrating=false) {
@@ -419,7 +560,7 @@ test('result summaries count unique item IDs and keep completed execution separa
   assert.match(markup,/未填写结果的步骤不计为通过/);
   ctx.run("CV.detailFilter='result'");markup=ctx.cvDetailHtml();
   assert.doesNotMatch(markup,/data-item-id="a"/);assert.match(markup,/data-item-id="b"/);
-  assert.equal(ctx.run('CV.follow'),false,'reading details disables camera following');
+  assert.equal(ctx.run('cvFollowing()'),false,'reading details pauses camera following');assert.equal(ctx.run('CV.follow'),true,'the user switch stays on');
   items[4].status='skipped';
   assert.match(ctx.cvResultSummary(items), /通过 0/,'a skipped step is never counted as passed');
   items[1].resultHistory=[{at:NOW-MIN,result:'unknown',note:'before retry',evidence:'receipt A'},{at:NOW,result:'failed',note:'recheck',evidence:'receipt B'}];
@@ -555,6 +696,8 @@ test('screen primary running count matches root tasks and lists child agents sep
   assert.match(ctx.markup, />2<\/b>在跑/, 'only parent and orphan count as running roots');
   assert.match(ctx.markup, />2<\/b>子 agent/, 'child agents have a separate count');
   assert.match(ctx.markup, />1<\/b>项等你/, 'waiting jump includes actual waiting child sessions');
+  assert.match(ctx.markup, /cv-rail-task wait[^>]*data-owner-id="wait-parent"/, 'a root whose child waits is marked in the rail');
+  assert.match(ctx.markup, /<em>子任务在等你<\/em>/);
   assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 6, 'count grouping never removes a child card');
 });
 
@@ -644,7 +787,7 @@ test('finished tasks and all-closed modules leave the canvas without changing so
   ctx.renderScreen();
   assert.match(ctx.markup, /scr-idle/);
   assert.doesNotMatch(ctx.markup, /class="cv-world/);
-  assert.match(ctx.markup, /已结束 1/);
+  assert.doesNotMatch(ctx.markup, /data-cv="history"|已结束 1/);
 });
 
 test('finished parent context never projects its old modules or resurrects an archived parent', () => {
@@ -657,21 +800,17 @@ test('finished parent context never projects its old modules or resurrects an ar
   assert.deepEqual(plain(ctx.cvCards().map(s => s.id)), ['kid']);
 });
 
-test('ended results stay in a bounded list and never return to tidy layout', () => {
+test('ended results remain in data but have no history surface on the big screen', () => {
   const sessions = Array.from({ length: 35 }, (_, i) => ({ id: `ended${i}`, status: 'done', endedAt: NOW - i, title: `ended ${i}`, items: [], summary: 'result' }));
   const ctx = screen(sessions);
-  ctx.run('CV.history=true');
+  ctx.run('CV.history=true'); // even a stale in-memory choice cannot restore removed UI
   ctx.renderScreen();
-  assert.equal((ctx.markup.match(/class="cv-history-entry"/g) || []).length, 20);
-  assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 0);
-  assert.match(ctx.markup, /已结束 35/);
-  assert.match(html, /\.cv-history\{[^}]*max-height:calc\(100vh - 84px\);overflow:auto/);
-  ctx.run("CV.historyOpen.add('ended0')");
-  ctx.renderScreen();
-  assert.match(ctx.markup, /data-owner-id="ended0" aria-expanded="true"/);
-  assert.match(ctx.markup, /<p>result<\/p>/);
-  ctx.renderScreen();
-  assert.match(ctx.markup, /data-owner-id="ended0" aria-expanded="true"/, 'task refresh preserves the explicitly expanded history result');
+  assert.doesNotMatch(ctx.markup, /data-cv="history"|class="cv-history-entry"|class="cv-card /);
+  assert.equal(ctx.S.sessions.size, 35);
+  assert.equal(ctx.S.sessions.get('ended0').summary, 'result');
+  const header = ctx.markup.match(/<header class="scr-h">([\s\S]*?)<\/header>/)[1];
+  assert.match(header, /data-scr-date/, 'empty screens also keep the clock in the top-right');
+  assert.equal((ctx.markup.match(/data-scr-clk/g) || []).length, 1);
 });
 
 test('new current steps collapse a manually expanded module and root back to their focused windows', () => {
@@ -740,7 +879,7 @@ test('tidy lays out full recursive branches with spacing and keeps even a cyclic
   for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.equal(apart(rects[i], rects[j]), true, `${nodes[i].id} overlaps ${nodes[j].id}`);
 });
 
-test('the canvas renders only active cards, keeps ended results in history and leaves checklists folded like the float window', () => {
+test('the canvas renders only active cards and leaves checklists folded like the float window', () => {
   const ctx = screen([
     { id: 'a', agent: 'codex', status: 'running', createdAt: 2, updatedAt: NOW, title: 'task a', items: [] },
     { id: 'w', agent: 'kiro', status: 'waiting', createdAt: 1, waitSince: NOW - 3 * MIN, updatedAt: NOW, title: 'task w', statusNote: 'delete the cache?', items: [] },
@@ -748,7 +887,7 @@ test('the canvas renders only active cards, keeps ended results in history and l
   ]);
   ctx.renderScreen();
   assert.equal((ctx.markup.match(/class="cv-card /g) || []).length, 2);
-  assert.match(ctx.markup, /data-cv="history"[^>]*>已结束 1/);
+  assert.doesNotMatch(ctx.markup, /data-cv="history"/);
   assert.match(ctx.markup, /class="scr warn"/);
   assert.match(ctx.markup, /delete the cache\?/);
   assert.match(ctx.markup, /data-cv="wait"/);
@@ -802,14 +941,18 @@ test('selected topology updates coalesce into a camera focus, wait for interacti
   fire();
   assert.equal(arranged, 1);
   ctx.S.sessions.get('a').title = 'new title';
-  ctx.S.sessions.get('a').items = [{ id: 'new-step', status: 'doing' }];
   ctx.renderScreen();
-  assert.equal(timers.size, 0, 'same nodes and parents keep the user layout');
+  assert.equal(timers.size, 0, 'a title refresh keeps the user layout and camera');
   ctx.S.sessions.get('b').status = 'done';
   ctx.renderScreen();
   assert.equal(timers.size, 1, 'selected completion focuses the remaining root without a global tidy');
   fire();
   assert.equal(arranged, 2);
+  ctx.S.sessions.get('a').items = [{ id: 'new-step', status: 'doing' }];
+  ctx.renderScreen();
+  assert.equal(timers.size, 1, 'an item status change is an update that auto-follow moves the camera to');
+  fire();
+  assert.equal(arranged, 3); assert.equal(ctx.run('CV.focusSid'), 'a');
 });
 
 test('legacy saved canvases upgrade once while the current layout schema keeps a matching topology', () => {
@@ -897,14 +1040,15 @@ test('fit and arrange ignore outgoing morph ghosts', () => {
   assert.equal(els[1].style.left, undefined);
 });
 
-test('manual history archive uses the shared tree contract and shows busy and failures', async () => {
-  const owner = { id: 'ended', status: 'done', endedAt: NOW, updatedAt: NOW, title: 'finished', items: [] };
-  const ctx = screen([owner]);
+test('manual cleanup archive uses the shared tree contract and shows busy and failures', async () => {
+  const owner = { id: 'ended', status: 'done', endedAt: NOW - 40 * MIN, updatedAt: NOW - 40 * MIN, title: 'finished', items: [] };
+  const child = { id: 'stale', parentId: 'ended', status: 'running', updatedAt: NOW - 40 * MIN, title: 'stale child', items: [] };
+  const ctx = screen([owner, child]);
   const calls = [];
   let finishArchive;
   ctx.fetch = (...args) => { calls.push(args); return new Promise(resolve => { finishArchive = () => resolve({ ok: true, json: async () => ({ sessions: [{ ...owner, archived: true }] }) }); }); };
   ctx.ingest = s => { Object.assign(owner, s); ctx.S.sessions.set(s.id, s); };
-  ctx.run('CV.history=true');
+  ctx.run('CV.cleanup=true');
   const archive = ctx.cvArchive('ended');
   ctx.renderScreen();
   assert.match(ctx.markup, /data-cv="archive" data-owner-id="ended" disabled>归档中/);
@@ -925,8 +1069,8 @@ test('manual history archive uses the shared tree contract and shows busy and fa
   assert.equal(owner.archived, false);
   assert.equal(ctx.run('CV.needsArrange'), false, 'a failed archive does not request tidy');
   assert.match(ctx.markup, /data-cv="archive" data-owner-id="ended" >归档/);
-  assert.match(html, /\.cv-history-entry:hover \.cv-archive/);
-  assert.match(html, /\.cv-history-entry:focus-within \.cv-archive/);
+  assert.match(html, /\.cleanup-entry:hover \.cleanup-archive/);
+  assert.match(html, /\.cleanup-entry:focus-within \.cleanup-archive/);
 });
 
 test('new off-screen tasks adjust only the camera without requiring tidy', () => {

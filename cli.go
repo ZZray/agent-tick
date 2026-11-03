@@ -35,6 +35,9 @@ const cliHelp = `Tick 命令行（agent 用；协议见 http://127.0.0.1:7357/pr
   tick doing|done|skip|todo <会话> <序号或稳定ID> [--note "结果或原因"] [--result passed|failed|unknown|unverified] [--evidence "证据入口"]
   tick plan <会话> "条目"...      重发完整清单（文字相同的条目保留状态）
   tick add <会话> "条目"...       追加
+       多流程用 "# 大模块 / 子模块" 分段；步骤写清对象、动作和可检查的结果，doing 指向当前步骤
+       例：tick add <会话> "# 首轮验证 / 数据处理 / 二维处理" "调用二维傅里叶变换，核对输出矩阵尺寸"
+       先列已知模块范围，未来项 todo；切模块时收尾旧 doing，长步骤用 note 更新真实阶段与证据
   tick rename <会话> "稳定主题 · 当前目标"    更新标题，保留旧名供搜索
   tick wait <会话> --note "要你决定的问题"      会通知用户
   tick blocked <会话> --note "卡在哪"           会通知用户

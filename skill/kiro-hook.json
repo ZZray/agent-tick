@@ -7,7 +7,7 @@
       "description": "Every user message: if this conversation has a Tick session, the first tool call must update Tick before any other work.",
       "action": {
         "type": "agent",
-        "prompt": "Tick 同步：任务2步以上或预计超过5分钟先登记完整清单；同一对话复用原session_id，用plan/add追加，不另开。用户回复后先更新当前条目；开始doing、结束done并写证据。多个流程或职责用 # 父流程 / 子流程 分段，按真实工作单元一至三层，不为每条步骤造模块；业务分类不建子Agent，真实委派才建子会话，父模块自动汇总不重复加汇总任务。API按方法一条目，复测沿用稳定ID，Run链接放evidence；done仅执行结束，result显式记录passed/failed/unknown/unverified，skipped不算通过。失败只阻断依赖分支；waiting必须有具体用户问题，blocked写依赖，待续tick_pause/CLI pause，确有后台执行保留running并给证据，完成才finish。已返回子任务必须自己finish，取消写原因。不要为结束回复误报成功或制造等你，不通过归档冒充收尾。Tick返回遗漏提醒时先核实该条真实执行，再更新状态，不编进度、不批量勾完、不转无问题的等你。无MCP时用 {{EXE}}（PowerShell接 | Out-String）。"
+        "prompt": "Tick 同步：任务2步以上或预计超过5分钟先登记完整清单；同一对话复用原session_id，用plan/add追加，不另开。用户回复后先更新当前条目；开始doing、结束done并写证据。多个流程或职责用 # 大模块 / 子模块 分段，让无限画布能读出模块路径与当前步骤；步骤写清对象、动作和可检查的结果，先列已知范围，未来项todo，按真实工作单元一至三层，不为每条步骤造模块。切模块前核对旧doing，结束补done，依赖受阻写blocked和恢复条件；长步骤用note更新真实阶段与证据，不只改标题、不编百分比。业务分类不建子Agent，真实委派才建子会话，父模块自动汇总不重复加汇总任务。API按方法一条目，复测沿用稳定ID，Run链接放evidence；done仅执行结束，result显式记录passed/failed/unknown/unverified，skipped不算通过。失败只阻断依赖分支；waiting必须有具体用户问题，blocked写依赖，待续tick_pause/CLI pause，确有后台执行保留running并给证据，完成才finish。已返回子任务必须自己finish，取消写原因。不要为结束回复误报成功或制造等你，不通过归档冒充收尾。Tick返回遗漏提醒时先核实该条真实执行，再更新状态，不编进度、不批量勾完、不转无问题的等你。无MCP时用 {{EXE}}（PowerShell接 | Out-String）。"
       }
     }
   ]
