@@ -27,26 +27,26 @@ func TestDesktopSettingsReadAndWhitelist(t *testing.T) {
 	}
 	for _, body := range []map[string]any{
 		{"name": "float", "on": true}, {"name": "dnd", "on": false}, {"name": "autostart", "on": true}, {"name": "autoarchive", "on": true},
-		{"name": "trayflash", "on": false}, {"name": "notificationbadge", "on": false},
+		{"name": "trayflash", "on": false}, {"name": "notificationbadge", "on": false}, {"name": "marquee", "on": true},
 		{"name": "sound", "val": ""}, {"name": "toastlen", "val": "long"}, {"name": "lang", "val": "en"}, {"name": "theme", "val": "blue"},
 	} {
 		if state := h.ok("POST", "/api/desktop/settings", body); state["sound"] != "actual-owner-state" {
 			t.Fatalf("POST must return confirmed owner state, not echo the request: %v", state)
 		}
 	}
-	if calls.Load() != 11 {
+	if calls.Load() != 12 {
 		t.Fatalf("owner calls: %d", calls.Load())
 	}
 	for _, body := range []map[string]any{
 		{}, {"name": "quit"}, {"name": "update"}, {"name": "pin", "on": true},
-		{"name": "dnd"}, {"name": "dnd", "on": "true"}, {"name": "float", "val": "true"}, {"name": "autoarchive"}, {"name": "autoarchive", "on": true, "val": "true"},
+		{"name": "dnd"}, {"name": "dnd", "on": "true"}, {"name": "float", "val": "true"}, {"name": "autoarchive"}, {"name": "autoarchive", "on": true, "val": "true"}, {"name": "marquee"}, {"name": "marquee", "on": true, "val": "true"},
 		{"name": "sound"}, {"name": "sound", "val": 1}, {"name": "lang", "val": "en", "on": true},
 	} {
 		if code, _, _ := h.do("POST", "/api/desktop/settings", body); code != 400 {
 			t.Fatalf("invalid settings request accepted: %v => %d", body, code)
 		}
 	}
-	if calls.Load() != 11 {
+	if calls.Load() != 12 {
 		t.Fatal("invalid requests reached the desktop owner")
 	}
 	if code, _, _ := h.do("POST", "/api/desktop/settings", map[string]any{"name": "dnd", "on": true}, "Origin", "https://elsewhere.example"); code != 403 {

@@ -100,6 +100,7 @@ type deskSettings struct {
 	Theme            string    // 主题色 ID，取 themes 里的一个；"" = 默认翠绿
 	Lang             string    // 界面语言："" 跟系统、"zh"、"en"（启动时在 main 里读，见 langPref）
 	Strip            bool      // 贴边收起时缩成贯穿屏幕边缘的长条（每个任务一段颜色，悬停出子步骤卡片）；默认关，用小环标签
+	Marquee          bool      // 屏幕跑马灯通知：提醒同时在屏幕上方以光带滚动显示（默认关）
 	ToastLen         string    // 右下角提醒卡停留多久："short"（一半）、""（标准）、"long"（两倍）
 	Width            float64   // 正常悬浮面板的用户偏好宽度（CSS px）；0 沿用默认 340
 }

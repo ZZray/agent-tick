@@ -42,6 +42,48 @@ func TestAutoArchiveSettingDefaultsPersistsAndRollsBackOnError(t *testing.T) {
 	}
 }
 
+func TestMarqueeSettingDefaultsOffPersistsAndRollsBackOnError(t *testing.T) {
+	tr, _ := settingsTestTray(t)
+	if tr.f.set.Marquee || tr.state().Marquee || tr.f.marqueeOn() {
+		t.Fatal("marquee must default off")
+	}
+	if _, err := tr.applySetting("marquee", true, ""); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(tr.f.file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var restored deskSettings
+	if err := json.Unmarshal(b, &restored); err != nil {
+		t.Fatal(err)
+	}
+	if !restored.Marquee || !tr.state().Marquee || !tr.f.marqueeOn() {
+		t.Fatal("enabled state not persisted and exposed")
+	}
+	tr.f.file = t.TempDir()
+	if _, err := tr.applySetting("marquee", false, ""); err == nil {
+		t.Fatal("settings write error was swallowed")
+	}
+	if !tr.f.set.Marquee {
+		t.Fatal("failed write changed enabled preference")
+	}
+}
+
+func TestMarqueeIgnoresItemCardsAndDisabledSwitch(t *testing.T) {
+	tr, _ := settingsTestTray(t)
+	before := len(theMarquee.queue)
+	tr.f.marquee("done", `{"kind":"done"}`) // 开关默认关
+	if len(theMarquee.queue) != before || theMarquee.opening {
+		t.Fatal("disabled marquee must not queue or open a window")
+	}
+	tr.f.set.Marquee = true
+	tr.f.marquee("item", `{"kind":"item"}`) // 勾一项不上屏幕
+	if len(theMarquee.queue) != before || theMarquee.opening {
+		t.Fatal("item cards must not reach the marquee")
+	}
+}
+
 func TestNotificationDisplaySettingsPersistIndependentlyAndRollback(t *testing.T) {
 	tr, _ := settingsTestTray(t)
 	if !tr.state().TrayFlash || !tr.state().NotificationBadge {

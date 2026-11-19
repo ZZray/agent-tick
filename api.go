@@ -66,7 +66,7 @@ type desktopSettingsHandler func(context.Context, *desktopSettingsInput) (state 
 
 func (in desktopSettingsInput) validate() error {
 	switch in.Name {
-	case "float", "dnd", "autostart", "autoarchive", "trayflash", "notificationbadge":
+	case "float", "dnd", "autostart", "autoarchive", "trayflash", "notificationbadge", "marquee":
 		if in.On == nil || in.Val != nil {
 			return bad("%s 需要布尔值 on，不接受 val", in.Name)
 		}

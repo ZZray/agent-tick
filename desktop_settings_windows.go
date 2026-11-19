@@ -94,6 +94,18 @@ func (t *tray) applySetting(name string, on bool, val string) (bool, error) {
 			return false, err
 		}
 		return false, nil
+	case "marquee":
+		f.mu.Lock()
+		before := f.set.Marquee
+		f.set.Marquee = on
+		f.mu.Unlock()
+		if err := f.saveSettings(); err != nil {
+			f.mu.Lock()
+			f.set.Marquee = before
+			f.mu.Unlock()
+			return false, err
+		}
+		return false, nil
 	case "trayflash", "notificationbadge":
 		f.mu.Lock()
 		flag := &f.set.NoTrayFlash

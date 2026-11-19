@@ -47,6 +47,7 @@ type trayState struct {
 	Strip             bool         `json:"strip"`
 	Screen            bool         `json:"screen"` // 大屏窗口开着
 	ToastLen          string       `json:"toastLen"`
+	Marquee           bool         `json:"marquee"`
 	Themes            []colorTheme `json:"themes"`
 	Version           string       `json:"version"`
 	Pending           string       `json:"pending"`
@@ -65,7 +66,7 @@ func (t *tray) state() trayState {
 	f := t.f
 	f.mu.Lock()
 	st := trayState{Pinned: f.set.Pinned, AutoHide: !f.set.NoAutoHide, FsHide: !f.set.NoFullscreenHide, DndUntil: f.set.DndUntil,
-		AutoUpdate: !f.set.NoAutoUpdate, AutoArchive: f.set.AutoArchive, TrayFlash: !f.set.NoTrayFlash, NotificationBadge: !f.set.NoBadge, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen}
+		AutoUpdate: !f.set.NoAutoUpdate, AutoArchive: f.set.AutoArchive, TrayFlash: !f.set.NoTrayFlash, NotificationBadge: !f.set.NoBadge, Sound: f.set.Sound, Lang: f.set.Lang, Strip: f.set.Strip, ToastLen: f.set.ToastLen, Marquee: f.set.Marquee}
 	f.mu.Unlock()
 	st.Visible = f.visible() && !f.tucked.Load()
 	st.Screen = screenOn()
@@ -116,7 +117,7 @@ func (t *tray) act(name string, on bool, val string) {
 		}
 	case "fs":
 		setFlag(&f.set.NoFullscreenHide, !on)
-	case "dnd", "autostart", "toastlen", "sound", "lang", "theme", "autoarchive", "trayflash", "notificationbadge":
+	case "dnd", "autostart", "toastlen", "sound", "lang", "theme", "autoarchive", "trayflash", "notificationbadge", "marquee":
 		restart, err := t.applySetting(name, on, val)
 		if err != nil {
 			log.Printf("设置 %s 失败：%v", name, err)

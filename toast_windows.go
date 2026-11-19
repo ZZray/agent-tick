@@ -56,6 +56,7 @@ func (f *floatWin) toast(card string) {
 	case trayFlash <- n:
 	default:
 	}
+	f.marquee(c.Kind, card)
 	t := theToast
 	t.mu.Lock()
 	if t.w != nil && t.ready {
@@ -110,18 +111,7 @@ func (t *toastWin) open(f *floatWin) {
 		}
 	})
 	_ = w.Bind("tickToastFit", func(cw, ch float64) { t.fit(f, cw, ch) })
-	_ = w.Bind("tickToastOpen", func(sid string) {
-		select { // 用户看到了，托盘别再闪
-		case trayFlash <- 0:
-		default:
-		}
-		f.dispatch(func() {
-			f.summon()
-			if strings.HasPrefix(sid, "s_") {
-				f.w.Eval(fmt.Sprintf("window.tickFocus && tickFocus(%q)", sid))
-			}
-		})
-	})
+	_ = w.Bind("tickToastOpen", f.openSession)
 	t.mu.Lock()
 	t.w, t.hwnd = w, h
 	t.mu.Unlock()
@@ -160,4 +150,18 @@ func (t *toastWin) fit(f *floatWin, cw, ch float64) {
 	m := int32(12*s + 0.5)
 	wa := f.workArea()
 	pSetWindowPos.Call(h, ^uintptr(0), uintptr(wa.Right-pw-m), uintptr(wa.Bottom-ph-m), uintptr(pw), uintptr(ph), swpNoActivate|0x40) // HWND_TOPMOST, SWP_SHOWWINDOW
+}
+
+// openSession 用户点了提醒（右下角卡片或屏幕跑马灯）：托盘停闪，打开悬浮窗并定位到那个会话
+func (f *floatWin) openSession(sid string) {
+	select { // 用户看到了，托盘别再闪
+	case trayFlash <- 0:
+	default:
+	}
+	f.dispatch(func() {
+		f.summon()
+		if strings.HasPrefix(sid, "s_") {
+			f.w.Eval(fmt.Sprintf("window.tickFocus && tickFocus(%q)", sid))
+		}
+	})
 }

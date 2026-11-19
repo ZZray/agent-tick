@@ -1485,6 +1485,39 @@ button.scr-kpi.wait:focus-visible{outline:2px solid var(--orange);outline-offset
 .scr-idle span{font-size:1.2em}
 .scr-idle em{font-style:normal;margin-top:1em;color:var(--text-4)}
 @media (prefers-reduced-motion:reduce){.scr::before,.cv-world.anim,.cv-card,.cv-world.arranging>.cv-card{transition:none}.cv-edges .cv-flow{display:none;animation:none}}
+/* ============ 屏幕跑马灯（view=marquee）：窗口全透明、点穿；一条光带 + 滚动文字 ============ */
+@property --mqw{syntax:'<percentage>';inherits:false;initial-value:0%}
+html[data-view=marquee],html[data-view=marquee] body{background:transparent!important;overflow:hidden}
+.mq-stage{position:fixed;inset:0;pointer-events:none}
+.mq-bar{pointer-events:auto;cursor:pointer}
+.mq-bar{position:absolute;left:0;right:0;top:50%;height:76px;margin-top:-38px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+.mq-glow{position:absolute;inset:0;opacity:0;animation:mq-breathe 3.2s ease-in-out infinite;
+  background:radial-gradient(ellipse 55% 130% at 50% 50%,color-mix(in srgb,var(--k) 34%,transparent),transparent 72%),linear-gradient(90deg,transparent,rgba(8,9,10,.62) 22%,rgba(8,9,10,.62) 78%,transparent)}
+@keyframes mq-breathe{50%{filter:brightness(1.35)}}
+.mq-ln{position:absolute;left:0;right:0;height:1px;overflow:hidden;transform:scaleX(0);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--k) 55%,transparent) 50%,transparent)}
+.mq-ln.t{top:0}.mq-ln.b{bottom:0}
+.mq-ln::after{content:"";position:absolute;top:-1px;height:3px;width:160px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--kl) 60%,#fff);box-shadow:0 0 12px 2px var(--k)}
+.mq-ln.t::after{left:-160px;animation:mq-cometR 2.4s cubic-bezier(.4,0,.2,1) infinite}
+.mq-ln.b::after{right:-160px;background:linear-gradient(270deg,transparent,var(--kl) 60%,#fff);animation:mq-cometL 2.4s cubic-bezier(.4,0,.2,1) .5s infinite}
+@keyframes mq-cometR{to{transform:translateX(1200px)}}
+@keyframes mq-cometL{to{transform:translateX(-1200px)}}
+.mq-scan{position:absolute;top:6px;bottom:6px;left:0;width:2px;opacity:0;border-radius:2px;background:linear-gradient(transparent,#fff,transparent);box-shadow:0 0 18px 4px var(--k),0 0 40px 8px color-mix(in srgb,var(--k) 50%,transparent)}
+.mq-vp{position:absolute;inset:0;overflow:hidden}
+.mq-track{position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;gap:14px;white-space:nowrap;will-change:transform,filter;transform:translateX(120vw)}
+.mq-badge{position:relative;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--k);color:#08090A;font-weight:800;font-size:17px;box-shadow:0 0 16px color-mix(in srgb,var(--k) 70%,transparent)}
+.mq-badge::before,.mq-badge::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--k);animation:mq-ring 1.8s ease-out infinite}
+.mq-badge::after{animation-delay:.9s}
+@keyframes mq-ring{from{transform:scale(1);opacity:.7}to{transform:scale(2.2);opacity:0}}
+.mq-title{font-size:15px;font-weight:650;letter-spacing:.02em;color:var(--kl);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)) drop-shadow(0 0 8px color-mix(in srgb,var(--k) 60%,transparent))}
+.mq-sep{width:4px;height:4px;border-radius:50%;background:var(--k);box-shadow:0 0 8px var(--k);flex:none}
+.mq-msg{font-size:26px;font-weight:600;letter-spacing:.01em;color:transparent;background:linear-gradient(100deg,#fff 0%,#fff 36%,var(--kl) 50%,#fff 64%,#fff 100%);background-size:260% 100%;-webkit-background-clip:text;background-clip:text;
+  animation:mq-shimmer 2.8s linear infinite;filter:drop-shadow(0 2px 3px rgba(0,0,0,.75)) drop-shadow(0 0 14px color-mix(in srgb,var(--k) 65%,transparent));
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(var(--mqw) - 18%),transparent var(--mqw));mask-image:linear-gradient(90deg,#000 calc(var(--mqw) - 18%),transparent var(--mqw))}
+@keyframes mq-shimmer{from{background-position:130% 0}to{background-position:-30% 0}}
+.mq-sub{font-size:13px;color:#B4B7BC;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8))}
+.mq-cv{position:fixed;inset:0;pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -1503,6 +1536,7 @@ const NATIVE = typeof window.tickDrag === 'function'; // Go 宿主注入的函�
 const FLOAT = VIEW === 'float' || VIEW === 'mini';
 const TOAST = VIEW === 'toast'; // 屏幕右下角的提醒卡窗口：只显示悬浮窗转过来的卡片，不连数据
 const MENU_SUB = VIEW === 'menu' && qs.get('submenu') === '1';
+const MARQUEE = VIEW === 'marquee'; // 屏幕上方的跑马灯通知：全透明点穿窗口，只显示宿主转来的提醒
 const MENU = VIEW === 'menu';   // 托盘右键的宫格弹窗：状态和动作都走宿主绑定
 const PEEK = VIEW === 'peek';   // 鼠标停在托盘图标上弹出的未读列表（像微信）
 const CARD = VIEW === 'card';   // 鼠标停在贴边长条某一段上弹出的详情卡（具体子步骤）
@@ -2094,6 +2128,7 @@ function renderNow() {
   document.documentElement.dataset.theme = S.theme;
   // 毛玻璃的着色跟页面主题走（深色主题用深色 Acrylic）
   if (NATIVE && S.themeSent !== S.theme && typeof window.tickTheme === 'function') { S.themeSent = S.theme; window.tickTheme(S.theme === 'dark'); }
+  if (MARQUEE) return; // 跑马灯页面自己管 DOM，不画面板
   if (TOAST) return renderToast();
   if (MENU) return renderMenu();
   if (PEEK) return renderPeek();
@@ -2207,6 +2242,175 @@ function renderToast() {
     </div>`).join('')}</div>` : '');
   settle(entered);
   // 原来新卡片还会沿边框绕一圈光（edgeBeam）；现在由图标自己“画圈落标记”表达，边框不再绕光
+}
+
+
+// ======================================================================
+// 屏幕跑马灯（view=marquee）：宿主把“做完 / 失败 / 等你 / 卡住”的提醒卡转来（tickMarqueeAdd），
+// 逐条排队播放：光线展开 → 文字从右滑入并扫亮 → 停留（长文本匀速跑马）→ 向左冲出。播完队列通知宿主藏窗口。
+// 窗口不抢焦点、不能点穿（见 marquee_windows.go）：鼠标停在光带上就不消失（光效照常播放），点一下打开对应会话并收起；“减少动态”时只淡入淡出。
+// ======================================================================
+const MQ_COLOR = { done: ['#4CB782', '#c6f3dc', '✓'], waiting: ['#F2994A', '#ffe0bf', 'Ⅱ'], failed: ['#EB5757', '#ffd0d0', '✕'], blocked: ['#F2C94C', '#fff0b8', '–'] };
+const MQ_HOLD = { done: 4000, failed: 5500, waiting: 5500, blocked: 5500 }; // 毫秒，再按“提醒停留”设置缩放
+function startMarquee() {
+  document.documentElement.dataset.view = 'marquee';
+  const stage = document.createElement('div'); stage.className = 'mq-stage';
+  const cv = document.createElement('canvas'); cv.className = 'mq-cv';
+  root.replaceChildren(stage, cv);
+  const ctx = cv.getContext('2d');
+  const EASE_OUT = 'cubic-bezier(.16,1,.3,1)', EASE_IN = 'cubic-bezier(.7,0,.84,0)';
+  const ABORT = Symbol('mq-abort');
+  const queue = [];
+  let running = false, parts = [], emit = null;
+  let ep = 0;                     // 世代：点击收起后加一，旧的播放据此中止
+  let bar = null, phase = '', cardSid = '';
+  let hovering = false, interrupt = false, nap1 = null;
+  const fit = () => { const d = devicePixelRatio || 1; cv.width = innerWidth * d; cv.height = innerHeight * d; ctx.setTransform(d, 0, 0, d, 0, 0); };
+  addEventListener('resize', fit); fit();
+
+  // 可暂停的等待：只有“停留”阶段会在鼠标悬停时把倒计时停住（不退场），移开后接着走；
+  // 光效动画本身不停。点击收起（世代变了）时醒来即中止
+  const startNap = () => { nap1.paused = false; nap1.at = performance.now(); nap1.t = setTimeout(nap1.resolve, nap1.left); };
+  const stopNap = () => { clearTimeout(nap1.t); nap1.left -= performance.now() - nap1.at; nap1.paused = true; };
+  const skipNap = () => { if (nap1) { clearTimeout(nap1.t); nap1.resolve(); } };
+  const nap = (ms, my) => new Promise(resolve => { nap1 = { resolve, left: ms, t: 0, at: 0, paused: false }; if (hovering && phase === 'hold') nap1.paused = true; else startNap(); })
+    .then(() => { nap1 = null; if (ep !== my) throw ABORT; });
+  const A = (el, kf, o) => el.animate(kf, { fill: 'forwards', ...o });
+
+  // 光尘：只在播放中或还有粒子时才跑帧；悬停时整体静止
+  let last = 0, raf = 0;
+  const frame = t => {
+    const dt = Math.min(40, t - (last || t)); last = t;
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    if (emit && !RM.matches) {
+      const tr = emit.track.getBoundingClientRect(), br = emit.bar.getBoundingClientRect();
+      const n = emit.rate * dt / 16, cnt = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
+      for (let i = 0; i < cnt; i++) {
+        const x = tr.right - Math.random() * 40, y = br.top + br.height / 2 + (Math.random() - .5) * 34;
+        if (x < br.left + 60 || x > br.right - 90) continue;
+        parts.push({ x, y, vx: .25 + Math.random() * .9, vy: (Math.random() - .5) * .3, life: 0, max: 600 + Math.random() * 700, r: .7 + Math.random() * 1.6, c: emit.c });
+      }
+    }
+    parts = parts.filter(p => (p.life += dt) < p.max);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of parts) {
+      p.x += p.vx * dt / 16; p.y += p.vy * dt / 16;
+      const a = 1 - p.life / p.max;
+      ctx.globalAlpha = a * .9; ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + a), 0, 6.283); ctx.fill();
+    }
+    if (emit || parts.length) raf = requestAnimationFrame(frame);
+    else { raf = 0; last = 0; ctx.clearRect(0, 0, innerWidth, innerHeight); }
+  };
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+
+  // 收起当前并清空队列（点击之后）：不再继续播后面的
+  const dismiss = () => {
+    ep++; skipNap(); queue.length = 0; parts = []; emit = null;
+    hovering = false; interrupt = false;
+    stage.replaceChildren(); bar = null; phase = '';
+    window.tickMarqueeIdle();
+  };
+  // 鼠标移上光带：不消失，只停住“停留”倒计时，所有光效照常播放；退场途中移上来则取消退场（见 play 的循环）
+  const onEnter = () => {
+    if (hovering || !bar) return;
+    hovering = true;
+    if (phase === 'out') { interrupt = true; skipNap(); }
+    else if (phase === 'hold' && nap1 && !nap1.paused) stopNap();
+  };
+  const onLeave = () => {
+    if (!hovering) return;
+    hovering = false;
+    if (nap1?.paused) startNap();
+  };
+
+  async function play(c, backlog, my) {
+    const [k, kl, ic] = MQ_COLOR[c.kind] || MQ_COLOR.done;
+    const verb = { done: '做完了', failed: '没做成', waiting: '在等你', blocked: '卡住了' }[c.kind] || '';
+    const sub = c.sub ? `${c.sub}${c.total ? ` · ${c.done}/${c.total}` : ''}` : '';
+    cardSid = c.sid || '';
+    bar = document.createElement('div'); bar.className = 'mq-bar';
+    bar.style.setProperty('--k', k); bar.style.setProperty('--kl', kl);
+    bar.addEventListener('pointerenter', onEnter); bar.addEventListener('pointerleave', onLeave);
+    bar.innerHTML = `<div class="mq-glow"></div><i class="mq-ln t"></i><i class="mq-ln b"></i><i class="mq-scan"></i>
+      <div class="mq-vp"><div class="mq-track"><span class="mq-badge">${ic}</span><span class="mq-title">${esc(c.agent)} ${verb}</span><span class="mq-sep"></span><span class="mq-msg">${esc(firstLine(c.text || ''))}</span>${sub ? `<span class="mq-sub">${esc(sub)}</span>` : ''}</div></div>`;
+    stage.appendChild(bar);
+    const q = s => bar.querySelector(s), track = q('.mq-track'), msg = q('.mq-msg'), glow = q('.mq-glow'), scan = q('.mq-scan'), lns = [...bar.querySelectorAll('.mq-ln')];
+    const barW = bar.clientWidth, trackW = track.scrollWidth, pad = 70;
+    const long = trackW > barW - pad * 2, startX = long ? pad : (barW - trackW) / 2;
+    const scale = (Number(c.ttl) || 0) / (TOAST_TTL[c.kind] || 7000) || 1;
+    const hold = (MQ_HOLD[c.kind] || 4000) * scale * (backlog > 0 ? .6 : 1); // 积压时每条缩短
+    if (RM.matches) { // 减少动态：居中静止，只淡入淡出
+      phase = 'hold';
+      track.style.transform = `translateX(${startX}px)`; msg.style.setProperty('--mqw', '135%');
+      A(bar, [{ opacity: 0 }, { opacity: 1 }], { duration: 250 });
+      await nap(Math.max(hold, 2000), my);
+      A(bar, [{ opacity: 1 }, { opacity: 0 }], { duration: 250 });
+      await nap(250, my);
+      bar.remove(); bar = null; phase = ''; return;
+    }
+    phase = 'in';
+    lns.forEach(l => A(l, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 420, easing: EASE_OUT }));
+    A(glow, [{ opacity: 0, transform: 'scaleY(.15)' }, { opacity: 1, transform: 'scaleY(1)' }], { duration: 520, delay: 120, easing: EASE_OUT });
+    A(scan, [{ left: '6%', opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: 1, offset: .8 }, { left: '94%', opacity: 0 }], { duration: 850, delay: 80, easing: 'cubic-bezier(.5,0,.2,1)' });
+    await nap(150, my);
+    emit = { bar, track, c: k, rate: 1.1 }; kick();
+    A(msg, [{ '--mqw': '0%' }, { '--mqw': '135%' }], { duration: 850, delay: 150, easing: 'cubic-bezier(.4,0,.2,1)' });
+    A(track, [{ transform: `translateX(${barW}px)`, filter: 'blur(10px)' }, { transform: `translateX(${startX}px)`, filter: 'blur(0)' }], { duration: 1000, easing: EASE_OUT });
+    await nap(1000, my);
+    phase = 'hold';
+    emit.rate = long ? .5 : .18;
+    let holdLeft;
+    if (long) {
+      const endX = barW - pad - trackW, ms = (startX - endX) / 0.085; // 85px/s
+      await nap(500, my);
+      A(track, [{ transform: `translateX(${startX}px)` }, { transform: `translateX(${endX}px)` }], { duration: ms, easing: 'linear' });
+      holdLeft = ms + Math.min(700, hold * .3);
+    } else {
+      A(track, [{ transform: `translateX(${startX}px)` }, { transform: `translateX(${startX - 34}px)` }], { duration: hold, easing: 'linear' });
+      holdLeft = hold;
+    }
+    for (;;) {
+      await nap(holdLeft, my);
+      // 退场：加速向左冲出 + 模糊，随后光线收回中间
+      phase = 'out'; emit.rate = 0;
+      const cur = new DOMMatrix(getComputedStyle(track).transform).m41;
+      const ex = [
+        A(track, [{ transform: `translateX(${cur}px)`, filter: 'blur(0)', opacity: 1 }, { transform: `translateX(${-trackW - 40}px)`, filter: 'blur(10px)', opacity: .2 }], { duration: 700, easing: EASE_IN }),
+        A(glow, [{ opacity: 1 }, { opacity: 0, transform: 'scaleY(.15)' }], { duration: 450, delay: 300, easing: 'ease-in' }),
+        ...lns.map(l => A(l, [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(0)', opacity: 0 }], { duration: 420, delay: 380, easing: 'ease-in' })),
+      ];
+      await nap(1000, my);
+      if (!interrupt) break;
+      // 退场途中鼠标又移上来：取消退场，回到停留状态，移开后再多停一会儿
+      interrupt = false;
+      ex.forEach(a => a.cancel());
+      phase = 'hold'; emit.rate = .18; holdLeft = 1500;
+    }
+    emit = null; bar.remove(); bar = null; phase = '';
+  }
+  async function pump() {
+    running = true;
+    while (queue.length) {
+      try { await play(queue.shift(), queue.length, ep); } catch (err) { if (err !== ABORT) { console.error('marquee', err); stage.replaceChildren(); emit = null; bar = null; } }
+    }
+    running = false;
+    window.tickMarqueeIdle(); // 队列播完：宿主藏窗口、空闲后销毁
+  }
+  // 点一下：收起，并打开这条提醒对应的会话（和右下角卡片的点击一致）
+  stage.addEventListener('click', () => {
+    if (!bar) return;
+    const sid = cardSid;
+    dismiss();
+    if (sid) window.tickMarqueeOpen(sid);
+  });
+  // 宿主每转来一张卡调用一次；排队上限 4 条，满了丢最旧的
+  window.tickMarqueeAdd = card => {
+    queue.push(card);
+    if (queue.length > 4) queue.shift();
+    if (!running) pump();
+  };
+  window.tickMarqueeReady();
 }
 
 // ======================================================================
@@ -2446,7 +2650,7 @@ function startMenu() {
   window.tickMenuHidden = () => { cancelHover(); pickClose(); tipHide(); S.menuErr = null; root.querySelector('.mn')?.blur(); };
   // 开关先在界面上拨过去，再等宿主改；宿主回来的状态和点的不一样就是没改成，拨回去并说一声。
   // 只核对同步生效的两项（写注册表 / 存设置）；置顶、贴边这些宿主排队异步改，回来时可能还是旧值
-  const CHECKED = { trayflash: ['trayFlash', '托盘闪烁没改成'], notificationbadge: ['notificationBadge', '未读角标没改成'], autoarchive: ['autoArchive', '自动归档没改成'], autostart: ['autostart', '开机启动没设上'], autoupdate: ['autoUpdate', '自动更新没改成'] };
+  const CHECKED = { trayflash: ['trayFlash', '托盘闪烁没改成'], notificationbadge: ['notificationBadge', '未读角标没改成'], autoarchive: ['autoArchive', '自动归档没改成'], marquee: ['marquee', '屏幕跑马灯没改成'], autostart: ['autostart', '开机启动没设上'], autoupdate: ['autoUpdate', '自动更新没改成'] };
   const act = async (name, on, val = '') => {
     let st = '';
     try { st = await window.tickMenuAct(name, on, val); } catch { /* 宿主异常时按没改成处理 */ }
@@ -2509,6 +2713,7 @@ function renderMenu() {
       ${sw('strip', '贴边收成长条', m.strip, '贴边收起时变成贯穿屏幕边缘的细条，每个任务一种颜色；鼠标停在某一段上看具体子步骤，Ctrl+Alt+← → 切换，点一下展开')}
       ${sw('trayflash', '托盘闪烁', m.trayFlash !== false)}
       ${sw('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}
+      ${sw('marquee', '屏幕跑马灯', m.marquee, '做完、失败、等你、卡住时，在屏幕上方滚动一条光带提醒，几秒后自动消失；鼠标停在上面就不会消失，点一下打开对应会话；不抢焦点')}
       ${sw('autoarchive', '自动归档残留任务', m.autoArchive)}
       ${sw('autoupdate', '自动更新', m.autoUpdate, '每 12 小时检查一次，空闲时重启到新版本')}
       <div class="mn-row nohov"><span class="grow">提示音</span>${pickHtml('m-sound', [{ id: '', name: '静音' }, ...(m.sounds || [])], m.sound || '', '提示音')}</div>
@@ -5030,7 +5235,7 @@ function renderSettings() {
       ${toggle('dnd', m.dnd ? '勿扰中' : '勿扰 1 小时', m.dnd)}
     </section>` : ''}
     <section class="settings-section"><h3>常规</h3>
-      ${m ? `${row('界面语言', pickHtml('s-lang', [{id:'',name:'跟随系统'},{id:'zh',name:'中文'},{id:'en',name:'English'}], m.lang || '', tr('界面语言')))}<p class="settings-note">切换语言会重启 Tick。</p>${toggle('autostart', '开机启动', m.autostart)}${toggle('trayflash', '托盘闪烁', m.trayFlash !== false)}${toggle('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}${toggle('autoarchive', '自动归档残留任务', m.autoArchive)}<p class="settings-note">默认关闭。整组结束 30 分钟后，或主任务已结束且所有子任务 60 分钟无更新后归档；近期对话活动、等待、受阻和待续任务会保留。新进度会自动恢复。</p>` : ''}
+      ${m ? `${row('界面语言', pickHtml('s-lang', [{id:'',name:'跟随系统'},{id:'zh',name:'中文'},{id:'en',name:'English'}], m.lang || '', tr('界面语言')))}<p class="settings-note">切换语言会重启 Tick。</p>${toggle('autostart', '开机启动', m.autostart)}${toggle('trayflash', '托盘闪烁', m.trayFlash !== false)}${toggle('notificationbadge', '悬浮窗未读角标', m.notificationBadge !== false)}${toggle('marquee', '屏幕跑马灯', m.marquee)}${toggle('autoarchive', '自动归档残留任务', m.autoArchive)}<p class="settings-note">默认关闭。整组结束 30 分钟后，或主任务已结束且所有子任务 60 分钟无更新后归档；近期对话活动、等待、受阻和待续任务会保留。新进度会自动恢复。</p>` : ''}
       <button class="mn-row" data-act="settings-mini">${IC.pip}<span class="grow">打开小窗</span></button>
       <button class="mn-row" data-act="settings-guide">${IC.plug}<span class="grow">接入 agent</span></button>
     </section>
@@ -5085,7 +5290,7 @@ async function settingsAct(name, on, val = '') {
   settings.busy = true; settings.revision++; settings.error = ''; settings.readError = ''; clearTimeout(settings.timer); renderSettings();
   const generation = settings.generation;
   try {
-    const input = ['float','dnd','autostart','autoarchive','trayflash','notificationbadge'].includes(name) ? {name,on} : {name,val};
+    const input = ['float','dnd','autostart','autoarchive','trayflash','notificationbadge','marquee'].includes(name) ? {name,on} : {name,val};
     const res = await fetch('/api/desktop/settings', { method:'POST', headers:{'Content-Type':'application/json','X-Tick-User':'1'}, body:JSON.stringify(input), signal:AbortSignal.timeout(8000) });
     const m = await res.json();
     if (!res.ok) throw new Error(m.error || res.statusText);
@@ -6476,6 +6681,7 @@ window.tickVisible = on => {
   window.__tick = { S, PERF, render, edgeBeam }; // 本机调试和压测用
   // 提醒卡和面板没有宿主推的状态，主题色从 health 里取（悬浮窗和菜单之后还会收到宿主推的）
   if (!MENU) fetch('/api/health').then(r => r.json()).then(h => setTheme(h.theme)).catch(() => {});
+  if (MARQUEE) { document.title = 'Tick Marquee'; startMarquee(); return; }
   if (TOAST) { document.title = tr('Tick 提醒'); startToast(); return; }
   if (MENU) { document.title = tr('Tick 菜单'); startMenu(); return; }
   if (PEEK) { document.title = 'Tick 未读'; startPeek(); return; }
